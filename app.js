@@ -656,7 +656,9 @@ function updateChatList() {
 
         const chatText = document.createElement('span');
         chatText.textContent = chat.name;
-        chatText.onclick = () => {
+        chatText.style.pointerEvents = 'none'; // Ensure clicks bubble to the item
+
+        chatItem.onclick = () => {
             loadChatHistory(chat.id);
             if (window.innerWidth <= 768) closeSidebar();
         };
