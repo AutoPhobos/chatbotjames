@@ -36,7 +36,7 @@ async function ensureOramaIndex() {
 async function searchIndex(params) {
     await ensureOramaIndex();
     const { query, topK = 3 } = params;
-    return await oramaSearch(oramaIndex, { query, topK });
+    return await oramaSearch(oramaIndex, { term: query, limit: topK });
 }
 
 async function indexDocument(params) {
@@ -118,15 +118,29 @@ async function getWikipedia(params) {
 // ── Currency exchange (frankfurter.app, no key) ───────────────────────────
 async function getCurrency(params) {
     const { from, to, amount = 1 } = params;
+    const fromCode = from.toUpperCase();
+    const toCode = to.toUpperCase();
+
+    // Same-currency shortcut — frankfurter excludes the base from its rates object
+    if (fromCode === toCode) {
+        const amt = parseFloat(amount);
+        return { from: fromCode, to: toCode, rate: 1, amount: amt, converted: amt.toFixed(2) };
+    }
+
     const res = await fetch(
-        `https://api.frankfurter.app/latest?from=${from.toUpperCase()}&to=${to.toUpperCase()}`
+        `https://api.frankfurter.app/latest?from=${fromCode}&to=${toCode}`
     );
+    if (!res.ok) {
+        const text = await res.text().catch(() => String(res.status));
+        throw new Error(`Currency API error (${res.status}): ${text}`);
+    }
     const data = await res.json();
-    const rate = data.rates[to.toUpperCase()];
-    if (!rate) throw new Error(`Currency not found: ${to}`);
+    if (data.error) throw new Error(`Currency error: ${data.error}`);
+    const rate = data.rates[toCode];
+    if (!rate) throw new Error(`No rate found for ${fromCode} → ${toCode}`);
     return {
-        from: from.toUpperCase(),
-        to: to.toUpperCase(),
+        from: fromCode,
+        to: toCode,
         rate,
         amount: parseFloat(amount),
         converted: (parseFloat(amount) * rate).toFixed(2)
@@ -185,16 +199,20 @@ function generatePassword(params) {
 
 // ── Color palette generator ───────────────────────────────────────────────
 function generatePalette(params) {
-    const { base, scheme = 'complementary', count = 5 } = params;
+    const { base = '#3498db', scheme = 'complementary', count = 5 } = params;
 
     function hexToHsl(hex) {
-        let r = parseInt(hex.slice(1,3),16)/255;
-        let g = parseInt(hex.slice(3,5),16)/255;
-        let b = parseInt(hex.slice(5,7),16)/255;
+        // Ensure valid 6-char hex
+        const clean = (hex || '#3498db').replace(/^#/, '');
+        const full = clean.length === 3
+            ? clean.split('').map(c => c + c).join('')
+            : clean.padEnd(6, '0');
+        let r = parseInt(full.slice(0,2),16)/255;
+        let g = parseInt(full.slice(2,4),16)/255;
+        let b = parseInt(full.slice(4,6),16)/255;
         const max = Math.max(r,g,b), min = Math.min(r,g,b);
-        let h, s, l = (max+min)/2;
-        if (max === min) { h = s = 0; }
-        else {
+        let h = 0, s = 0, l = (max+min)/2;
+        if (max !== min) {
             const d = max - min;
             s = l > 0.5 ? d/(2-max-min) : d/(max+min);
             switch(max) {
@@ -213,14 +231,16 @@ function generatePalette(params) {
         return '#' + [f(0),f(8),f(4)].map(v=>v.toString(16).padStart(2,'0')).join('');
     }
 
-    const [h, s, l] = hexToHsl(base || '#3498db');
+    const [h, s, l] = hexToHsl(base);
     const colors = [];
-    const n = parseInt(count);
+    const n = Math.max(1, parseInt(count));
 
     if (scheme === 'analogous') {
         for (let i = 0; i < n; i++) colors.push(hslToHex((h + i*30) % 360, s, l));
     } else if (scheme === 'monochromatic') {
-        for (let i = 0; i < n; i++) colors.push(hslToHex(h, s, Math.max(10, Math.min(90, l - 30 + i*(60/(n-1))))));
+        // Guard divide-by-zero when n=1
+        const step = n > 1 ? 60 / (n - 1) : 0;
+        for (let i = 0; i < n; i++) colors.push(hslToHex(h, s, Math.max(10, Math.min(90, l - 30 + i * step))));
     } else if (scheme === 'triadic') {
         colors.push(hslToHex(h,s,l), hslToHex((h+120)%360,s,l), hslToHex((h+240)%360,s,l));
     } else {
@@ -319,13 +339,14 @@ function readClipboard(params) {
 
 // ── Timer/countdown ───────────────────────────────────────────────────────
 function timerTool(params) {
-    const { action, seconds, label } = params;
-    // Workers can't set DOM timers for the user — return info for main thread to handle
+    const { seconds, label } = params;
+    const s = Math.max(1, parseInt(seconds ?? 0));
+    // Signal the main thread to show the countdown widget via the bridge listener
+    self.postMessage({ status: 'timer', seconds: s, label: label ?? 'Timer' });
     return {
-        action,
-        seconds: parseInt(seconds ?? 0),
+        seconds: s,
         label: label ?? 'Timer',
-        note: 'Timer info returned — main thread will display countdown.'
+        note: 'Timer started.'
     };
 }
 

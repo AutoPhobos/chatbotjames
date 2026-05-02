@@ -47,10 +47,7 @@ function queueStreamText(targetId, fullText) {
 function drainStreamQueue(targetId) {
     const state = streamQueues.get(targetId);
     if (!state || state.displayed.length >= state.pending.length) {
-        if (state) {
-            state.running = false;
-            if (state.onDone) state.onDone();
-        }
+        if (state) state.running = false;
         return;
     }
     state.running = true;
@@ -169,7 +166,6 @@ async function handleToolCalls(message, targetId) {
 
     // Spread full chatHistory so the model knows the original question,
     // then append the assistant's tool-call turn and the tool results.
-    setIdleState(false);
     worker.postMessage({
         type: 'query',
         messages: [
@@ -177,11 +173,6 @@ async function handleToolCalls(message, targetId) {
             { role: 'assistant', content: message },
             { role: 'user', content: toolResultText }
         ],
-        params: {
-            temperature: 0.15,
-            top_k: 40,
-            top_p: 0.9,
-        },
         targetId: Date.now()
     });
 }
@@ -359,15 +350,13 @@ async function simulateCannedResponse(canned, targetId = null) {
     if (statusText) statusText.textContent = 'THINKING...';
     updateLiveBubble('...', targetId);
 
-    await new Promise(r => setTimeout(r, 400 + Math.random() * 300));
+    await new Promise(r => setTimeout(r, 400 + Math.random() * 500));
 
     if (statusText) statusText.textContent = 'RESPONDING...';
+    queueStreamText(targetId, canned);
 
-    // Wait for the stream to fully drain before unlocking the UI
-    await new Promise(resolve => {
-        streamQueues.set(targetId, { pending: canned, displayed: '', running: false, onDone: resolve });
-        drainStreamQueue(targetId);
-    });
+    const wordCount = canned.split(/\s+/).length;
+    await new Promise(r => setTimeout(r, wordCount * 35 + 300));
 
     chatHistory.push({ role: 'assistant', content: canned });
     persistCurrentChat();
@@ -408,7 +397,11 @@ async function executeDirectTool(toolName, params) {
         } else if (toolName === 'password') {
             cannedText = `Here is your generated password:\n\n${result.passwords.join('\n')}`;
         } else if (toolName === 'timer') {
-            cannedText = `I have started a timer for ${result.seconds} seconds.`;
+            cannedText = `⏱️ Timer started for **${result.seconds} seconds**. Watch the countdown widget above.`;
+        } else if (toolName === 'python') {
+            cannedText = result
+                ? `Python output:\n\n\`\`\`\n${result}\n\`\`\``
+                : `Python executed successfully with no output.`;
         } else if (toolName === 'date') {
             if (result.iso) cannedText = `The current date/time is ${result.local}.`;
             else if (result.days !== undefined) cannedText = `The difference is ${result.days} days, ${result.hours} hours, and ${result.minutes} minutes.`;
@@ -590,11 +583,9 @@ function renderChatLog() {
         messageWrap.className = `message-wrap ${msg.role === 'user' ? 'user-msg' : 'assistant-msg'}`;
         const messageContent = document.createElement('div');
         messageContent.className = 'message-content';
-        if (msg.role === 'assistant') {
-            messageContent.innerHTML = formatAssistantMessage(msg.content);
-        } else {
-            messageContent.textContent = msg.content;
-        }
+        messageContent.innerHTML = msg.role === 'assistant'
+            ? formatAssistantMessage(msg.content)
+            : (messageContent.textContent = msg.content, messageContent.textContent);
         messageWrap.appendChild(messageContent);
         chatLog.appendChild(messageWrap);
     });
@@ -625,9 +616,8 @@ function updateChatList() {
 }
 
 function updateChatListActive(chatId) {
-    const chatIdStr = String(chatId);
     document.querySelectorAll('#chatList .chat-item').forEach(item => {
-        item.classList.toggle('active', chatId != null && item.dataset.chatId === chatIdStr);
+        item.classList.toggle('active', chatId != null && Number(item.dataset.chatId) === chatId);
     });
 }
 
