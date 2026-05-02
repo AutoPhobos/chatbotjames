@@ -2,7 +2,7 @@ import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transfo
 
 // --- CONFIGURATION ---
 env.allowLocalModels = false;
-env.useBrowserCache = true;
+env.useBrowserCache = false; // We handle caching completely via customFetch to avoid double-caching and quota limits
 const DOWNLOAD_CACHE = 'JAMES-model-cache';
 const CHUNK_SIZE = 4 * 1024 * 1024; // 4 MiB
 const MAX_DOWNLOAD_CONCURRENCY = 3;
@@ -15,8 +15,11 @@ function shouldUseDownloadCache(url) {
     if (url.endsWith('.wasm')) return false;
     return (
         url.includes('huggingface.co') ||
+        url.includes('hf.co') ||
         url.includes('cdn.jsdelivr.net') ||
         url.endsWith('.bin') ||
+        url.endsWith('.onnx') ||
+        url.endsWith('.onnx_data') ||
         url.endsWith('.safetensors') ||
         url.endsWith('.json')
     );
@@ -28,12 +31,16 @@ function getCacheRequest(url) {
 
 async function cacheMatch(url) {
     const cache = await caches.open(DOWNLOAD_CACHE);
-    return cache.match(getCacheRequest(url), { ignoreSearch: true });
+    return cache.match(getCacheRequest(url), { ignoreSearch: true, ignoreVary: true, ignoreMethod: true });
 }
 
 async function cachePut(url, response) {
-    const cache = await caches.open(DOWNLOAD_CACHE);
-    await cache.put(getCacheRequest(url), response.clone());
+    try {
+        const cache = await caches.open(DOWNLOAD_CACHE);
+        await cache.put(getCacheRequest(url), response.clone());
+    } catch (e) {
+        console.warn(`Cache put failed for ${url}:`, e);
+    }
     return response;
 }
 
