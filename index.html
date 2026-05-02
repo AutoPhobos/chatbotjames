@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>JAMES // Neural Terminal</title>
+    <meta name="description" content="JAMES is a browser-native AI assistant terminal that runs locally, streams responses, and supports tool execution without external servers.">
+    <meta name="keywords" content="JAMES, AI assistant, browser AI, local inference, WebGPU, Pyodide, tools, chat, offline AI">
+    <meta name="author" content="Andrey Lopukhov">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="canonical" href="https://chatbotjames.onrender.com/index.html">
+    <meta property="og:title" content="JAMES // Neural Terminal">
+    <meta property="og:description" content="A browser-native AI assistant terminal that runs locally with tool execution and streaming responses.">
+    <meta property="og:image" content="https://chatbotjames.onrender.com/preview.png">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://chatbotjames.onrender.com/index.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="JAMES // Neural Terminal">
+    <meta name="twitter:description" content="A browser-native AI assistant terminal that runs locally with tool execution and streaming responses.">
+    <meta name="twitter:image" content="https://chatbotjames.onrender.com/preview.png">
+    <meta name="google-site-verification" content="706qdfPXFXzI_yp0C5jQIii19fSxhf616nNb_4VpdUM" />
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="installBanner" class="install-banner hidden">
+        <span>Install JAMES as an app for offline access!</span>
+        <div class="install-actions">
+            <button id="installBtn">Install</button>
+            <button id="dismissInstallBtn">✕</button>
+        </div>
+    </div>
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar">
+            <button id="newChatBtn" class="new-thread-btn">+ New Chat</button>
+            <div id="chatList" class="chat-list"></div>
+            <div class="sidebar-footer">
+                <a href="about.html">About</a> · <a href="docs.html">Docs</a>
+                <div>By Andrey Lopukhov</div>
+            </div>
+        </aside>
+
+        <main class="terminal-container">
+            <header class="terminal-header">
+                <div class="header-left">
+                    <button id="sidebarToggle" class="icon-btn">☰</button>
+                    <div id="led" class="status-led led-idle"></div>
+                    <span id="statusText">INITIALIZING...</span>
+                </div>
+                <div class="header-right">CORE v5.0.1</div>
+            </header>
+
+            <div id="progressContainer" class="progress-container">
+                <div id="progFill" class="progress-fill"></div>
+            </div>
+
+            <div class="status-meta"></div>
+
+            <div id="chatLog" class="chat-log"></div>
+
+            <footer class="input-area">
+                <div class="input-wrapper">
+                    <input type="text" id="cmdInput" placeholder="Message James..." autocomplete="off">
+                    <button id="sendBtn" class="send-btn">➔</button>
+                </div>
+            </footer>
+        </main>
+        <div id="sidebarOverlay"></div>
+    </div>
+    <script type="module" src="app.js"></script>
+</body>
+</html>

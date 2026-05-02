@@ -1,0 +1,17 @@
+{
+  "name": "JAMES Neural Terminal",
+  "short_name": "JAMES",
+  "description": "Browser-native AI assistant running locally.",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "icons": [
+    {
+      "src": "preview.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
