@@ -34,6 +34,7 @@ let _gpuInfo = null;          // cached from worker 'model-info'
 let _presets = [];            // cached from worker 'model-info'
 let _activePresetId = null;   // the currently running preset
 let _selectedPresetId = null; // user's pending selection in the panel
+let _deviceRamGB = 4;         // from navigator.deviceMemory via worker
 
 // ─── Word-by-word Streaming Animation ────────────────────────────────────────
 const streamQueues = new Map(); // targetId → { pending, displayed, running }
@@ -88,10 +89,16 @@ worker.onmessage = (e) => {
     }
 
     switch (status) {
+        case 'clear-last-preset':
+            localStorage.removeItem('james-last-preset-id');
+            console.log('🗑️ Cleared stale last-preset cache');
+            break;
+
         case 'model-info': {
             // Worker detected GPU and compiled preset list — render the panel
-            _gpuInfo   = e.data.gpuInfo;
-            _presets   = e.data.presets;
+            _gpuInfo  = e.data.gpuInfo;
+            _presets  = e.data.presets;
+            _deviceRamGB = e.data.ramGB ?? 4;
             renderModelPanel();
             break;
         }
@@ -128,8 +135,10 @@ worker.onmessage = (e) => {
                 p => p.backend === e.data.backend && p.dtype === e.data.dtype && p.model === e.data.model
             );
             if (runningPreset) {
-                _activePresetId  = runningPreset.id;
+                _activePresetId   = runningPreset.id;
                 _selectedPresetId = runningPreset.id;
+                // ✔ Persist for warm-start on next page load
+                localStorage.setItem('james-last-preset-id', runningPreset.id);
                 refreshPresetCards();
                 const lbl = document.getElementById('activeModelLabel');
                 if (lbl) lbl.textContent = `Active: ${runningPreset.label}`;
@@ -690,7 +699,10 @@ if (window.innerWidth <= 768) document.getElementById('sidebar').classList.add('
 
 // Start loading the model immediately
 setIdleState(false);
-worker.postMessage({ type: 'init' });
+worker.postMessage({
+    type: 'init',
+    lastPresetId: localStorage.getItem('james-last-preset-id') || null,
+});
 pythonWorker.postMessage({ type: 'init' });
 document.getElementById('statusText').textContent = 'INITIALIZING...';
 
@@ -815,7 +827,8 @@ function renderModelPanel() {
 
         const vendorStr = vendor ? `Vendor: ${vendor}` : 'Vendor: hidden by browser';
         const bufStr    = maxStorageMB ? ` · Buffer: ${maxStorageMB.toFixed(0)} MB` : '';
-        detail.textContent = `${reason}\n${vendorStr}${bufStr}`;
+        const ramStr    = `Device RAM: ~${_deviceRamGB} GB`;
+        detail.textContent = `${reason}\n${vendorStr}${bufStr} · ${ramStr}`;
     }
 
     // ── Preset cards (grouped by category) ───────────────────────────────────

@@ -265,25 +265,25 @@ function isTVDevice() {
 // autoSelect:false → available in the model panel only (user opt-in)
 const MODEL_PRESETS = [
     // ── GPU · WebGPU (best quality, fastest inference) ─────────────────────
-    // Default auto-select GPU models (small, proven, loads quickly)
-    { id: 'gpu-smollm-17b-q4',   label: 'SmolLM2 1.7B',         backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct',    dtype: 'q4',   requires: 'gpu', autoSelect: true,  sizeMB: 950,  ram: '4 GB' },
-    { id: 'gpu-smollm-17b-q8',   label: 'SmolLM2 1.7B',         backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct',    dtype: 'q8',   requires: 'gpu', autoSelect: true,  sizeMB: 1800, ram: '6 GB' },
-    // Larger GPU models (manual selection — require more VRAM / unified memory)
-    { id: 'gpu-llama32-1b-q4',   label: 'Llama 3.2 1B',         backend: 'webgpu', model: 'onnx-community/Llama-3.2-1B-Instruct',   dtype: 'q4',   requires: 'gpu', autoSelect: false, sizeMB: 650,  ram: '3 GB' },
-    { id: 'gpu-llama32-3b-q4',   label: 'Llama 3.2 3B',         backend: 'webgpu', model: 'onnx-community/Llama-3.2-3B-Instruct',   dtype: 'q4',   requires: 'gpu', autoSelect: false, sizeMB: 1900, ram: '6 GB' },
-    { id: 'gpu-qwen25-15b-q4',   label: 'Qwen2.5 1.5B',         backend: 'webgpu', model: 'onnx-community/Qwen2.5-1.5B-Instruct',   dtype: 'q4',   requires: 'gpu', autoSelect: false, sizeMB: 900,  ram: '4 GB' },
-    { id: 'gpu-phi35-mini-q4',   label: 'Phi-3.5-mini 3.8B',    backend: 'webgpu', model: 'onnx-community/Phi-3.5-mini-instruct',   dtype: 'q4',   requires: 'gpu', autoSelect: false, sizeMB: 2200, ram: '8 GB' },
-    { id: 'gpu-gemma3-1b-q4',    label: 'Gemma 3 1B',           backend: 'webgpu', model: 'onnx-community/gemma-3-1b-it',           dtype: 'q4',   requires: 'gpu', autoSelect: false, sizeMB: 600,  ram: '3 GB' },
+    // autoSelect:true = rankAutoPresets() will consider these based on RAM budget
+    { id: 'gpu-smollm-17b-q4',   label: 'SmolLM2 1.7B',         backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct',         dtype: 'q4', requires: 'gpu', autoSelect: true,  sizeMB: 950,  ram: '4 GB' },
+    { id: 'gpu-smollm-17b-q8',   label: 'SmolLM2 1.7B',         backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct',         dtype: 'q8', requires: 'gpu', autoSelect: true,  sizeMB: 1800, ram: '6 GB' },
+    { id: 'gpu-llama32-1b-q4',   label: 'Llama 3.2 1B',         backend: 'webgpu', model: 'onnx-community/Llama-3.2-1B-Instruct',        dtype: 'q4', requires: 'gpu', autoSelect: true,  sizeMB: 650,  ram: '3 GB' },
+    { id: 'gpu-llama32-3b-q4',   label: 'Llama 3.2 3B',         backend: 'webgpu', model: 'onnx-community/Llama-3.2-3B-Instruct',        dtype: 'q4', requires: 'gpu', autoSelect: true,  sizeMB: 1900, ram: '6 GB' },
+    { id: 'gpu-qwen25-15b-q4',   label: 'Qwen2.5 1.5B',         backend: 'webgpu', model: 'onnx-community/Qwen2.5-1.5B-Instruct',        dtype: 'q4', requires: 'gpu', autoSelect: true,  sizeMB: 900,  ram: '4 GB' },
+    // Manual-only GPU models (specialist / heavy — user opt-in via panel)
+    { id: 'gpu-phi35-mini-q4',   label: 'Phi-3.5-mini 3.8B',    backend: 'webgpu', model: 'onnx-community/Phi-3.5-mini-instruct',        dtype: 'q4', requires: 'gpu', autoSelect: false, sizeMB: 2200, ram: '8 GB' },
+    { id: 'gpu-gemma3-1b-q4',    label: 'Gemma 3 1B',           backend: 'webgpu', model: 'onnx-community/gemma-3-1b-it',                dtype: 'q4', requires: 'gpu', autoSelect: false, sizeMB: 600,  ram: '3 GB' },
     { id: 'gpu-deepseek-15b-q4', label: 'DeepSeek-R1 1.5B',     backend: 'webgpu', model: 'onnx-community/DeepSeek-R1-Distill-Qwen-1.5B', dtype: 'q4', requires: 'gpu', autoSelect: false, sizeMB: 1000, ram: '4 GB' },
     // ── CPU · WASM (runs on any device, no GPU required) ─────────────────
-    { id: 'cpu-tinyllama-q4',    label: 'TinyLlama 1.1B',       backend: 'wasm',   model: 'Xenova/TinyLlama-1.1B-Chat-v1.0',       dtype: 'q4',   requires: 'cpu', autoSelect: true,  sizeMB: 600,  ram: '2 GB' },
-    { id: 'cpu-tinyllama-q8',    label: 'TinyLlama 1.1B',       backend: 'wasm',   model: 'Xenova/TinyLlama-1.1B-Chat-v1.0',       dtype: 'q8',   requires: 'cpu', autoSelect: true,  sizeMB: 1100, ram: '3 GB' },
-    { id: 'cpu-llama32-1b-q4',   label: 'Llama 3.2 1B',         backend: 'wasm',   model: 'onnx-community/Llama-3.2-1B-Instruct',  dtype: 'q4',   requires: 'cpu', autoSelect: false, sizeMB: 650,  ram: '2 GB' },
-    { id: 'cpu-qwen25-05b-q4',   label: 'Qwen2.5 0.5B',         backend: 'wasm',   model: 'onnx-community/Qwen2.5-0.5B-Instruct',  dtype: 'q4',   requires: 'cpu', autoSelect: false, sizeMB: 400,  ram: '1 GB' },
-    { id: 'cpu-smollm-17b-q4',   label: 'SmolLM2 1.7B',         backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct',   dtype: 'q4',   requires: 'cpu', autoSelect: false, sizeMB: 950,  ram: '3 GB' },
+    { id: 'cpu-llama32-1b-q4',   label: 'Llama 3.2 1B',         backend: 'wasm',   model: 'onnx-community/Llama-3.2-1B-Instruct',        dtype: 'q4', requires: 'cpu', autoSelect: true,  sizeMB: 650,  ram: '2 GB' },
+    { id: 'cpu-tinyllama-q4',    label: 'TinyLlama 1.1B',       backend: 'wasm',   model: 'Xenova/TinyLlama-1.1B-Chat-v1.0',             dtype: 'q4', requires: 'cpu', autoSelect: true,  sizeMB: 600,  ram: '2 GB' },
+    { id: 'cpu-tinyllama-q8',    label: 'TinyLlama 1.1B',       backend: 'wasm',   model: 'Xenova/TinyLlama-1.1B-Chat-v1.0',             dtype: 'q8', requires: 'cpu', autoSelect: true,  sizeMB: 1100, ram: '3 GB' },
+    { id: 'cpu-qwen25-05b-q4',   label: 'Qwen2.5 0.5B',         backend: 'wasm',   model: 'onnx-community/Qwen2.5-0.5B-Instruct',        dtype: 'q4', requires: 'cpu', autoSelect: true,  sizeMB: 400,  ram: '1 GB' },
+    { id: 'cpu-smollm-17b-q4',   label: 'SmolLM2 1.7B',         backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct',         dtype: 'q4', requires: 'cpu', autoSelect: false, sizeMB: 950,  ram: '3 GB' },
     // ── Lite · constrained devices (mobile / TV / very low RAM) ───────────
-    { id: 'lite-smollm-135m-q8', label: 'SmolLM2 135M',         backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-135M-Instruct',   dtype: 'q8',   requires: 'cpu', autoSelect: true,  sizeMB: 150,  ram: '512 MB' },
-    { id: 'lite-smollm-135m-q4', label: 'SmolLM2 135M',         backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-135M-Instruct',   dtype: 'q4',   requires: 'cpu', autoSelect: true,  sizeMB: 90,   ram: '256 MB' },
+    { id: 'lite-smollm-135m-q8', label: 'SmolLM2 135M',         backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-135M-Instruct',         dtype: 'q8', requires: 'cpu', autoSelect: true,  sizeMB: 150,  ram: '512 MB' },
+    { id: 'lite-smollm-135m-q4', label: 'SmolLM2 135M',         backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-135M-Instruct',         dtype: 'q4', requires: 'cpu', autoSelect: true,  sizeMB: 90,   ram: '256 MB' },
 ];
 
 async function detectGpu() {
@@ -357,24 +357,98 @@ async function detectGpu() {
     return { hasGpu, vendor, architecture, device, isFallback, maxStorageMB, reason };
 }
 
-async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null) {
+// ── Smart selection helpers ───────────────────────────────────────────────────
+
+/** Returns device RAM in GB. Uses navigator.deviceMemory (Chrome/Edge) or defaults to 4. */
+function getDeviceRamGB() {
+    return navigator.deviceMemory || 4;
+}
+
+/**
+ * Ranks autoSelect-eligible presets for this device.
+ * GPU models are scored higher; within each backend, larger (higher quality)
+ * models that still fit in the estimated memory budget come first.
+ *
+ * Memory budget:
+ *   GPU — min(maxStorageMB, ramGB × 1024 × 0.60)  (leave 40% for OS + browser)
+ *   CPU — ramGB × 1024 × 0.40                      (WASM is less efficient)
+ */
+function rankAutoPresets(gpuInfo, ramGB, isConstrained) {
+    const { hasGpu, maxStorageMB } = gpuInfo;
+
+    // Constrained path: always use lite models, sorted smallest-first to avoid OOM
+    if (isConstrained) {
+        return MODEL_PRESETS
+            .filter(p => p.id.startsWith('lite-'))
+            .sort((a, b) => (a.sizeMB || 0) - (b.sizeMB || 0));
+    }
+
+    const gpuBudgetMB = hasGpu
+        ? Math.min(maxStorageMB || 2048, ramGB * 1024 * 0.60)
+        : 0;
+    const cpuBudgetMB = ramGB * 1024 * 0.40;
+
+    const candidates = MODEL_PRESETS.filter(p => {
+        if (p.id.startsWith('lite-'))      return false; // handled separately
+        if (p.requires === 'gpu' && !hasGpu) return false; // no GPU available
+        if (p.autoSelect === false)        return false; // manual-only preset
+
+        const budget = p.requires === 'gpu' ? gpuBudgetMB : cpuBudgetMB;
+        if (p.sizeMB && p.sizeMB > budget) return false; // won't fit in memory
+
+        return true;
+    });
+
+    // Score: GPU first, then prefer larger (= higher quality) within each backend
+    candidates.sort((a, b) => {
+        const gpuA = a.requires === 'gpu' ? 1 : 0;
+        const gpuB = b.requires === 'gpu' ? 1 : 0;
+        if (gpuA !== gpuB) return gpuB - gpuA;
+        return (b.sizeMB || 0) - (a.sizeMB || 0);
+    });
+
+    return candidates;
+}
+
+async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null, lastPresetId = null) {
     const { hasGpu } = gpuInfo;
     const isConstrained = isMobile || isTV;
+    const ramGB  = getDeviceRamGB();
     const deviceLabel = isTV ? '📺 TV' : isMobile ? '📱 Mobile' : '🖥️ Desktop';
-    console.log(`🛠️ Model init — GPU: ${hasGpu} | Device: ${deviceLabel} | Force: ${forcePresetId || 'auto'}`);
+    console.log(`🛠️ Model init — GPU: ${hasGpu} | RAM: ${ramGB} GB | Device: ${deviceLabel} | Force: ${forcePresetId || lastPresetId || 'auto'}`);
 
-    // Send all presets + GPU capability to the UI so the panel can render
+    // Send all presets + capabilities to the UI so the panel can render immediately
     self.postMessage({
         status: 'model-info',
         presets: MODEL_PRESETS,
         gpuInfo,
+        ramGB,
         isMobile,
         isTV,
     });
 
     let lastError = null;
 
-    // ── Forced preset (from model selection panel) ─────────────────────────────
+    // ── 0. Warm start: try last-successful preset first ───────────────────────
+    // Skipped if the user explicitly forced a different preset.
+    if (lastPresetId && !forcePresetId) {
+        const last = MODEL_PRESETS.find(p => p.id === lastPresetId);
+        if (last && !(last.requires === 'gpu' && !hasGpu)) {
+            console.log(`🔄 Warm start: trying last successful preset — ${last.label}`);
+            try {
+                chatbot = await initializeModel(last.backend, last.dtype, last.model);
+                console.log(`✅ Warm start succeeded: ${last.label}`);
+                self.postMessage({ status: 'done', backend: last.backend, dtype: last.dtype, model: last.model, isMobile, isTV });
+                return;
+            } catch (err) {
+                console.warn(`❌ Warm start failed, falling back to auto-selection:`, err);
+                // Tell the UI to clear the stale cached preset
+                self.postMessage({ status: 'clear-last-preset' });
+            }
+        }
+    }
+
+    // ── 1. Forced preset (from model selection panel) ────────────────────────
     if (forcePresetId) {
         const preset = MODEL_PRESETS.find(p => p.id === forcePresetId);
         if (!preset) throw new Error(`Unknown preset id: ${forcePresetId}`);
@@ -385,56 +459,37 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
         return;
     }
 
-    // ── Constrained devices: always lightweight WASM ───────────────────────────
-    if (isConstrained) {
-        console.log(`${deviceLabel} detected. Using lightweight model...`);
-        const constrained = MODEL_PRESETS.filter(p => p.id.startsWith('lite-'));
-        for (const { model, dtype, backend } of constrained) {
-            try {
-                console.log(`⏳ Attempting constrained model: ${model} (${dtype})`);
-                chatbot = await initializeModel(backend, dtype, model);
-                console.log(`✅ Loaded: ${model}`);
-                self.postMessage({ status: 'done', backend, dtype, model, isMobile, isTV });
-                return;
-            } catch (err) {
-                console.warn(`❌ Failed: ${model} (${dtype}):`, err);
-                lastError = err;
-            }
-        }
-        console.warn('⚠️ Constrained models failed. Falling back to standard CPU models...');
-    }
+    // ── 2. Smart auto-selection ───────────────────────────────────────────────
+    const ranked = rankAutoPresets(gpuInfo, ramGB, isConstrained);
+    console.log(`🎯 Ranked candidates (RAM: ${ramGB} GB, GPU budget: ${hasGpu ? Math.round(Math.min((gpuInfo.maxStorageMB||2048), ramGB*1024*0.6)) : 0} MB):`,
+        ranked.map(p => `${p.id}(${p.sizeMB}MB)`).join(', '));
 
-    // ── GPU path: only autoSelect:true entries on startup ────────────────────
-    if (hasGpu && !isConstrained) {
-        const gpuPresets = MODEL_PRESETS.filter(p => p.requires === 'gpu' && p.autoSelect !== false);
-        for (const { model, dtype, backend } of gpuPresets) {
-            try {
-                console.log(`⏳ Attempting GPU model: ${model} (${dtype})`);
-                chatbot = await initializeModel(backend, dtype, model);
-                console.log(`✅ Loaded GPU model: ${model}`);
-                self.postMessage({ status: 'done', backend, dtype, model });
-                return;
-            } catch (err) {
-                console.warn(`❌ Failed GPU model ${model} (${dtype}):`, err);
-                lastError = err;
-            }
-        }
-        console.warn('⚠️ GPU models failed, falling back to CPU...');
-    }
-
-    // ── CPU/WASM fallback: only autoSelect:true entries on startup ────────────
-    const cpuPresets = MODEL_PRESETS.filter(
-        p => p.requires === 'cpu' && p.autoSelect !== false && !p.id.startsWith('lite-')
-    );
-    for (const { model, dtype, backend } of cpuPresets) {
+    for (const preset of ranked) {
         try {
-            console.log(`⏳ Attempting CPU model: ${model} (${dtype})`);
-            chatbot = await initializeModel(backend, dtype, model);
-            console.log(`✅ Loaded CPU model: ${model}`);
-            self.postMessage({ status: 'done', backend, dtype, model });
+            console.log(`⏳ Trying: ${preset.label} (${preset.sizeMB} MB)`);
+            chatbot = await initializeModel(preset.backend, preset.dtype, preset.model);
+            console.log(`✅ Loaded: ${preset.label}`);
+            self.postMessage({ status: 'done', backend: preset.backend, dtype: preset.dtype, model: preset.model, isMobile, isTV });
             return;
         } catch (err) {
-            console.warn(`❌ Failed CPU model ${model} (${dtype}):`, err);
+            console.warn(`❌ Failed: ${preset.label}:`, err);
+            lastError = err;
+        }
+    }
+
+    // ── 3. Last resort: lite models (always tiny enough to fit) ─────────────
+    const litePresets = MODEL_PRESETS
+        .filter(p => p.id.startsWith('lite-'))
+        .sort((a, b) => (a.sizeMB || 0) - (b.sizeMB || 0));
+    for (const preset of litePresets) {
+        try {
+            console.log(`⏳ Last-resort lite model: ${preset.label}`);
+            chatbot = await initializeModel(preset.backend, preset.dtype, preset.model);
+            console.log(`✅ Loaded lite model: ${preset.label}`);
+            self.postMessage({ status: 'done', backend: preset.backend, dtype: preset.dtype, model: preset.model, isMobile, isTV });
+            return;
+        } catch (err) {
+            console.warn(`❌ Failed lite model: ${preset.label}:`, err);
             lastError = err;
         }
     }
@@ -450,9 +505,13 @@ self.onmessage = async (e) => {
         try {
             await new Promise((resolve) => setTimeout(resolve, 125));
             const gpuInfo = await detectGpu();
-            const mobile = isMobileDevice();
-            const tv = isTVDevice();
-            await tryInitializeModels(gpuInfo, mobile, tv, e.data.forcePresetId || null);
+            const mobile  = isMobileDevice();
+            const tv      = isTVDevice();
+            await tryInitializeModels(
+                gpuInfo, mobile, tv,
+                e.data.forcePresetId  || null,
+                e.data.lastPresetId   || null
+            );
         } catch (err) {
             reportWorkerError(err, undefined);
         }
