@@ -128,7 +128,8 @@ async function getCurrency(params) {
     }
 
     const res = await fetch(
-        `https://api.frankfurter.app/latest?from=${fromCode}&to=${toCode}`
+        `https://api.frankfurter.dev/v1/latest?base=${fromCode}&symbols=${toCode}`,
+        { cache: 'no-store' }
     );
     if (!res.ok) {
         const text = await res.text().catch(() => String(res.status));
