@@ -266,15 +266,18 @@ function isTVDevice() {
 const MODEL_PRESETS = [
     // ── GPU · WebGPU (best quality, fastest inference) ─────────────────────
     // autoSelect:true = rankAutoPresets() will consider these based on RAM budget
-    { id: 'gpu-smollm-17b-q4',   label: 'SmolLM2 1.7B',         backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct',         dtype: 'q4', requires: 'gpu', autoSelect: true,  sizeMB: 950,  ram: '4 GB' },
-    { id: 'gpu-smollm-17b-q8',   label: 'SmolLM2 1.7B',         backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct',         dtype: 'q8', requires: 'gpu', autoSelect: true,  sizeMB: 1800, ram: '6 GB' },
-    { id: 'gpu-llama32-1b-q4',   label: 'Llama 3.2 1B',         backend: 'webgpu', model: 'onnx-community/Llama-3.2-1B-Instruct',        dtype: 'q4', requires: 'gpu', autoSelect: true,  sizeMB: 650,  ram: '3 GB' },
-    { id: 'gpu-llama32-3b-q4',   label: 'Llama 3.2 3B',         backend: 'webgpu', model: 'onnx-community/Llama-3.2-3B-Instruct',        dtype: 'q4', requires: 'gpu', autoSelect: true,  sizeMB: 1900, ram: '6 GB' },
-    { id: 'gpu-qwen25-15b-q4',   label: 'Qwen2.5 1.5B',         backend: 'webgpu', model: 'onnx-community/Qwen2.5-1.5B-Instruct',        dtype: 'q4', requires: 'gpu', autoSelect: true,  sizeMB: 900,  ram: '4 GB' },
+    // NOTE: onnx-community WebGPU models ship q4f16 ONNX files, NOT plain q4.
+    //       SmolLM2 ships q4 for WebGPU. q8 has no WebGPU ONNX file → always fails.
+    { id: 'gpu-smollm-17b-q4',      label: 'SmolLM2 1.7B',      backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct',         dtype: 'q4',    requires: 'gpu', autoSelect: true,  sizeMB: 950,  ram: '4 GB' },
+    { id: 'gpu-llama32-1b-q4f16',   label: 'Llama 3.2 1B',      backend: 'webgpu', model: 'onnx-community/Llama-3.2-1B-Instruct',        dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 750,  ram: '3 GB' },
+    { id: 'gpu-llama32-3b-q4f16',   label: 'Llama 3.2 3B',      backend: 'webgpu', model: 'onnx-community/Llama-3.2-3B-Instruct',        dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 2100, ram: '6 GB' },
+    { id: 'gpu-qwen25-15b-q4f16',   label: 'Qwen2.5 1.5B',      backend: 'webgpu', model: 'onnx-community/Qwen2.5-1.5B-Instruct',        dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 950,  ram: '4 GB' },
     // Manual-only GPU models (specialist / heavy — user opt-in via panel)
-    { id: 'gpu-phi35-mini-q4',   label: 'Phi-3.5-mini 3.8B',    backend: 'webgpu', model: 'onnx-community/Phi-3.5-mini-instruct',        dtype: 'q4', requires: 'gpu', autoSelect: false, sizeMB: 2200, ram: '8 GB' },
-    { id: 'gpu-gemma3-1b-q4',    label: 'Gemma 3 1B',           backend: 'webgpu', model: 'onnx-community/gemma-3-1b-it',                dtype: 'q4', requires: 'gpu', autoSelect: false, sizeMB: 600,  ram: '3 GB' },
-    { id: 'gpu-deepseek-15b-q4', label: 'DeepSeek-R1 1.5B',     backend: 'webgpu', model: 'onnx-community/DeepSeek-R1-Distill-Qwen-1.5B', dtype: 'q4', requires: 'gpu', autoSelect: false, sizeMB: 1000, ram: '4 GB' },
+    { id: 'gpu-phi35-mini-q4',      label: 'Phi-3.5-mini 3.8B', backend: 'webgpu', model: 'onnx-community/Phi-3.5-mini-instruct',        dtype: 'q4',    requires: 'gpu', autoSelect: false, sizeMB: 2200, ram: '8 GB' },
+    { id: 'gpu-gemma3-1b-q4',       label: 'Gemma 3 1B',        backend: 'webgpu', model: 'onnx-community/gemma-3-1b-it',                dtype: 'q4',    requires: 'gpu', autoSelect: false, sizeMB: 600,  ram: '3 GB' },
+    { id: 'gpu-deepseek-15b-q4f16', label: 'DeepSeek-R1 1.5B',  backend: 'webgpu', model: 'onnx-community/DeepSeek-R1-Distill-Qwen-1.5B', dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 1000, ram: '4 GB' },
+    // q8 has no WebGPU ONNX file — CPU WASM only
+    { id: 'gpu-smollm-17b-q8',      label: 'SmolLM2 1.7B',      backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct',         dtype: 'q8',    requires: 'gpu', autoSelect: false, sizeMB: 1800, ram: '6 GB' },
     // ── CPU · WASM (runs on any device, no GPU required) ─────────────────
     { id: 'cpu-llama32-1b-q4',   label: 'Llama 3.2 1B',         backend: 'wasm',   model: 'onnx-community/Llama-3.2-1B-Instruct',        dtype: 'q4', requires: 'cpu', autoSelect: true,  sizeMB: 650,  ram: '2 GB' },
     { id: 'cpu-tinyllama-q4',    label: 'TinyLlama 1.1B',       backend: 'wasm',   model: 'Xenova/TinyLlama-1.1B-Chat-v1.0',             dtype: 'q4', requires: 'cpu', autoSelect: true,  sizeMB: 600,  ram: '2 GB' },
