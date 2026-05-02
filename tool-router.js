@@ -247,6 +247,46 @@ function evalMath(expr) {
 /** @type {Rule[]} */
 const RULES = [
 
+    // ── HELP ──────────────────────────────────────────────────────────────────
+    // Placed first so /help is never swallowed by a broader pattern below.
+    {
+        tool: 'help',
+        description: 'Lists all available tools and their usage examples.',
+        examples: ['/help', '/help weather', 'help', 'what tools do you have'],
+        patterns: [
+            /^\/help(?:\s+(\w+))?\??$/i,
+            /^help(?:\s+(\w+))?\??$/i,
+            /^(?:what (?:tools?|commands?) (?:do you have|are available|can you do))\??$/i,
+            /^(?:show |list )?(?:all )?(?:tools?|commands?)\??$/i,
+        ],
+        params: m => {
+            const toolName = m[1]?.toLowerCase().trim() ?? null;
+
+            if (toolName) {
+                // RULES is captured by reference — fully initialised by call-time.
+                const rule = RULES.find(r => r.tool === toolName);
+                if (!rule) {
+                    return {
+                        text: `❓ Unknown tool: "${toolName}". Type /help to see all tools.`,
+                        toolName,
+                    };
+                }
+                const text =
+                    `🔧 ${rule.tool}\n` +
+                    `${rule.description}\n\n` +
+                    `Examples:\n${rule.examples.map(e => `  • "${e}"`).join('\n')}`;
+                return { text, toolName };
+            }
+
+            // Full listing — mirrors describe() but embedded in params at match-time.
+            const text = RULES.map(r =>
+                `🔧 ${r.tool.padEnd(12)} ${r.description}\n` +
+                `   ${r.examples.map(e => `"${e}"`).join('  |  ')}`
+            ).join('\n\n');
+            return { text, toolName: null };
+        },
+    },
+
     // ── CALCULATOR ────────────────────────────────────────────────────────────
     {
         tool: 'calculator',
@@ -629,14 +669,19 @@ export class ToolTriggerHandler {
     }
 
     /**
-     * Returns a human-readable list of all registered tools with
-     * their descriptions and example triggers.
+     * Returns a human-readable list of tools with descriptions and examples.
+     * Pass a tool name to show only that tool.
+     * @param {string} [toolName]
      * @returns {string}
      */
-    describe() {
-        return RULES.map(r =>
+    describe(toolName) {
+        const rules = toolName
+            ? RULES.filter(r => r.tool === toolName.toLowerCase())
+            : RULES;
+        if (toolName && !rules.length) return `Unknown tool: "${toolName}"`;
+        return rules.map(r =>
             `🔧 ${r.tool.padEnd(12)} ${r.description}\n` +
-            `   Examples: ${r.examples.map(e => `"${e}"`).join(' | ')}`
+            `   Examples: ${r.examples.map(e => `"${e}"`).join('  |  ')}`
         ).join('\n\n');
     }
 
@@ -657,6 +702,11 @@ export const toolRouter = new ToolTriggerHandler();
 // ─────────────────────────────────────────────────────────────────────────────
 if (typeof process !== 'undefined' && process.argv[1]?.endsWith('toolTriggerHandler.js')) {
     const tests = [
+        '/help',
+        '/help weather',
+        '/help convert',
+        'what tools do you have',
+        'list all tools',
         '12 * 34',
         'calculate 100 / 4 + 7',
         '2^10',
