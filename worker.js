@@ -502,7 +502,7 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
 }
 
 self.onmessage = async (e) => {
-    const { type, messages, targetId } = e.data;
+    const { type, messages, targetId, chatId } = e.data;
 
     if (type === 'init') {
         try {
@@ -523,7 +523,7 @@ self.onmessage = async (e) => {
 
     if (type === 'query') {
         try {
-            self.postMessage({ status: 'thinking', targetId });
+            self.postMessage({ status: 'thinking', targetId, chatId });
 
             const activeMessages = messages.filter(m => !m.content.includes('Tools available'));
 
@@ -560,7 +560,7 @@ self.onmessage = async (e) => {
 
                         if (text.length > accumulatedResponse.length) {
                             accumulatedResponse = text;
-                            self.postMessage({ status: 'streaming', message: accumulatedResponse, targetId });
+                            self.postMessage({ status: 'streaming', message: accumulatedResponse, targetId, chatId });
                         }
                     }
                 }
@@ -578,7 +578,7 @@ self.onmessage = async (e) => {
                 finalResponse = accumulatedResponse.trim();
             }
 
-            self.postMessage({ status: 'complete', message: finalResponse.trim(), targetId });
+            self.postMessage({ status: 'complete', message: finalResponse.trim(), targetId, chatId });
         } catch (err) {
             reportWorkerError(err, targetId);
         }

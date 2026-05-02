@@ -148,16 +148,21 @@ worker.onmessage = (e) => {
             break;
         }
         case 'streaming':
-            queueStreamText(targetId, message);
+            // Only stream to the UI if we are still on the chat that requested it
+            if (e.data.chatId === currentChatId) {
+                queueStreamText(targetId, message);
+            }
             break;
 
         case 'thinking':
-            updateLiveBubble("...", targetId);
+            if (e.data.chatId === currentChatId) {
+                updateLiveBubble("...", targetId);
+            }
             break;
 
         case 'complete':
             flushStreamQueue(targetId);
-            handleToolCalls(message, targetId);
+            handleToolCalls(message, targetId, e.data.chatId);
             break;
 
         case 'error': {
@@ -172,13 +177,23 @@ worker.onmessage = (e) => {
     }
 };
 
-async function handleToolCalls(message, targetId) {
+async function handleToolCalls(message, targetId, originChatId) {
     const toolCalls = parseToolCalls(message);
 
     if (toolCalls.length === 0) {
-        updateLiveBubble(message, targetId);
-        chatHistory.push({ role: 'assistant', content: message });
-        persistCurrentChat();
+        // If the user is still on the chat that initiated this request, update live.
+        if (originChatId === currentChatId) {
+            updateLiveBubble(message, targetId);
+            chatHistory.push({ role: 'assistant', content: message });
+            persistCurrentChat();
+        } else {
+            // Background update: user switched chats while this was generating.
+            const bgChat = allChats.find(c => c.id === originChatId);
+            if (bgChat) {
+                bgChat.messages.push({ role: 'assistant', content: message });
+                localStorage.setItem('chatbot-chats', JSON.stringify(allChats));
+            }
+        }
         return;
     }
 
@@ -198,16 +213,20 @@ async function handleToolCalls(message, targetId) {
             : `[${r.tool} result]: ${JSON.stringify(r.result)}`
     ).join('\n');
 
-    // Spread full chatHistory so the model knows the original question,
-    // then append the assistant's tool-call turn and the tool results.
+    // We must pass the correct chat array down. If the user switched chats, we use the background chat's array.
+    const activeMessages = originChatId === currentChatId
+        ? chatHistory
+        : (allChats.find(c => c.id === originChatId)?.messages || []);
+
     worker.postMessage({
         type: 'query',
         messages: [
-            ...chatHistory,
+            ...activeMessages,
             { role: 'assistant', content: message },
             { role: 'user', content: toolResultText }
         ],
-        targetId: Date.now()
+        targetId: Date.now(),
+        chatId: originChatId
     });
 }
 
@@ -498,7 +517,8 @@ function sendMessage() {
     worker.postMessage({
         type: 'query',
         messages: chatHistory,
-        targetId: Date.now()
+        targetId: Date.now(),
+        chatId: currentChatId
     });
 }
 
@@ -636,7 +656,10 @@ function updateChatList() {
 
         const chatText = document.createElement('span');
         chatText.textContent = chat.name;
-        chatText.onclick = () => loadChatHistory(chat.id);
+        chatText.onclick = () => {
+            loadChatHistory(chat.id);
+            if (window.innerWidth <= 768) closeSidebar();
+        };
 
         const deleteBtn = document.createElement('button');
         deleteBtn.textContent = '×';
