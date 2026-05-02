@@ -30,6 +30,10 @@ function setIdleState(isIdle) {
 
 // Global Message Handler
 let lastUpdate = 0;
+let _gpuInfo = null;          // cached from worker 'model-info'
+let _presets = [];            // cached from worker 'model-info'
+let _activePresetId = null;   // the currently running preset
+let _selectedPresetId = null; // user's pending selection in the panel
 
 // ─── Word-by-word Streaming Animation ────────────────────────────────────────
 const streamQueues = new Map(); // targetId → { pending, displayed, running }
@@ -84,6 +88,13 @@ worker.onmessage = (e) => {
     }
 
     switch (status) {
+        case 'model-info': {
+            // Worker detected GPU and compiled preset list — render the panel
+            _gpuInfo   = e.data.gpuInfo;
+            _presets   = e.data.presets;
+            renderModelPanel();
+            break;
+        }
         case 'downloading': {
             const now = Date.now();
             if (now - lastUpdate < 100) return;
@@ -111,6 +122,20 @@ worker.onmessage = (e) => {
             const fillDone = document.querySelector('.progress-fill');
             if (fillDone) fillDone.style.width = "100%";
             if (statusText) statusText.textContent = 'READY';
+
+            // Find which preset is now running and mark it
+            const runningPreset = _presets.find(
+                p => p.backend === e.data.backend && p.dtype === e.data.dtype && p.model === e.data.model
+            );
+            if (runningPreset) {
+                _activePresetId  = runningPreset.id;
+                _selectedPresetId = runningPreset.id;
+                refreshPresetCards();
+                const lbl = document.getElementById('activeModelLabel');
+                if (lbl) lbl.textContent = `Active: ${runningPreset.label}`;
+                const applyBtn = document.getElementById('applyModelBtn');
+                if (applyBtn) applyBtn.disabled = true;
+            }
             break;
         }
         case 'streaming':
@@ -731,3 +756,173 @@ dismissBtn?.addEventListener('click', () => {
     installBanner.classList.add('hidden');
     localStorage.setItem('james-pwa-dismissed', 'true');
 });
+
+// ─── Model Selection Panel ────────────────────────────────────────────────────
+
+const modelPanel        = document.getElementById('modelPanel');
+const modelPanelOverlay = document.getElementById('modelPanelOverlay');
+const modelPanelBtn     = document.getElementById('modelPanelBtn');
+const modelPanelClose   = document.getElementById('modelPanelClose');
+const applyModelBtn     = document.getElementById('applyModelBtn');
+
+function openModelPanel() {
+    modelPanel.classList.add('open');
+    modelPanelOverlay.classList.add('visible');
+}
+
+function closeModelPanel() {
+    modelPanel.classList.remove('open');
+    modelPanelOverlay.classList.remove('visible');
+}
+
+modelPanelBtn?.addEventListener('click', openModelPanel);
+modelPanelClose?.addEventListener('click', closeModelPanel);
+modelPanelOverlay?.addEventListener('click', closeModelPanel);
+
+/** Render (or re-render) the GPU status card and preset list. */
+function renderModelPanel() {
+    // ── GPU status card ──────────────────────────────────────────────────────
+    const card   = document.getElementById('gpuStatusCard');
+    const icon   = document.getElementById('gpuStatusIcon');
+    const title  = document.getElementById('gpuStatusTitle');
+    const detail = document.getElementById('gpuStatusDetail');
+    const badge  = document.getElementById('gpuStatusBadge');
+
+    if (_gpuInfo && card) {
+        const { hasGpu, vendor, maxStorageMB, reason, isFallback } = _gpuInfo;
+
+        if (hasGpu) {
+            card.className    = 'gpu-status-card gpu-ok';
+            icon.textContent  = '🚀';
+            title.textContent = 'GPU Acceleration Available';
+            badge.textContent = 'WebGPU';
+        } else if (!navigator.gpu) {
+            card.className    = 'gpu-status-card gpu-none';
+            icon.textContent  = '❌';
+            title.textContent = 'WebGPU Not Supported';
+            badge.textContent = 'NO GPU';
+        } else if (isFallback) {
+            card.className    = 'gpu-status-card gpu-warn';
+            icon.textContent  = '⚠️';
+            title.textContent = 'Software Adapter Only';
+            badge.textContent = 'SW ONLY';
+        } else {
+            card.className    = 'gpu-status-card gpu-warn';
+            icon.textContent  = '⚠️';
+            title.textContent = 'Integrated GPU — CPU Fallback';
+            badge.textContent = 'CPU';
+        }
+
+        const vendorStr = vendor ? `Vendor: ${vendor}` : 'Vendor: hidden by browser';
+        const bufStr    = maxStorageMB ? ` · Buffer: ${maxStorageMB.toFixed(0)} MB` : '';
+        detail.textContent = `${reason}\n${vendorStr}${bufStr}`;
+    }
+
+    // ── Preset cards (grouped by category) ───────────────────────────────────
+    const list = document.getElementById('modelPresetList');
+    if (!list || !_presets.length) return;
+    list.innerHTML = '';
+
+    const gpuAvailable = _gpuInfo?.hasGpu ?? false;
+
+    const GROUPS = [
+        { key: 'gpu',  title: '⚡ GPU · WebGPU',          filter: p => p.requires === 'gpu' },
+        { key: 'cpu',  title: '🧠 CPU · WASM',             filter: p => p.requires === 'cpu' && !p.id.startsWith('lite-') },
+        { key: 'lite', title: '🪶 Lite · Constrained',     filter: p => p.id.startsWith('lite-') },
+    ];
+
+    GROUPS.forEach(group => {
+        const presets = _presets.filter(group.filter);
+        if (!presets.length) return;
+
+        // Section divider
+        const divider = document.createElement('div');
+        divider.className = 'preset-group-title';
+        divider.textContent = group.title;
+        list.appendChild(divider);
+
+        presets.forEach(preset => {
+            const needsGpu   = preset.requires === 'gpu';
+            const isDisabled = needsGpu && !gpuAvailable;
+            const isRunning  = preset.id === _activePresetId;
+            const isSelected = preset.id === _selectedPresetId;
+
+            let pillClass = 'pill-cpu';
+            let pillText  = 'CPU';
+            if (needsGpu)                         { pillClass = 'pill-gpu';  pillText = 'GPU';  }
+            if (preset.id.startsWith('lite-'))    { pillClass = 'pill-lite'; pillText = 'LITE'; }
+            if (isRunning)                        { pillClass = 'pill-active'; pillText = 'ACTIVE'; }
+
+            const sizeStr = preset.sizeMB
+                ? preset.sizeMB >= 1000
+                    ? `${(preset.sizeMB / 1024).toFixed(1)} GB`
+                    : `${preset.sizeMB} MB`
+                : '';
+            const ramStr  = preset.ram ? `${preset.ram} RAM` : '';
+            const metaStr = [preset.dtype.toUpperCase(), sizeStr, ramStr].filter(Boolean).join(' · ');
+            const autoTag = preset.autoSelect !== false ? ' <span class="preset-auto-tag">AUTO</span>' : '';
+
+            const el = document.createElement('div');
+            el.className = [
+                'preset-card',
+                isDisabled ? 'preset-disabled' : '',
+                isSelected && !isRunning ? 'preset-selected' : '',
+                isRunning  ? 'preset-active-running' : '',
+            ].filter(Boolean).join(' ');
+            el.dataset.presetId = preset.id;
+
+            el.innerHTML = `
+                <div class="preset-info">
+                    <div class="preset-label">${preset.label}${autoTag}</div>
+                    <div class="preset-tags">${metaStr}</div>
+                </div>
+                <span class="preset-pill ${pillClass}">${pillText}</span>
+                <div class="preset-check"></div>`;
+
+            if (!isDisabled) {
+                el.addEventListener('click', () => selectPreset(preset.id));
+            }
+            list.appendChild(el);
+        });
+    });
+
+    // Advisory note when no GPU
+    if (!gpuAvailable) {
+        const note = document.createElement('div');
+        note.className = 'preset-placeholder';
+        note.style.cssText = 'color:#fbbf24;font-size:11px;padding:10px 6px 4px;text-align:left;';
+        note.textContent = '⚠️ GPU models are greyed out — no capable GPU detected. They activate automatically once you install a discrete GPU.';
+        list.appendChild(note);
+    }
+}
+
+function selectPreset(id) {
+    _selectedPresetId = id;
+    document.querySelectorAll('.preset-card').forEach(el => {
+        const elId = el.dataset.presetId;
+        el.classList.toggle('preset-selected', elId === id && elId !== _activePresetId);
+        el.classList.toggle('preset-active-running', elId === _activePresetId);
+    });
+    if (applyModelBtn) applyModelBtn.disabled = (id === _activePresetId);
+}
+
+function refreshPresetCards() {
+    if (document.getElementById('modelPresetList')?.children.length > 0) {
+        renderModelPanel();
+    }
+}
+
+applyModelBtn?.addEventListener('click', () => {
+    if (!_selectedPresetId || _selectedPresetId === _activePresetId) return;
+    closeModelPanel();
+
+    const fill = document.querySelector('.progress-fill');
+    if (fill) fill.style.width = '0%';
+    const meta = document.querySelector('.status-meta');
+    if (meta) meta.innerText = 'Loading selected model…';
+
+    setIdleState(false);
+    document.getElementById('statusText').textContent = 'LOADING MODEL…';
+
+    worker.postMessage({ type: 'init', forcePresetId: _selectedPresetId });
+});
