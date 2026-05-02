@@ -37,6 +37,9 @@ self.addEventListener('activate', (e) => {
 
 // ── Fetch: network-first for app files, cache-first for CDN assets ────────
 self.addEventListener('fetch', (event) => {
+    // Only cache GET requests (Transformers.js sends HEAD requests for file sizes)
+    if (event.request.method !== 'GET') return;
+
     const url = new URL(event.request.url);
     const filename = url.pathname.split('/').pop();
 
