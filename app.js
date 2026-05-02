@@ -47,7 +47,10 @@ function queueStreamText(targetId, fullText) {
 function drainStreamQueue(targetId) {
     const state = streamQueues.get(targetId);
     if (!state || state.displayed.length >= state.pending.length) {
-        if (state) state.running = false;
+        if (state) {
+            state.running = false;
+            if (state.onDone) state.onDone();
+        }
         return;
     }
     state.running = true;
@@ -96,7 +99,7 @@ worker.onmessage = (e) => {
             if (fill) fill.style.width = `${percent}%`;
             if (meta) {
                 const mbLoaded = (loaded / 1024 / 1024).toFixed(1);
-                const mbTotal  = (total  / 1024 / 1024).toFixed(1);
+                const mbTotal = (total / 1024 / 1024).toFixed(1);
                 meta.innerText = `Downloading: ${file || 'weights'} (${mbLoaded}/${mbTotal} MB)`;
             }
             if (statusText) statusText.textContent = `DOWNLOADING (${Math.round(percent)}%)...`;
@@ -116,11 +119,11 @@ worker.onmessage = (e) => {
         case 'streaming':
             queueStreamText(targetId, message);
             break;
-            
+
         case 'thinking':
             updateLiveBubble("...", targetId);
             break;
-        
+
         case 'complete':
             flushStreamQueue(targetId);
             handleToolCalls(message, targetId);
@@ -166,13 +169,19 @@ async function handleToolCalls(message, targetId) {
 
     // Spread full chatHistory so the model knows the original question,
     // then append the assistant's tool-call turn and the tool results.
+    setIdleState(false);
     worker.postMessage({
         type: 'query',
         messages: [
             ...chatHistory,
             { role: 'assistant', content: message },
-            { role: 'user',      content: toolResultText }
+            { role: 'user', content: toolResultText }
         ],
+        params: {
+            temperature: 0.15,
+            top_k: 40,
+            top_p: 0.9,
+        },
         targetId: Date.now()
     });
 }
@@ -285,14 +294,14 @@ function formatAssistantMessage(text) {
     return escaped
         .replace(/```([\s\S]*?)```/g, (_, code) => `<pre><code>${code.trim()}</code></pre>`)
         .replace(/(^|\n)######\s*(.+)/g, '$1<h6>$2</h6>')
-        .replace(/(^|\n)#####\s*(.+)/g,  '$1<h5>$2</h5>')
-        .replace(/(^|\n)####\s*(.+)/g,   '$1<h4>$2</h4>')
-        .replace(/(^|\n)###\s*(.+)/g,    '$1<h3>$2</h3>')
-        .replace(/(^|\n)##\s*(.+)/g,     '$1<h2>$2</h2>')
-        .replace(/(^|\n)#\s*(.+)/g,      '$1<h1>$2</h1>')
+        .replace(/(^|\n)#####\s*(.+)/g, '$1<h5>$2</h5>')
+        .replace(/(^|\n)####\s*(.+)/g, '$1<h4>$2</h4>')
+        .replace(/(^|\n)###\s*(.+)/g, '$1<h3>$2</h3>')
+        .replace(/(^|\n)##\s*(.+)/g, '$1<h2>$2</h2>')
+        .replace(/(^|\n)#\s*(.+)/g, '$1<h1>$2</h1>')
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.+?)\*/g,     '<em>$1</em>')
-        .replace(/`([^`\n]+?)`/g,  '<code>$1</code>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/`([^`\n]+?)`/g, '<code>$1</code>')
         .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer noopener">$1</a>')
         .replace(/\n/g, '<br>');
 }
@@ -312,7 +321,7 @@ function appendUserMessage(text) {
 function updateLiveBubble(text, targetId) {
     const chatLog = document.getElementById('chatLog');
     let bubble = document.getElementById(`bubble-${targetId}`);
-    
+
     if (!bubble) {
         const messageWrap = document.createElement('div');
         messageWrap.className = 'message-wrap assistant-msg';
@@ -322,7 +331,7 @@ function updateLiveBubble(text, targetId) {
         messageWrap.appendChild(bubble);
         chatLog.appendChild(messageWrap);
     }
-    
+
     bubble.innerHTML = formatAssistantMessage(text);
     chatLog.scrollTop = chatLog.scrollHeight;
 }
@@ -350,13 +359,15 @@ async function simulateCannedResponse(canned, targetId = null) {
     if (statusText) statusText.textContent = 'THINKING...';
     updateLiveBubble('...', targetId);
 
-    await new Promise(r => setTimeout(r, 400 + Math.random() * 500));
+    await new Promise(r => setTimeout(r, 400 + Math.random() * 300));
 
     if (statusText) statusText.textContent = 'RESPONDING...';
-    queueStreamText(targetId, canned);
 
-    const wordCount = canned.split(/\s+/).length;
-    await new Promise(r => setTimeout(r, wordCount * 35 + 300));
+    // Wait for the stream to fully drain before unlocking the UI
+    await new Promise(resolve => {
+        streamQueues.set(targetId, { pending: canned, displayed: '', running: false, onDone: resolve });
+        drainStreamQueue(targetId);
+    });
 
     chatHistory.push({ role: 'assistant', content: canned });
     persistCurrentChat();
@@ -376,7 +387,7 @@ async function executeDirectTool(toolName, params) {
 
     try {
         const result = await executeTool(toolName, params);
-        
+
         let cannedText = '';
         if (toolName === 'weather') {
             cannedText = `The weather in ${result.location} is ${result.condition.toLowerCase()} with a temperature of ${result.temperature}.`;
@@ -466,8 +477,8 @@ function sendMessage() {
 
 // ─── Chat History Management ────────────────────────────────────────────────
 
-let chatHistory   = [];
-let allChats      = [];
+let chatHistory = [];
+let allChats = [];
 let currentChatId = null;
 
 function isMobileDevice() {
@@ -542,7 +553,7 @@ function persistCurrentChat() {
 function loadChatHistory(chatId) {
     const chat = allChats.find(c => c.id === chatId);
     if (!chat) return;
-    
+
     persistCurrentChat();
     currentChatId = chatId;
     chatHistory = [...chat.messages];
@@ -579,9 +590,11 @@ function renderChatLog() {
         messageWrap.className = `message-wrap ${msg.role === 'user' ? 'user-msg' : 'assistant-msg'}`;
         const messageContent = document.createElement('div');
         messageContent.className = 'message-content';
-        messageContent.innerHTML = msg.role === 'assistant'
-            ? formatAssistantMessage(msg.content)
-            : (messageContent.textContent = msg.content, messageContent.textContent);
+        if (msg.role === 'assistant') {
+            messageContent.innerHTML = formatAssistantMessage(msg.content);
+        } else {
+            messageContent.textContent = msg.content;
+        }
         messageWrap.appendChild(messageContent);
         chatLog.appendChild(messageWrap);
     });
@@ -612,8 +625,9 @@ function updateChatList() {
 }
 
 function updateChatListActive(chatId) {
+    const chatIdStr = String(chatId);
     document.querySelectorAll('#chatList .chat-item').forEach(item => {
-        item.classList.toggle('active', chatId != null && Number(item.dataset.chatId) === chatId);
+        item.classList.toggle('active', chatId != null && item.dataset.chatId === chatIdStr);
     });
 }
 
@@ -708,7 +722,7 @@ const dismissBtn = document.getElementById('dismissInstallBtn');
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    
+
     if (!localStorage.getItem('james-pwa-dismissed')) {
         installBanner.classList.remove('hidden');
     }

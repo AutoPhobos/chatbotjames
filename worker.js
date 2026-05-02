@@ -104,23 +104,36 @@ async function downloadAndCache(url) {
 
     const results = new Array(ranges.length);
     let loaded = 0;
+    let nextIndex = 0;
 
-    const pool = async () => {
-        let i = 0;
-        const workers = Array.from({ length: MAX_DOWNLOAD_CONCURRENCY }, async () => {
-            while (true) {
-                const index = i++;
-                if (index >= ranges.length) break;
-                const chunk = await downloadChunk(url, ranges[index]);
-                results[index] = chunk;
-                loaded += chunk.byteLength;
-                reportProgress(loaded, total, url);
+    await new Promise((resolve, reject) => {
+        let active = 0;
+        let failed = false;
+
+        function spawnNext() {
+            if (failed) return;
+            if (nextIndex >= ranges.length) {
+                if (active === 0) resolve();
+                return;
             }
-        });
-        await Promise.all(workers);
-    };
+            const index = nextIndex++;
+            active++;
+            downloadChunk(url, ranges[index])
+                .then(chunk => {
+                    results[index] = chunk;
+                    loaded += chunk.byteLength;
+                    reportProgress(loaded, total, url);
+                    active--;
+                    spawnNext();
+                    if (nextIndex >= ranges.length && active === 0) resolve();
+                })
+                .catch(err => {
+                    if (!failed) { failed = true; reject(err); }
+                });
+        }
 
-    await pool();
+        for (let i = 0; i < MAX_DOWNLOAD_CONCURRENCY; i++) spawnNext();
+    });
 
     const blob = new Blob(results, { type: contentType });
     const finalResponse = new Response(blob, {
@@ -327,16 +340,16 @@ async function tryInitializeModels(hasGpu, isMobile, isTV) {
 self.onmessage = async (e) => {
     const { type, messages, targetId } = e.data;
 
-if (type === 'init') {
+    if (type === 'init') {
         try {
             await new Promise((resolve) => setTimeout(resolve, 125));
             let hasGpu = false;
-            
+
             if (navigator.gpu) {
                 const adapter = await navigator.gpu.requestAdapter();
                 if (adapter) {
                     let vendor = "";
-                    
+
                     // 1. Safely try to get the GPU vendor, handling new specs, old specs, and privacy blocks
                     try {
                         if (adapter.info) {
@@ -348,14 +361,14 @@ if (type === 'init') {
                     } catch (e) {
                         console.warn("GPU vendor info hidden by browser privacy settings.");
                     }
-                    
+
                     const isDedicated = vendor.includes('nvidia') || vendor.includes('amd') || vendor.includes('apple');
                     const isFallback = adapter.isFallbackAdapter;
-                    
+
                     // 2. Hardware limit test: Integrated chips usually have small buffer limits (<256MB)
                     const maxBuffer = adapter.limits.maxStorageBufferBindingSize || 0;
                     const hasHugeBuffer = maxBuffer >= (512 * 1024 * 1024);
-                    
+
                     // 3. Final decision logic
                     if (!isFallback && (isDedicated || (vendor === "" && hasHugeBuffer))) {
                         console.log(`🚀 Capable GPU detected (Vendor: ${vendor || 'Hidden'}). Enabling WebGPU.`);
@@ -365,31 +378,31 @@ if (type === 'init') {
                     }
                 }
             }
-            
+
             const mobile = isMobileDevice();
             const tv = isTVDevice();
             await tryInitializeModels(hasGpu, mobile, tv);
         } catch (err) {
-            reportWorkerError(err);
+            reportWorkerError(err, undefined);
         }
         return;
     }
 
-if (type === 'query') {
+    if (type === 'query') {
         try {
             self.postMessage({ status: 'thinking', targetId });
 
             const activeMessages = messages.filter(m => !m.content.includes('Tools available'));
-            
+
             // Clean, standard context. TinyLlama understands this perfectly.
             const chatContext = [
                 { role: 'system', content: systemPrompt },
                 ...activeMessages
             ];
 
-            const prompt = chatbot.tokenizer.apply_chat_template(chatContext, { 
-                tokenize: false, 
-                add_generation_prompt: true 
+            const prompt = chatbot.tokenizer.apply_chat_template(chatContext, {
+                tokenize: false,
+                add_generation_prompt: true
             });
 
             // Get exact token count for flawless slicing
@@ -407,11 +420,11 @@ if (type === 'query') {
                 return_full_text: false,
                 callback_function: (beams) => {
                     const allTokens = Array.from(beams[0].output_token_ids.data || beams[0].output_token_ids);
-                    
+
                     if (allTokens.length > promptTokenCount) {
                         const newTokens = allTokens.slice(promptTokenCount);
                         const text = chatbot.tokenizer.decode(newTokens, { skip_special_tokens: true });
-                        
+
                         if (text.length > accumulatedResponse.length) {
                             accumulatedResponse = text;
                             self.postMessage({ status: 'streaming', message: accumulatedResponse, targetId });
@@ -420,23 +433,16 @@ if (type === 'query') {
                 }
             });
 
+            // With return_full_text: false the model already gives us only the new text.
+            // Use the streamed accumulation as the authoritative final response if the
+            // pipeline output is empty or clearly wrong.
             let finalResponse = Array.isArray(output)
-                ? output[0]?.generated_text ?? output[0]?.text ?? ''
-                : output?.generated_text ?? output?.text ?? '';
+                ? (output[0]?.generated_text ?? output[0]?.text ?? '').trim()
+                : (output?.generated_text ?? output?.text ?? '').trim();
 
-            // Clean up the final response
-            const finalTokens = await chatbot.tokenizer(finalResponse);
-            const finalTokenArray = Array.from(finalTokens.input_ids.data || finalTokens.input_ids);
-            
-            if (finalTokenArray.length > promptTokenCount) {
-                 const slicedFinal = finalTokenArray.slice(promptTokenCount);
-                 finalResponse = chatbot.tokenizer.decode(slicedFinal, { skip_special_tokens: true });
-            } else {
-                 // Fallback string subtraction if token slicing acts weird on the final output
-                 const plainPrompt = chatbot.tokenizer.decode(promptTokens.input_ids, { skip_special_tokens: true });
-                 if (finalResponse.startsWith(plainPrompt)) {
-                     finalResponse = finalResponse.substring(plainPrompt.length);
-                 }
+            // Prefer the streamed accumulation — it's always just the new tokens.
+            if (!finalResponse && accumulatedResponse) {
+                finalResponse = accumulatedResponse.trim();
             }
 
             self.postMessage({ status: 'complete', message: finalResponse.trim(), targetId });
