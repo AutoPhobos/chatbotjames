@@ -80,11 +80,11 @@ export class SmallTalkHandler {
             {
                 triggers: [
                     'who are you', 'what are you', "what's your name", 'whats your name',
-                    'introduce yourself', 'tell me about yourself', 'who is james', 'what is james',
+                    'introduce yourself', 'tell me about yourself', 'who is JAMES', 'what is JAMES',
                 ],
                 responses: [
-                    "I'm James — a local, private AI assistant running entirely in your browser. No servers, no tracking.",
-                    "I'm James, your browser-based AI. Everything runs on your device so nothing you type ever leaves your browser.",
+                    "I'm JAMES — a local, private AI assistant running entirely in your browser. No servers, no tracking.",
+                    "I'm JAMES, your browser-based AI. Everything runs on your device so nothing you type ever leaves your browser.",
                 ],
             },
             {
@@ -437,13 +437,15 @@ export class SmallTalkHandler {
     match(input) {
         const normalized = this._normalize(input);
 
-        // Exact match, or with "james" appended/prepended
+        // Exact match, or with "JAMES" appended/prepended
         for (const pattern of this._patterns) {
             for (const trigger of pattern.triggers) {
+                const lowerTrigger = trigger.toLowerCase();
+                const j = 'JAMES'.toLowerCase();
                 if (
-                    normalized === trigger ||
-                    normalized === trigger + ' james' ||
-                    normalized === 'james ' + trigger
+                    normalized === lowerTrigger ||
+                    normalized === lowerTrigger + ' ' + j ||
+                    normalized === j + ' ' + lowerTrigger
                 ) {
                     return this._pick(pattern.responses);
                 }

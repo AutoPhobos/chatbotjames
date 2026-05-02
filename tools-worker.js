@@ -6,15 +6,15 @@ import { create as oramaCreate, insert as oramaInsert, search as oramaSearch } f
 let oramaIndex = null;
 const oramaSeedDocs = [
     {
-        id: 'james-overview',
+        id: 'JAMES-overview',
         content: 'JAMES is a browser-native AI assistant that runs locally in the browser. It can execute tool calls, stream responses, and maintain private conversation state.'
     },
     {
-        id: 'james-tools',
+        id: 'JAMES-tools',
         content: 'JAMES includes weather, wikipedia, currency, time, uuid, password, palette, date, file, location, clipboard, timer, search, and python tools.'
     },
     {
-        id: 'james-architecture',
+        id: 'JAMES-architecture',
         content: 'The app uses a main thread UI, a model worker for inference, a tools worker for external calls, and optional Python execution via Pyodide.'
     }
 ];

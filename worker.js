@@ -3,7 +3,7 @@ import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transfo
 // --- CONFIGURATION ---
 env.allowLocalModels = false;
 env.useBrowserCache = true;
-const DOWNLOAD_CACHE = 'james-model-cache';
+const DOWNLOAD_CACHE = 'JAMES-model-cache';
 const CHUNK_SIZE = 4 * 1024 * 1024; // 4 MiB
 const MAX_DOWNLOAD_CONCURRENCY = 3;
 
@@ -170,7 +170,7 @@ async function customFetch(resource, init = {}) {
 
 let chatbot;
 
-const systemPrompt = `You are James, a helpful AI assistant with access to real-time tools.
+const systemPrompt = `You are JAMES, a helpful AI assistant with access to real-time tools.
 
 ## TOOL CALLING
 

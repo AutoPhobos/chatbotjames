@@ -20,11 +20,11 @@ function setIdleState(isIdle) {
 
     if (isIdle) {
         cmdInput.classList.remove('loading-state');
-        cmdInput.placeholder = "Message James...";
+        cmdInput.placeholder = "Message JAMES...";
         cmdInput.focus();
     } else {
         cmdInput.classList.add('loading-state');
-        cmdInput.placeholder = "James is busy...";
+        cmdInput.placeholder = "JAMES is busy...";
     }
 }
 
@@ -96,8 +96,8 @@ worker.onmessage = (e) => {
 
         case 'model-info': {
             // Worker detected GPU and compiled preset list — render the panel
-            _gpuInfo  = e.data.gpuInfo;
-            _presets  = e.data.presets;
+            _gpuInfo = e.data.gpuInfo;
+            _presets = e.data.presets;
             _deviceRamGB = e.data.ramGB ?? 4;
             renderModelPanel();
             break;
@@ -124,7 +124,7 @@ worker.onmessage = (e) => {
             const metaDone = document.querySelector('.status-meta');
             const backend = e.data.backend === 'webgpu' ? 'WebGPU' : 'WASM (CPU)';
             const deviceTag = e.data.isTV ? ' · TV Mode' : e.data.isMobile ? ' · Lightweight Mode' : '';
-            if (metaDone) metaDone.innerText = `James is online (${backend}${deviceTag})`;
+            if (metaDone) metaDone.innerText = `JAMES is online (${backend}${deviceTag})`;
 
             const fillDone = document.querySelector('.progress-fill');
             if (fillDone) fillDone.style.width = "100%";
@@ -135,7 +135,7 @@ worker.onmessage = (e) => {
                 p => p.backend === e.data.backend && p.dtype === e.data.dtype && p.model === e.data.model
             );
             if (runningPreset) {
-                _activePresetId   = runningPreset.id;
+                _activePresetId = runningPreset.id;
                 _selectedPresetId = runningPreset.id;
                 // ✔ Persist for warm-start on next page load
                 localStorage.setItem('james-last-preset-id', runningPreset.id);
@@ -726,7 +726,7 @@ if (window.innerWidth <= 768) document.getElementById('sidebar').classList.add('
 setIdleState(false);
 worker.postMessage({
     type: 'init',
-    lastPresetId: localStorage.getItem('james-last-preset-id') || null,
+    lastPresetId: localStorage.getItem('JAMES-last-preset-id') || null,
 });
 pythonWorker.postMessage({ type: 'init' });
 document.getElementById('statusText').textContent = 'INITIALIZING...';
@@ -775,7 +775,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
 
-    if (!localStorage.getItem('james-pwa-dismissed')) {
+    if (!localStorage.getItem('JAMES-pwa-dismissed')) {
         installBanner.classList.remove('hidden');
     }
 });
@@ -791,16 +791,16 @@ installBtn?.addEventListener('click', async () => {
 
 dismissBtn?.addEventListener('click', () => {
     installBanner.classList.add('hidden');
-    localStorage.setItem('james-pwa-dismissed', 'true');
+    localStorage.setItem('JAMES-pwa-dismissed', 'true');
 });
 
 // ─── Model Selection Panel ────────────────────────────────────────────────────
 
-const modelPanel        = document.getElementById('modelPanel');
+const modelPanel = document.getElementById('modelPanel');
 const modelPanelOverlay = document.getElementById('modelPanelOverlay');
-const modelPanelBtn     = document.getElementById('modelPanelBtn');
-const modelPanelClose   = document.getElementById('modelPanelClose');
-const applyModelBtn     = document.getElementById('applyModelBtn');
+const modelPanelBtn = document.getElementById('modelPanelBtn');
+const modelPanelClose = document.getElementById('modelPanelClose');
+const applyModelBtn = document.getElementById('applyModelBtn');
 
 function openModelPanel() {
     modelPanel.classList.add('open');
@@ -819,40 +819,40 @@ modelPanelOverlay?.addEventListener('click', closeModelPanel);
 /** Render (or re-render) the GPU status card and preset list. */
 function renderModelPanel() {
     // ── GPU status card ──────────────────────────────────────────────────────
-    const card   = document.getElementById('gpuStatusCard');
-    const icon   = document.getElementById('gpuStatusIcon');
-    const title  = document.getElementById('gpuStatusTitle');
+    const card = document.getElementById('gpuStatusCard');
+    const icon = document.getElementById('gpuStatusIcon');
+    const title = document.getElementById('gpuStatusTitle');
     const detail = document.getElementById('gpuStatusDetail');
-    const badge  = document.getElementById('gpuStatusBadge');
+    const badge = document.getElementById('gpuStatusBadge');
 
     if (_gpuInfo && card) {
         const { hasGpu, vendor, maxStorageMB, reason, isFallback } = _gpuInfo;
 
         if (hasGpu) {
-            card.className    = 'gpu-status-card gpu-ok';
-            icon.textContent  = '🚀';
+            card.className = 'gpu-status-card gpu-ok';
+            icon.textContent = '🚀';
             title.textContent = 'GPU Acceleration Available';
             badge.textContent = 'WebGPU';
         } else if (!navigator.gpu) {
-            card.className    = 'gpu-status-card gpu-none';
-            icon.textContent  = '❌';
+            card.className = 'gpu-status-card gpu-none';
+            icon.textContent = '❌';
             title.textContent = 'WebGPU Not Supported';
             badge.textContent = 'NO GPU';
         } else if (isFallback) {
-            card.className    = 'gpu-status-card gpu-warn';
-            icon.textContent  = '⚠️';
+            card.className = 'gpu-status-card gpu-warn';
+            icon.textContent = '⚠️';
             title.textContent = 'Software Adapter Only';
             badge.textContent = 'SW ONLY';
         } else {
-            card.className    = 'gpu-status-card gpu-warn';
-            icon.textContent  = '⚠️';
+            card.className = 'gpu-status-card gpu-warn';
+            icon.textContent = '⚠️';
             title.textContent = 'Integrated GPU — CPU Fallback';
             badge.textContent = 'CPU';
         }
 
         const vendorStr = vendor ? `Vendor: ${vendor}` : 'Vendor: hidden by browser';
-        const bufStr    = maxStorageMB ? ` · Buffer: ${maxStorageMB.toFixed(0)} MB` : '';
-        const ramStr    = `Device RAM: ~${_deviceRamGB} GB`;
+        const bufStr = maxStorageMB ? ` · Buffer: ${maxStorageMB.toFixed(0)} MB` : '';
+        const ramStr = `Device RAM: ~${_deviceRamGB} GB`;
         detail.textContent = `${reason}\n${vendorStr}${bufStr} · ${ramStr}`;
     }
 
@@ -864,9 +864,9 @@ function renderModelPanel() {
     const gpuAvailable = _gpuInfo?.hasGpu ?? false;
 
     const GROUPS = [
-        { key: 'gpu',  title: '⚡ GPU · WebGPU',          filter: p => p.requires === 'gpu' },
-        { key: 'cpu',  title: '🧠 CPU · WASM',             filter: p => p.requires === 'cpu' && !p.id.startsWith('lite-') },
-        { key: 'lite', title: '🪶 Lite · Constrained',     filter: p => p.id.startsWith('lite-') },
+        { key: 'gpu', title: '⚡ GPU · WebGPU', filter: p => p.requires === 'gpu' },
+        { key: 'cpu', title: '🧠 CPU · WASM', filter: p => p.requires === 'cpu' && !p.id.startsWith('lite-') },
+        { key: 'lite', title: '🪶 Lite · Constrained', filter: p => p.id.startsWith('lite-') },
     ];
 
     GROUPS.forEach(group => {
@@ -880,23 +880,23 @@ function renderModelPanel() {
         list.appendChild(divider);
 
         presets.forEach(preset => {
-            const needsGpu   = preset.requires === 'gpu';
+            const needsGpu = preset.requires === 'gpu';
             const isDisabled = needsGpu && !gpuAvailable;
-            const isRunning  = preset.id === _activePresetId;
+            const isRunning = preset.id === _activePresetId;
             const isSelected = preset.id === _selectedPresetId;
 
             let pillClass = 'pill-cpu';
-            let pillText  = 'CPU';
-            if (needsGpu)                         { pillClass = 'pill-gpu';  pillText = 'GPU';  }
-            if (preset.id.startsWith('lite-'))    { pillClass = 'pill-lite'; pillText = 'LITE'; }
-            if (isRunning)                        { pillClass = 'pill-active'; pillText = 'ACTIVE'; }
+            let pillText = 'CPU';
+            if (needsGpu) { pillClass = 'pill-gpu'; pillText = 'GPU'; }
+            if (preset.id.startsWith('lite-')) { pillClass = 'pill-lite'; pillText = 'LITE'; }
+            if (isRunning) { pillClass = 'pill-active'; pillText = 'ACTIVE'; }
 
             const sizeStr = preset.sizeMB
                 ? preset.sizeMB >= 1000
                     ? `${(preset.sizeMB / 1024).toFixed(1)} GB`
                     : `${preset.sizeMB} MB`
                 : '';
-            const ramStr  = preset.ram ? `${preset.ram} RAM` : '';
+            const ramStr = preset.ram ? `${preset.ram} RAM` : '';
             const metaStr = [preset.dtype.toUpperCase(), sizeStr, ramStr].filter(Boolean).join(' · ');
             const autoTag = preset.autoSelect !== false ? ' <span class="preset-auto-tag">AUTO</span>' : '';
 
@@ -905,7 +905,7 @@ function renderModelPanel() {
                 'preset-card',
                 isDisabled ? 'preset-disabled' : '',
                 isSelected && !isRunning ? 'preset-selected' : '',
-                isRunning  ? 'preset-active-running' : '',
+                isRunning ? 'preset-active-running' : '',
             ].filter(Boolean).join(' ');
             el.dataset.presetId = preset.id;
 
@@ -963,4 +963,4 @@ applyModelBtn?.addEventListener('click', () => {
     document.getElementById('statusText').textContent = 'LOADING MODEL…';
 
     worker.postMessage({ type: 'init', forcePresetId: _selectedPresetId });
-});
+});
