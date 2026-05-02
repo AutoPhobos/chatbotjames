@@ -671,6 +671,11 @@ function randomTool(params) {
     throw new Error(`Unknown random mode: ${mode}`);
 }
 
+function helpTool(params) {
+    const { text, toolName } = params;
+    return { text, toolName: toolName ?? null };
+}
+
 // ── NEW: IP lookup (ipapi.co, no key needed for basic use) ────────────────
 async function ipTool(params) {
     const { target = 'self' } = params;
@@ -709,6 +714,7 @@ self.onmessage = async (e) => {
         let result;
 
         switch (tool) {
+            case 'help':  result = helpTool(params); break;
             // ── Original tools ──────────────────────────────────────────
             case 'weather':     result = await getWeather(params);    break;
             case 'websearch':   result = await getWebSearch(params);  break;
