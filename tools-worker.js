@@ -11,7 +11,7 @@ const oramaSeedDocs = [
     },
     {
         id: 'JAMES-tools',
-        content: 'JAMES includes weather, wikipedia, currency, time, uuid, password, palette, date, file, location, clipboard, timer, search, and python tools.'
+        content: 'JAMES includes weather, wikipedia, currency, time, uuid, password, palette, date, file, location, clipboard, timer, search, calculator, convert, countdown, base64, color, hash, random, and ip tools.'
     },
     {
         id: 'JAMES-architecture',
@@ -21,13 +21,7 @@ const oramaSeedDocs = [
 
 async function ensureOramaIndex() {
     if (oramaIndex) return;
-    oramaIndex = await oramaCreate({
-        schema: {
-            id: 'string',
-            content: 'string'
-        }
-    });
-
+    oramaIndex = await oramaCreate({ schema: { id: 'string', content: 'string' } });
     for (const doc of oramaSeedDocs) {
         await oramaInsert(oramaIndex, doc);
     }
@@ -51,7 +45,6 @@ async function indexDocument(params) {
 async function getWeather(params) {
     const { location } = params;
 
-    // Geocode location name → lat/lon
     const geoRes = await fetch(
         `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&format=json`
     );
@@ -121,7 +114,6 @@ async function getCurrency(params) {
     const fromCode = from.toUpperCase();
     const toCode = to.toUpperCase();
 
-    // Same-currency shortcut — frankfurter excludes the base from its rates object
     if (fromCode === toCode) {
         const amt = parseFloat(amount);
         return { from: fromCode, to: toCode, rate: 1, amount: amt, converted: amt.toFixed(2) };
@@ -155,13 +147,8 @@ async function getTime(params) {
         const d = new Date();
         const timeString = d.toLocaleTimeString('en-US', { timeZone: timezone, hour: '2-digit', minute: '2-digit' });
         const dateString = d.toLocaleDateString('en-US', { timeZone: timezone, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-        
-        return {
-            timezone,
-            time: timeString,
-            date: dateString
-        };
-    } catch (e) {
+        return { timezone, time: timeString, date: dateString };
+    } catch {
         throw new Error(`Unknown timezone: ${timezone}`);
     }
 }
@@ -170,23 +157,22 @@ async function getTime(params) {
 function generateUUID(params) {
     const count = Math.min(parseInt(params?.count ?? 1), 20);
     const uuids = [];
-    for (let i = 0; i < count; i++) {
-        uuids.push(crypto.randomUUID());
-    }
+    for (let i = 0; i < count; i++) uuids.push(crypto.randomUUID());
     return { uuids };
 }
 
 // ── Password generator ────────────────────────────────────────────────────
 function generatePassword(params) {
-    const length = Math.min(parseInt(params?.length ?? 16), 128);
-    const count = Math.min(parseInt(params?.count ?? 1), 10);
-    const upper = params?.uppercase !== false;
-    const numbers = params?.numbers !== false;
-    const symbols = params?.symbols !== false;
+    const length   = Math.min(parseInt(params?.length ?? 16), 128);
+    const count    = Math.min(parseInt(params?.count ?? 1), 10);
+    const upper    = params?.uppercase !== false;
+    // Accept both 'digits' (new handler) and 'numbers' (legacy) for compat
+    const digits   = (params?.digits ?? params?.numbers) !== false;
+    const symbols  = params?.symbols !== false;
 
     let chars = 'abcdefghijklmnopqrstuvwxyz';
-    if (upper) chars += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    if (numbers) chars += '0123456789';
+    if (upper)   chars += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    if (digits)  chars += '0123456789';
     if (symbols) chars += '!@#$%^&*()_+-=[]{}|;:,.<>?';
 
     const passwords = [];
@@ -195,7 +181,11 @@ function generatePassword(params) {
         crypto.getRandomValues(arr);
         passwords.push(Array.from(arr).map(v => chars[v % chars.length]).join(''));
     }
-    return { passwords, length, strength: length >= 16 && symbols ? 'Strong' : length >= 12 ? 'Medium' : 'Weak' };
+    return {
+        passwords,
+        length,
+        strength: length >= 16 && symbols ? 'Strong' : length >= 12 ? 'Medium' : 'Weak'
+    };
 }
 
 // ── Color palette generator ───────────────────────────────────────────────
@@ -203,7 +193,6 @@ function generatePalette(params) {
     const { base = '#3498db', scheme = 'complementary', count = 5 } = params;
 
     function hexToHsl(hex) {
-        // Ensure valid 6-char hex
         const clean = (hex || '#3498db').replace(/^#/, '');
         const full = clean.length === 3
             ? clean.split('').map(c => c + c).join('')
@@ -239,13 +228,11 @@ function generatePalette(params) {
     if (scheme === 'analogous') {
         for (let i = 0; i < n; i++) colors.push(hslToHex((h + i*30) % 360, s, l));
     } else if (scheme === 'monochromatic') {
-        // Guard divide-by-zero when n=1
         const step = n > 1 ? 60 / (n - 1) : 0;
         for (let i = 0; i < n; i++) colors.push(hslToHex(h, s, Math.max(10, Math.min(90, l - 30 + i * step))));
     } else if (scheme === 'triadic') {
         colors.push(hslToHex(h,s,l), hslToHex((h+120)%360,s,l), hslToHex((h+240)%360,s,l));
     } else {
-        // complementary
         for (let i = 0; i < n; i++) {
             colors.push(i % 2 === 0 ? hslToHex(h, s, Math.max(20, l - 10 + i*5)) : hslToHex((h+180)%360, s, l));
         }
@@ -269,13 +256,15 @@ function dateTool(params) {
     }
 
     if (action === 'diff') {
-        const d1 = new Date(date);
-        const d2 = new Date(date2);
+        const d1 = new Date(date), d2 = new Date(date2);
         const diffMs = Math.abs(d2 - d1);
-        const days = Math.floor(diffMs / 86400000);
-        const hours = Math.floor((diffMs % 86400000) / 3600000);
-        const minutes = Math.floor((diffMs % 3600000) / 60000);
-        return { from: date, to: date2, days, hours, minutes, total_ms: diffMs };
+        return {
+            from: date, to: date2,
+            days: Math.floor(diffMs / 86400000),
+            hours: Math.floor((diffMs % 86400000) / 3600000),
+            minutes: Math.floor((diffMs % 3600000) / 60000),
+            total_ms: diffMs
+        };
     }
 
     if (action === 'convert') {
@@ -303,35 +292,30 @@ function dateTool(params) {
     throw new Error(`Unknown date action: ${action}`);
 }
 
-// ── File reader (handles text passed from main thread) ────────────────────
+// ── File reader ───────────────────────────────────────────────────────────
 function readFile(params) {
-    // File content is passed directly as base64 or text from the main thread
-    const { content, filename, encoding = 'text' } = params;
+    const { content, filename } = params;
     if (!content) throw new Error('No file content provided');
-
     const lines = content.split('\n').length;
     const words = content.split(/\s+/).filter(Boolean).length;
-    const chars = content.length;
-
     return {
         filename: filename ?? 'unknown',
         lines,
         words,
-        characters: chars,
+        characters: content.length,
         preview: content.slice(0, 500) + (content.length > 500 ? '...' : ''),
         full_content: content
     };
 }
 
-// ── Geolocation (uses coords passed from main thread) ─────────────────────
+// ── Geolocation ───────────────────────────────────────────────────────────
 function getLocation(params) {
-    // Coords are passed from the main thread since workers can't access navigator
     const { latitude, longitude, accuracy } = params;
     if (latitude == null) throw new Error('Location not available or not yet fetched');
     return { latitude, longitude, accuracy: `${Math.round(accuracy)}m` };
 }
 
-// ── Clipboard (content passed from main thread) ───────────────────────────
+// ── Clipboard ─────────────────────────────────────────────────────────────
 function readClipboard(params) {
     const { content } = params;
     if (!content) throw new Error('Clipboard is empty or access was denied');
@@ -342,12 +326,378 @@ function readClipboard(params) {
 function timerTool(params) {
     const { seconds, label } = params;
     const s = Math.max(1, parseInt(seconds ?? 0));
-    // Signal the main thread to show the countdown widget via the bridge listener
     self.postMessage({ status: 'timer', seconds: s, label: label ?? 'Timer' });
+    return { seconds: s, label: label ?? 'Timer', note: 'Timer started.' };
+}
+
+// ── NEW: Calculator ───────────────────────────────────────────────────────
+// The router pre-evaluates simple expressions; this handler receives
+// the already-computed result, or re-evaluates if only `expression` is given.
+function calculatorTool(params) {
+    let { expression, result } = params;
+
+    if (result === undefined) {
+        // Safety: only allow numbers, operators, parens, dots, spaces, ** and %
+        const safe = expression
+            .replace(/\^/g, '**')
+            .replace(/\bmod\b/gi, '%')
+            .replace(/\bx\b/gi, '*')
+            .replace(/[^0-9+\-*/%.() ]/g, '');
+        // eslint-disable-next-line no-new-func
+        result = Function('"use strict"; return (' + safe + ')')();
+    }
+
+    if (typeof result !== 'number' || !isFinite(result)) {
+        throw new Error(`Cannot evaluate: ${expression}`);
+    }
+
     return {
-        seconds: s,
-        label: label ?? 'Timer',
-        note: 'Timer started.'
+        expression,
+        result,
+        formatted: Number.isInteger(result) ? String(result) : result.toPrecision(10).replace(/\.?0+$/, '')
+    };
+}
+
+// ── NEW: Unit converter ───────────────────────────────────────────────────
+// Conversion factors relative to a base unit per type.
+const UNIT_TO_BASE = {
+    // Length → metres
+    mm: 0.001, cm: 0.01, m: 1, km: 1000,
+    inch: 0.0254, in: 0.0254, inches: 0.0254,
+    foot: 0.3048, feet: 0.3048, ft: 0.3048,
+    yard: 0.9144, yards: 0.9144, yd: 0.9144,
+    mile: 1609.344, miles: 1609.344, mi: 1609.344,
+    // Weight → kg
+    mg: 0.000001, g: 0.001, kg: 1,
+    oz: 0.0283495, ounce: 0.0283495, ounces: 0.0283495,
+    lb: 0.453592, lbs: 0.453592, pound: 0.453592, pounds: 0.453592,
+    tonne: 1000, ton: 907.185, tons: 907.185,
+    // Volume → litres
+    ml: 0.001, l: 1, liter: 1, litre: 1, liters: 1, litres: 1,
+    gallon: 3.78541, gallons: 3.78541, gal: 3.78541,
+    pint: 0.473176, pints: 0.473176, pt: 0.473176,
+    cup: 0.236588, cups: 0.236588,
+    // Speed → km/h
+    'km/h': 1, kph: 1, mph: 1.60934, mps: 3.6, knot: 1.852, knots: 1.852,
+    // Digital storage → bytes
+    b: 1, byte: 1, bytes: 1,
+    kb: 1024, kilobyte: 1024, kilobytes: 1024,
+    mb: 1048576, megabyte: 1048576, megabytes: 1048576,
+    gb: 1073741824, gigabyte: 1073741824, gigabytes: 1073741824,
+    tb: 1099511627776, terabyte: 1099511627776, terabytes: 1099511627776,
+};
+
+// Unit type groups — used to detect mismatched conversions
+const UNIT_TYPES = {
+    length:  ['mm','cm','m','km','inch','in','inches','foot','feet','ft','yard','yards','yd','mile','miles','mi'],
+    weight:  ['mg','g','kg','oz','ounce','ounces','lb','lbs','pound','pounds','tonne','ton','tons'],
+    volume:  ['ml','l','liter','litre','liters','litres','gallon','gallons','gal','pint','pints','pt','cup','cups'],
+    speed:   ['km/h','kph','mph','mps','knot','knots'],
+    storage: ['b','byte','bytes','kb','kilobyte','kilobytes','mb','megabyte','megabytes','gb','gigabyte','gigabytes','tb','terabyte','terabytes'],
+};
+
+function getUnitType(unit) {
+    const u = unit.toLowerCase();
+    for (const [type, units] of Object.entries(UNIT_TYPES)) {
+        if (units.includes(u)) return type;
+    }
+    return null;
+}
+
+function convertUnits(params) {
+    const { amount, from, to, fromType } = params;
+    const fromKey = from.toLowerCase();
+    const toKey   = to.toLowerCase();
+
+    // ── Temperature (special: not ratio-based) ──────────────────────────
+    const tempNames = { celsius: 'C', c: 'C', fahrenheit: 'F', f: 'F', kelvin: 'K', k: 'K' };
+    const fromTemp = tempNames[fromKey];
+    const toTemp   = tempNames[toKey];
+
+    if (fromTemp || toTemp) {
+        if (!fromTemp || !toTemp) throw new Error(`Mixed temperature/non-temperature units`);
+        let celsius;
+        if (fromTemp === 'C') celsius = amount;
+        else if (fromTemp === 'F') celsius = (amount - 32) * 5/9;
+        else celsius = amount - 273.15; // K
+
+        let result;
+        if (toTemp === 'C') result = celsius;
+        else if (toTemp === 'F') result = celsius * 9/5 + 32;
+        else result = celsius + 273.15; // K
+
+        return {
+            amount, from, to,
+            result: parseFloat(result.toFixed(4)),
+            formatted: `${parseFloat(result.toFixed(4))}°${toTemp}`
+        };
+    }
+
+    // ── Ratio-based units ─────────────────────────────────────────────────
+    const fromFactor = UNIT_TO_BASE[fromKey];
+    const toFactor   = UNIT_TO_BASE[toKey];
+    if (!fromFactor) throw new Error(`Unknown unit: ${from}`);
+    if (!toFactor)   throw new Error(`Unknown unit: ${to}`);
+
+    const fromTypeResolved = fromType ?? getUnitType(fromKey);
+    const toTypeResolved   = getUnitType(toKey);
+    if (fromTypeResolved && toTypeResolved && fromTypeResolved !== toTypeResolved) {
+        throw new Error(`Incompatible units: "${from}" (${fromTypeResolved}) ≠ "${to}" (${toTypeResolved})`);
+    }
+
+    const result = (amount * fromFactor) / toFactor;
+    return {
+        amount, from, to,
+        result: parseFloat(result.toPrecision(8)),
+        formatted: `${parseFloat(result.toPrecision(8))} ${to}`
+    };
+}
+
+// ── NEW: Countdown to date ────────────────────────────────────────────────
+function countdownTool(params) {
+    const { target } = params;
+
+    // Attempt to resolve well-known named dates for the current year
+    const namedDates = {
+        'christmas':      `${new Date().getFullYear()}-12-25`,
+        'new year':       `${new Date().getFullYear() + 1}-01-01`,
+        "new year's":     `${new Date().getFullYear() + 1}-01-01`,
+        "new year's day": `${new Date().getFullYear() + 1}-01-01`,
+        'halloween':      `${new Date().getFullYear()}-10-31`,
+        'valentine':      `${new Date().getFullYear()}-02-14`,
+        "valentine's day":`${new Date().getFullYear()}-02-14`,
+        'thanksgiving':   (() => {
+            // 4th Thursday of November
+            const y = new Date().getFullYear();
+            const nov1 = new Date(y, 10, 1);
+            const thu = (11 - nov1.getDay()) % 7;
+            return new Date(y, 10, 1 + thu + 21).toISOString().slice(0,10);
+        })(),
+        'independence day': `${new Date().getFullYear()}-07-04`,
+        'july 4':           `${new Date().getFullYear()}-07-04`,
+        "new year's eve":   `${new Date().getFullYear()}-12-31`,
+    };
+
+    const key = target.toLowerCase().trim();
+    const resolvedDate = namedDates[key] ?? target;
+
+    const targetDate = new Date(resolvedDate);
+    if (isNaN(targetDate)) throw new Error(`Cannot parse date: "${target}"`);
+
+    const now = new Date();
+    // If named date has already passed this year, bump to next year
+    if (targetDate < now && namedDates[key]) {
+        targetDate.setFullYear(targetDate.getFullYear() + 1);
+    }
+
+    const diffMs   = targetDate - now;
+    const isPast   = diffMs < 0;
+    const absDiff  = Math.abs(diffMs);
+    const days     = Math.floor(absDiff / 86400000);
+    const hours    = Math.floor((absDiff % 86400000) / 3600000);
+    const minutes  = Math.floor((absDiff % 3600000) / 60000);
+
+    return {
+        target,
+        date: targetDate.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' }),
+        days,
+        hours,
+        minutes,
+        direction: isPast ? 'ago' : 'remaining',
+        summary: isPast
+            ? `${days} days, ${hours} hours ago`
+            : `${days} days, ${hours} hours, ${minutes} minutes remaining`
+    };
+}
+
+// ── NEW: Base64 encode/decode ─────────────────────────────────────────────
+function base64Tool(params) {
+    const { mode, value } = params;
+    if (!value) throw new Error('No value provided');
+
+    if (mode === 'encode') {
+        // Use TextEncoder so non-ASCII (UTF-8) strings encode correctly
+        const bytes = new TextEncoder().encode(value);
+        const binStr = Array.from(bytes).map(b => String.fromCharCode(b)).join('');
+        const encoded = btoa(binStr);
+        return { mode: 'encode', input: value, result: encoded };
+    }
+
+    if (mode === 'decode') {
+        try {
+            const binStr = atob(value);
+            const bytes = Uint8Array.from(binStr, c => c.charCodeAt(0));
+            const decoded = new TextDecoder().decode(bytes);
+            return { mode: 'decode', input: value, result: decoded };
+        } catch {
+            throw new Error('Invalid Base64 string');
+        }
+    }
+
+    throw new Error(`Unknown base64 mode: ${mode}`);
+}
+
+// ── NEW: Color info / conversion ──────────────────────────────────────────
+function colorTool(params) {
+    const { mode, hex, r, g, b } = params;
+
+    function hexToRgb(h) {
+        const clean = h.replace(/^#/, '').padEnd(6, '0');
+        const full  = clean.length === 3
+            ? clean.split('').map(c => c + c).join('')
+            : clean;
+        return {
+            r: parseInt(full.slice(0,2), 16),
+            g: parseInt(full.slice(2,4), 16),
+            b: parseInt(full.slice(4,6), 16)
+        };
+    }
+
+    function rgbToHex(r, g, b) {
+        return '#' + [r,g,b].map(v => Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');
+    }
+
+    function rgbToHsl(r, g, b) {
+        r /= 255; g /= 255; b /= 255;
+        const max = Math.max(r,g,b), min = Math.min(r,g,b);
+        let h = 0, s = 0, l = (max+min)/2;
+        if (max !== min) {
+            const d = max - min;
+            s = l > 0.5 ? d/(2-max-min) : d/(max+min);
+            switch(max) {
+                case r: h = ((g-b)/d + (g<b?6:0))/6; break;
+                case g: h = ((b-r)/d + 2)/6; break;
+                case b: h = ((r-g)/d + 4)/6; break;
+            }
+        }
+        return { h: Math.round(h*360), s: Math.round(s*100), l: Math.round(l*100) };
+    }
+
+    function rgbToHsv(r, g, b) {
+        r /= 255; g /= 255; b /= 255;
+        const max = Math.max(r,g,b), min = Math.min(r,g,b), d = max - min;
+        let h = 0;
+        if (d !== 0) {
+            switch(max) {
+                case r: h = ((g-b)/d % 6) * 60; break;
+                case g: h = ((b-r)/d + 2) * 60; break;
+                case b: h = ((r-g)/d + 4) * 60; break;
+            }
+        }
+        return { h: Math.round(h < 0 ? h+360 : h), s: Math.round(max ? (d/max)*100 : 0), v: Math.round(max*100) };
+    }
+
+    function rgbToCmyk(r, g, b) {
+        r /= 255; g /= 255; b /= 255;
+        const k = 1 - Math.max(r,g,b);
+        if (k === 1) return { c:0, m:0, y:0, k:100 };
+        return {
+            c: Math.round(((1-r-k)/(1-k))*100),
+            m: Math.round(((1-g-k)/(1-k))*100),
+            y: Math.round(((1-b-k)/(1-k))*100),
+            k: Math.round(k*100)
+        };
+    }
+
+    let rgb;
+    if (mode === 'hex') {
+        rgb = hexToRgb(hex);
+    } else if (mode === 'rgb') {
+        rgb = { r: Math.round(r), g: Math.round(g), b: Math.round(b) };
+    } else {
+        throw new Error(`Unknown color mode: ${mode}`);
+    }
+
+    const hsl  = rgbToHsl(rgb.r, rgb.g, rgb.b);
+    const hsv  = rgbToHsv(rgb.r, rgb.g, rgb.b);
+    const cmyk = rgbToCmyk(rgb.r, rgb.g, rgb.b);
+
+    return {
+        hex:  rgbToHex(rgb.r, rgb.g, rgb.b),
+        rgb:  `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`,
+        hsl:  `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`,
+        hsv:  `hsv(${hsv.h}, ${hsv.s}%, ${hsv.v}%)`,
+        cmyk: `cmyk(${cmyk.c}%, ${cmyk.m}%, ${cmyk.y}%, ${cmyk.k}%)`,
+        values: { rgb, hsl, hsv, cmyk }
+    };
+}
+
+// ── NEW: Hash (SubtleCrypto — available in workers) ───────────────────────
+async function hashTool(params) {
+    const { algorithm, value } = params;
+    if (!value) throw new Error('No value to hash');
+
+    // Normalise algorithm name for SubtleCrypto
+    const algoMap = { md5: null, sha1: 'SHA-1', sha256: 'SHA-256', sha512: 'SHA-512' };
+    const subtleAlgo = algoMap[algorithm.toLowerCase()];
+
+    if (algorithm === 'md5') {
+        // SubtleCrypto does not support MD5; use a pure-JS fallback
+        throw new Error('MD5 is not supported in the browser crypto API. Use sha256 or sha512 instead.');
+    }
+    if (!subtleAlgo) throw new Error(`Unknown algorithm: ${algorithm}`);
+
+    const data   = new TextEncoder().encode(value);
+    const buffer = await crypto.subtle.digest(subtleAlgo, data);
+    const hex    = Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2,'0')).join('');
+
+    return { algorithm: subtleAlgo, input: value, hash: hex };
+}
+
+// ── NEW: Dice, coin flip, random range ────────────────────────────────────
+function randomTool(params) {
+    const { mode, count = 1, sides = 6, min = 1, max = 100 } = params;
+
+    if (mode === 'coin') {
+        const flip = Math.random() < 0.5 ? 'Heads' : 'Tails';
+        return { mode: 'coin', result: flip };
+    }
+
+    if (mode === 'range') {
+        const lo = Math.min(parseInt(min), parseInt(max));
+        const hi = Math.max(parseInt(min), parseInt(max));
+        const result = Math.floor(Math.random() * (hi - lo + 1)) + lo;
+        return { mode: 'range', min: lo, max: hi, result };
+    }
+
+    if (mode === 'dice') {
+        const n  = Math.min(parseInt(count), 100);
+        const s  = Math.min(parseInt(sides), 1000);
+        const rolls = Array.from({ length: n }, () => Math.floor(Math.random() * s) + 1);
+        const total = rolls.reduce((a, b) => a + b, 0);
+        return { mode: 'dice', dice: `${n}d${s}`, rolls, total };
+    }
+
+    throw new Error(`Unknown random mode: ${mode}`);
+}
+
+// ── NEW: IP lookup (ipapi.co, no key needed for basic use) ────────────────
+async function ipTool(params) {
+    const { target = 'self' } = params;
+
+    const url = target === 'self'
+        ? 'https://ipapi.co/json/'
+        : `https://ipapi.co/${encodeURIComponent(target)}/json/`;
+
+    const res = await fetch(url, {
+        headers: { 'Accept': 'application/json' }
+    });
+    if (!res.ok) throw new Error(`IP lookup failed (${res.status})`);
+
+    const d = await res.json();
+    if (d.error) throw new Error(d.reason ?? `IP lookup error: ${d.error}`);
+
+    return {
+        ip:           d.ip,
+        city:         d.city,
+        region:       d.region,
+        country:      d.country_name,
+        country_code: d.country_code,
+        postal:       d.postal,
+        latitude:     d.latitude,
+        longitude:    d.longitude,
+        timezone:     d.timezone,
+        isp:          d.org,
     };
 }
 
@@ -359,21 +709,31 @@ self.onmessage = async (e) => {
         let result;
 
         switch (tool) {
-            case 'weather':    result = await getWeather(params); break;
-            case 'websearch':  result = await getWebSearch(params); break;
-            case 'wikipedia':  result = await getWikipedia(params); break;
-            case 'currency':   result = await getCurrency(params); break;
-            case 'time':       result = await getTime(params); break;
-            case 'uuid':       result = generateUUID(params); break;
-            case 'password':   result = generatePassword(params); break;
-            case 'palette':    result = generatePalette(params); break;
-            case 'date':       result = dateTool(params); break;
-            case 'file':       result = readFile(params); break;
-            case 'location':   result = getLocation(params); break;
-            case 'clipboard':  result = readClipboard(params); break;
-            case 'timer':      result = timerTool(params); break;
-            case 'search':     result = await searchIndex(params); break;
-            case 'index':      result = await indexDocument(params); break;
+            // ── Original tools ──────────────────────────────────────────
+            case 'weather':     result = await getWeather(params);    break;
+            case 'websearch':   result = await getWebSearch(params);  break;
+            case 'wikipedia':   result = await getWikipedia(params);  break;
+            case 'currency':    result = await getCurrency(params);   break;
+            case 'time':        result = await getTime(params);       break;
+            case 'uuid':        result = generateUUID(params);        break;
+            case 'password':    result = generatePassword(params);    break;
+            case 'palette':     result = generatePalette(params);     break;
+            case 'date':        result = dateTool(params);            break;
+            case 'file':        result = readFile(params);            break;
+            case 'location':    result = getLocation(params);         break;
+            case 'clipboard':   result = readClipboard(params);       break;
+            case 'timer':       result = timerTool(params);           break;
+            case 'search':      result = await searchIndex(params);   break;
+            case 'index':       result = await indexDocument(params); break;
+            // ── New tools ───────────────────────────────────────────────
+            case 'calculator':  result = calculatorTool(params);      break;
+            case 'convert':     result = convertUnits(params);        break;
+            case 'countdown':   result = countdownTool(params);       break;
+            case 'base64':      result = base64Tool(params);          break;
+            case 'color':       result = colorTool(params);           break;
+            case 'hash':        result = await hashTool(params);      break;
+            case 'random':      result = randomTool(params);          break;
+            case 'ip':          result = await ipTool(params);        break;
             default: throw new Error(`Unknown tool: ${tool}`);
         }
 
