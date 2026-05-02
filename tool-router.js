@@ -252,12 +252,12 @@ const RULES = [
     {
         tool: 'help',
         description: 'Lists all available tools and their usage examples.',
-        examples: ['/help', '/help weather', 'help', 'what tools do you have'],
+        examples: ['show commands', 'show commands weather', 'list all tools', 'show me all commands'],
         patterns: [
-            /^\/help(?:\s+(\w+))?\??$/i,
-            /^help(?:\s+(\w+))?\??$/i,
-            /^(?:what (?:tools?|commands?) (?:do you have|are available|can you do))\??$/i,
-            /^(?:show |list )?(?:all )?(?:tools?|commands?)\??$/i,
+            /^show commands?(?:\s+(\w+))?\??$/i,
+            /^show (?:me )?(?:all )?commands?(?:\s+for\s+(\w+))?\??$/i,
+            /^show (?:me )?(?:all )?tools?(?:\s+for\s+(\w+))?\??$/i,
+            /^list (?:all )?commands?(?:\s+(\w+))?\??$/i,
         ],
         params: m => {
             const toolName = m[1]?.toLowerCase().trim() ?? null;
@@ -702,11 +702,11 @@ export const toolRouter = new ToolTriggerHandler();
 // ─────────────────────────────────────────────────────────────────────────────
 if (typeof process !== 'undefined' && process.argv[1]?.endsWith('toolTriggerHandler.js')) {
     const tests = [
-        '/help',
-        '/help weather',
-        '/help convert',
-        'what tools do you have',
-        'list all tools',
+        'show commands',
+        'show commands weather',
+        'show commands convert',
+        'show me all tools',
+        'list all commands',
         '12 * 34',
         'calculate 100 / 4 + 7',
         '2^10',
