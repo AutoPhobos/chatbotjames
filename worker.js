@@ -28,7 +28,7 @@ function getCacheRequest(url) {
 
 async function cacheMatch(url) {
     const cache = await caches.open(DOWNLOAD_CACHE);
-    return cache.match(getCacheRequest(url));
+    return cache.match(getCacheRequest(url), { ignoreSearch: true });
 }
 
 async function cachePut(url, response) {
@@ -151,7 +151,15 @@ async function customFetch(resource, init = {}) {
         return nativeFetch(request);
     }
     const cached = await cacheMatch(request.url);
-    if (cached) return cached;
+    if (cached) {
+        console.log(`[Cache Hit] ${request.url}`);
+        // Notify the UI that we have the file so it doesn't look frozen while parsing
+        const size = Number(cached.headers.get('content-length')) || 0;
+        if (size > 1024 * 1024) { // Only report for large files
+            reportProgress(size, size, request.url);
+        }
+        return cached;
+    }
     try {
         return await downloadAndCache(request.url);
     } catch (err) {
