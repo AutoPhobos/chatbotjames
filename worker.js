@@ -309,51 +309,207 @@ const MODEL_PRESETS = [
     { id: 'lite-smollm-135m-q4', label: 'SmolLM2 135M',         backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-135M-Instruct',         dtype: 'q4', requires: 'cpu', autoSelect: true,  sizeMB: 90,   ram: '256 MB' },
 ];
 
+// ── WASM Capability Detection ─────────────────────────────────────────────────
+
+/** Detects browser support for advanced WebAssembly features by compiling small probe modules. */
+async function detectWasmCapabilities() {
+    const caps = {
+        memory64: false,
+        simd: false,
+        threads: false,
+        bulkMemory: false,
+        multiValue: false,
+        exceptions: false,
+        gc: false,
+    };
+
+    async function probe(bytes) {
+        try { await WebAssembly.compile(new Uint8Array(bytes)); return true; }
+        catch { return false; }
+    }
+
+    // Memory64: (module (memory i64 1))
+    caps.memory64 = await probe([
+        0x00,0x61,0x73,0x6d, 0x01,0x00,0x00,0x00, // magic + version
+        0x05,0x04,0x01,      // memory section, 4 bytes, 1 entry
+        0x04,0x00,0x01       // limits-flag=0x04 (i64), min=0, max=1
+    ]);
+
+    // SIMD: (module (func (result v128) v128.const i32x4 0 0 0 0))
+    caps.simd = await probe([
+        0x00,0x61,0x73,0x6d, 0x01,0x00,0x00,0x00,
+        0x01,0x05,0x01,0x60,0x00,0x01,0x7b,
+        0x03,0x02,0x01,0x00,
+        0x0a,0x16,0x01,0x14,0x00,
+        0xfd,0x0c, 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+                   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x0b
+    ]);
+
+    // Threads: (module (memory 1 1 shared))
+    caps.threads = await probe([
+        0x00,0x61,0x73,0x6d, 0x01,0x00,0x00,0x00,
+        0x05,0x04,0x01,0x03,0x01,0x01
+    ]);
+
+    // Bulk memory: uses memory.fill as probe
+    caps.bulkMemory = await probe([
+        0x00,0x61,0x73,0x6d, 0x01,0x00,0x00,0x00,
+        0x01,0x04,0x01,0x60,0x00,0x00,
+        0x03,0x02,0x01,0x00,
+        0x05,0x03,0x01,0x00,0x01,
+        0x0a,0x0e,0x01,0x0c,0x00,
+        0x41,0x00,0x41,0x00,0x41,0x00,
+        0xfc,0x0b,0x00,
+        0x0b
+    ]);
+
+    // Multi-value: (module (func (result i32 i32) i32.const 0 i32.const 0))
+    caps.multiValue = await probe([
+        0x00,0x61,0x73,0x6d, 0x01,0x00,0x00,0x00,
+        0x01,0x06,0x01,0x60,0x00,0x02,0x7f,0x7f,
+        0x03,0x02,0x01,0x00,
+        0x0a,0x08,0x01,0x06,0x00,0x41,0x00,0x41,0x00,0x0b
+    ]);
+
+    // Exceptions: test via feature detection API
+    if (typeof WebAssembly.Tag === 'function') {
+        caps.exceptions = true;
+    }
+
+    // GC: test by compiling struct type
+    try {
+        const gcProbe = new Uint8Array([
+            0x00,0x61,0x73,0x6d, 0x01,0x00,0x00,0x00,
+            0x01,0x04,0x01,0x5f,0x00,0x00
+        ]);
+        await WebAssembly.compile(gcProbe);
+        caps.gc = true;
+    } catch {}
+
+    console.log('🔬 WASM Capabilities:', caps);
+    return caps;
+}
+
+// ── Browser Engine Detection ──────────────────────────────────────────────────
+
+function detectBrowserEngine() {
+    const ua = navigator.userAgent;
+    let browser = 'Unknown';
+    let engine = 'Unknown';
+    let version = '';
+
+    if (ua.includes('Firefox/')) {
+        browser = 'Firefox';
+        engine = 'Gecko';
+        version = ua.match(/Firefox\/(\d+)/)?.[1] || '';
+    } else if (ua.includes('Edg/')) {
+        browser = 'Edge';
+        engine = 'Blink';
+        version = ua.match(/Edg\/(\d+)/)?.[1] || '';
+    } else if (ua.includes('Chrome/')) {
+        browser = 'Chrome';
+        engine = 'Blink';
+        version = ua.match(/Chrome\/(\d+)/)?.[1] || '';
+    } else if (ua.includes('Safari/') && !ua.includes('Chrome/')) {
+        browser = 'Safari';
+        engine = 'WebKit';
+        version = ua.match(/Version\/(\d+)/)?.[1] || '';
+    }
+
+    return { browser, engine, version };
+}
+
 async function detectGpu() {
-    if (!navigator.gpu) return { hasGpu: false, vendor: '', reason: 'WebGPU API not available in this browser' };
+    const browserInfo = detectBrowserEngine();
+
+    if (!navigator.gpu) return {
+        hasGpu: false, vendor: '', architecture: '', device: '',
+        isFallback: false, maxStorageMB: 0, maxBufferMB: 0,
+        features: [], browserInfo,
+        reason: 'WebGPU API not available in this browser'
+    };
 
     let adapter = null;
     try { adapter = await navigator.gpu.requestAdapter(); } catch (e) {
-        return { hasGpu: false, vendor: '', reason: 'requestAdapter() threw: ' + e.message };
+        return {
+            hasGpu: false, vendor: '', architecture: '', device: '',
+            isFallback: false, maxStorageMB: 0, maxBufferMB: 0,
+            features: [], browserInfo,
+            reason: 'requestAdapter() threw: ' + e.message
+        };
     }
-    if (!adapter) return { hasGpu: false, vendor: '', reason: 'No WebGPU adapter found (no GPU or driver missing)' };
+    if (!adapter) return {
+        hasGpu: false, vendor: '', architecture: '', device: '',
+        isFallback: false, maxStorageMB: 0, maxBufferMB: 0,
+        features: [], browserInfo,
+        reason: 'No WebGPU adapter found (no GPU or driver missing)'
+    };
 
     // Gather vendor info via whichever API the browser exposes
-    let vendor = '', architecture = '', device = '';
+    let vendor = '', architecture = '', device = '', description = '';
     try {
         if (adapter.info) {
             vendor       = adapter.info.vendor       || '';
             architecture = adapter.info.architecture || '';
             device       = adapter.info.device       || '';
+            description  = adapter.info.description  || '';
         } else if (typeof adapter.requestAdapterInfo === 'function') {
             const info   = await adapter.requestAdapterInfo();
             vendor       = info.vendor       || '';
             architecture = info.architecture || '';
             device       = info.device       || '';
+            description  = info.description  || '';
         }
     } catch (e) {
         console.warn('GPU vendor info hidden by browser privacy settings:', e.message);
     }
 
-    const vendorLower   = vendor.toLowerCase();
+    // ── Edge ANGLE normalization ──────────────────────────────────────────
+    // Edge (and Chrome) on Windows often wrap the real GPU via ANGLE/D3D.
+    // The vendor string might be "google" (ANGLE) — try to extract the real
+    // vendor from the description or device string.
+    let normalizedVendor = vendor;
+    const vendorLower = vendor.toLowerCase();
+    if (vendorLower === 'google' || vendorLower.includes('angle')) {
+        const combined = (description + ' ' + device).toLowerCase();
+        if (combined.includes('nvidia'))   normalizedVendor = 'nvidia';
+        else if (combined.includes('amd') || combined.includes('radeon')) normalizedVendor = 'amd';
+        else if (combined.includes('intel')) normalizedVendor = 'intel';
+        else if (combined.includes('qualcomm') || combined.includes('adreno')) normalizedVendor = 'qualcomm';
+        console.log(`🔄 ANGLE vendor normalized: "${vendor}" → "${normalizedVendor}" (from: ${combined.trim()})`);
+    }
+
+    const normLower     = normalizedVendor.toLowerCase();
     const isFallback    = adapter.isFallbackAdapter;
     const maxStorageMB  = (adapter.limits.maxStorageBufferBindingSize || 0) / (1024 * 1024);
+    const maxBufferMB   = (adapter.limits.maxBufferSize || 0) / (1024 * 1024);
 
-    // Dedicated GPU vendor strings
-    const isDedicated = vendorLower.includes('nvidia')
-                     || vendorLower.includes('amd')
-                     || vendorLower.includes('apple')
-                     || vendorLower.includes('qualcomm')
-                     || vendorLower.includes('arm');
+    // Collect all adapter features for diagnostics
+    const featureList = [];
+    if (adapter.features) {
+        for (const f of adapter.features) featureList.push(f);
+    }
 
-    // Privacy-masked vendors: treat as capable if buffer limit is large
-    const hasHugeBuffer = maxStorageMB >= 512;
+    // Dedicated GPU vendor strings (use normalized vendor)
+    const isDedicated = normLower.includes('nvidia')
+                     || normLower.includes('amd')
+                     || normLower.includes('apple')
+                     || normLower.includes('qualcomm')
+                     || normLower.includes('arm');
+
+    // ── Firefox-specific heuristics ───────────────────────────────────────
+    // Firefox often masks vendor/architecture as empty strings for privacy.
+    // Use maxStorageBufferBindingSize AND maxBufferSize together to judge.
+    const hasHugeBuffer  = maxStorageMB >= 512;
+    const hasHugeMaxBuf  = maxBufferMB >= 512;
+    const isFirefoxPrivacyMasked = browserInfo.browser === 'Firefox' && vendor === '' && architecture === '';
 
     // Compute shaders available = real GPU (not software rasteriser)
     const hasCompute = adapter.features && (
         adapter.features.has('shader-f16') ||
         adapter.features.has('timestamp-query') ||
-        adapter.features.size > 0
+        featureList.length > 2 // software renderers typically expose 0-2 features
     );
 
     let hasGpu = false;
@@ -363,9 +519,16 @@ async function detectGpu() {
         reason = 'Fallback (software) adapter — not suitable for inference';
     } else if (isDedicated) {
         hasGpu = true;
-        reason = `Dedicated GPU detected (vendor: ${vendor || 'hidden'})`;
+        reason = `Dedicated GPU detected (vendor: ${normalizedVendor || 'hidden'})`;
+    } else if (isFirefoxPrivacyMasked && (hasHugeBuffer || hasHugeMaxBuf)) {
+        // Firefox-specific: privacy-masked but both buffer limits are large → real GPU
+        hasGpu = true;
+        reason = `Firefox privacy-masked, but large buffers (storage: ${maxStorageMB.toFixed(0)} MB, max: ${maxBufferMB.toFixed(0)} MB) → treating as capable GPU`;
+    } else if (isFirefoxPrivacyMasked && hasCompute) {
+        hasGpu = true;
+        reason = `Firefox privacy-masked with ${featureList.length} compute features → treating as capable GPU`;
     } else if (vendor === '' && hasHugeBuffer) {
-        // Vendor hidden by browser privacy, but huge buffer → likely discrete GPU
+        // Generic privacy-masked with huge buffer → likely discrete GPU
         hasGpu = true;
         reason = `Vendor hidden, but large buffer (${maxStorageMB.toFixed(0)} MB) → treating as capable GPU`;
     } else if (vendor === '' && hasCompute) {
@@ -373,11 +536,18 @@ async function detectGpu() {
         hasGpu = true;
         reason = `Vendor hidden with compute features → treating as capable GPU`;
     } else {
-        reason = `Integrated/unknown GPU (vendor: ${vendor || 'hidden'}, buffer: ${maxStorageMB.toFixed(0)} MB) — using CPU fallback`;
+        reason = `Integrated/unknown GPU (vendor: ${normalizedVendor || 'hidden'}, buffer: ${maxStorageMB.toFixed(0)} MB) — using CPU fallback`;
     }
 
     console.log(hasGpu ? `🚀 ${reason}` : `⚠️ ${reason}`);
-    return { hasGpu, vendor, architecture, device, isFallback, maxStorageMB, reason };
+    console.log(`🖥️ Browser: ${browserInfo.browser} ${browserInfo.version} (${browserInfo.engine})`);
+    console.log(`🎮 GPU Features (${featureList.length}):`, featureList.join(', '));
+
+    return {
+        hasGpu, vendor: normalizedVendor, architecture, device, description,
+        isFallback, maxStorageMB, maxBufferMB,
+        features: featureList, browserInfo, reason
+    };
 }
 
 // ── Smart selection helpers ───────────────────────────────────────────────────
@@ -395,8 +565,9 @@ function getDeviceRamGB() {
  * Memory budget:
  *   GPU — min(maxStorageMB, ramGB × 1024 × 0.60)  (leave 40% for OS + browser)
  *   CPU — ramGB × 1024 × 0.40                      (WASM is less efficient)
+ *   CPU (memory64) — ramGB × 1024 × 0.50            (larger address space available)
  */
-function rankAutoPresets(gpuInfo, ramGB, isConstrained) {
+function rankAutoPresets(gpuInfo, ramGB, isConstrained, wasmCaps = null) {
     const { hasGpu, maxStorageMB } = gpuInfo;
 
     // Constrained path: always use lite models, sorted smallest-first to avoid OOM
@@ -409,7 +580,9 @@ function rankAutoPresets(gpuInfo, ramGB, isConstrained) {
     const gpuBudgetMB = hasGpu
         ? Math.min(maxStorageMB || 2048, ramGB * 1024 * 0.60)
         : 0;
-    const cpuBudgetMB = ramGB * 1024 * 0.40;
+    // Memory64 unlocks >4 GB WASM address space — allow a slightly larger budget
+    const cpuBudgetFactor = (wasmCaps && wasmCaps.memory64) ? 0.50 : 0.40;
+    const cpuBudgetMB = ramGB * 1024 * cpuBudgetFactor;
 
     const candidates = MODEL_PRESETS.filter(p => {
         if (p.id.startsWith('lite-'))      return false; // handled separately
@@ -433,12 +606,15 @@ function rankAutoPresets(gpuInfo, ramGB, isConstrained) {
     return candidates;
 }
 
-async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null, lastPresetId = null) {
+async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null, lastPresetId = null, wasmCaps = null) {
     const { hasGpu } = gpuInfo;
     const isConstrained = isMobile || isTV;
     const ramGB  = getDeviceRamGB();
     const deviceLabel = isTV ? '📺 TV' : isMobile ? '📱 Mobile' : '🖥️ Desktop';
     console.log(`🛠️ Model init — GPU: ${hasGpu} | RAM: ${ramGB} GB | Device: ${deviceLabel} | Force: ${forcePresetId || lastPresetId || 'auto'}`);
+    if (wasmCaps) {
+        console.log(`🧩 WASM — Memory64: ${wasmCaps.memory64} | SIMD: ${wasmCaps.simd} | Threads: ${wasmCaps.threads} | Budget factor: ${wasmCaps.memory64 ? '0.50' : '0.40'}`);
+    }
 
     // Send all presets + capabilities to the UI so the panel can render immediately
     self.postMessage({
@@ -448,6 +624,7 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
         ramGB,
         isMobile,
         isTV,
+        wasmCaps,
     });
 
     let lastError = null;
@@ -483,7 +660,7 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
     }
 
     // ── 2. Smart auto-selection ───────────────────────────────────────────────
-    const ranked = rankAutoPresets(gpuInfo, ramGB, isConstrained);
+    const ranked = rankAutoPresets(gpuInfo, ramGB, isConstrained, wasmCaps);
     console.log(`🎯 Ranked candidates (RAM: ${ramGB} GB, GPU budget: ${hasGpu ? Math.round(Math.min((gpuInfo.maxStorageMB||2048), ramGB*1024*0.6)) : 0} MB):`,
         ranked.map(p => `${p.id}(${p.sizeMB}MB)`).join(', '));
 
@@ -527,13 +704,14 @@ self.onmessage = async (e) => {
     if (type === 'init') {
         try {
             await new Promise((resolve) => setTimeout(resolve, 125));
-            const gpuInfo = await detectGpu();
+            const [gpuInfo, wasmCaps] = await Promise.all([detectGpu(), detectWasmCapabilities()]);
             const mobile  = isMobileDevice();
             const tv      = isTVDevice();
             await tryInitializeModels(
                 gpuInfo, mobile, tv,
                 e.data.forcePresetId  || null,
-                e.data.lastPresetId   || null
+                e.data.lastPresetId   || null,
+                wasmCaps
             );
         } catch (err) {
             reportWorkerError(err, undefined);
