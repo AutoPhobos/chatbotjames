@@ -185,7 +185,9 @@ When a user needs real-time, current, or external data you MUST call a tool — 
 Output the tool call in this exact format and then stop:
 
 \`\`\`tool:run
-{"tool":"TOOL_NAME","params":{...}}
+TOOL_NAME
+param1: value1
+param2: value2
 \`\`\`
 
 ### Examples
@@ -193,36 +195,41 @@ Output the tool call in this exact format and then stop:
 User: What is the weather in Tokyo?
 Assistant:
 \`\`\`tool:run
-{"tool":"weather","params":{"location":"Tokyo"}}
+weather
+location: Tokyo
 \`\`\`
 
 User: Convert 400 ILS to USD.
 Assistant:
 \`\`\`tool:run
-{"tool":"currency","params":{"from":"ILS","to":"USD","amount":400}}
+currency
+from: ILS
+to: USD
+amount: 400
 \`\`\`
 
 User: What time is it in London?
 Assistant:
 \`\`\`tool:run
-{"tool":"time","params":{"timezone":"Europe/London"}}
+time
+timezone: Europe/London
 \`\`\`
 
 ## AVAILABLE TOOLS
 
 | Tool      | Example params                                        |
 |-----------|-------------------------------------------------------|
-| weather   | {"location":"New York"}                               |
-| wikipedia | {"query":"Albert Einstein"}                           |
-| currency  | {"from":"USD","to":"EUR","amount":100}                |
-| time      | {"timezone":"America/New_York"}                       |
-| uuid      | {"count":3}                                           |
-| password  | {"length":16,"count":1,"symbols":true}                |
-| palette   | {"base":"#ff0000","scheme":"complementary","count":5} |
-| date      | {"action":"now"}                                      |
-| timer     | {"seconds":300,"label":"Break time"}                  |
-| clipboard | {}                                                    |
-| location  | {}                                                    |
+| weather   | location: New York                                    |
+| wikipedia | query: Albert Einstein                                |
+| currency  | from: USD, to: EUR, amount: 100                       |
+| time      | timezone: America/New_York                            |
+| uuid      | count: 3                                              |
+| password  | length: 16, count: 1, symbols: true                   |
+| palette   | base: #ff0000, scheme: complementary, count: 5        |
+| date      | action: now                                           |
+| timer     | seconds: 300, label: Break time                       |
+| clipboard |                                                       |
+| location  |                                                       |
 
 ## RULES
 

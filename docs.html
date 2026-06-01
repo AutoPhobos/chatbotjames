@@ -120,13 +120,13 @@
                 <p>JAMES selects the best available execution path for your browser.</p>
                 <h3>WebGPU — primary</h3>
                 <p>The preferred high-performance backend for compatible Chrome/Edge hardware.</p>
-                <pre>Model: Xenova/Phi-3-mini-4k-instruct
-Device: webgpu | dtype: fp16 | size: ~2.3 GB</pre>
+                <pre>Model: HuggingFaceTB/SmolLM2-1.7B-Instruct
+Device: webgpu | dtype: q4 | size: ~950 MB</pre>
                 <h3>WASM — fallback</h3>
                 <p>Used when WebGPU is unavailable. It is slower but broadly compatible.</p>
-                <pre>Model: HuggingFaceTB/SmolLM2-360M-Instruct
-Device: wasm | dtype: fp32 | size: ~220 MB</pre>
-                <div class="callout">Phi-3-mini requires a WebGPU-compatible runtime. The WASM fallback is a single-file model without the ONNX mounted filesystem dependency.</div>
+                <pre>Model: onnx-community/Llama-3.2-1B-Instruct
+Device: wasm | dtype: q4 | size: ~650 MB</pre>
+                <div class="callout">Heavy GPU models require a WebGPU-compatible runtime. The WASM fallback models are smaller, quantised, and run on any device.</div>
             </section>
             <section class="doc-section" id="threads">
                 <h2>Threads</h2>
@@ -162,31 +162,46 @@ print(math.factorial(20))
                 <p>Tools let JAMES retrieve live or external data, execute local Python code, or search a local Orama index. JAMES uses a hybrid approach to tool calling:</p>
                 <ul>
                     <li><strong>Regex Routing:</strong> Common intents (like "weather in Tokyo" or "convert 100 USD to EUR") are detected client-side deterministically via regex. The tool executes instantly, and the LLM is only used to read and format the final answer.</li>
-                    <li><strong>LLM Fallback:</strong> For complex or conversational queries, the assistant itself can emit a JSON tool call. The app executes it, and the result is fed back into the context.</li>
+                    <li><strong>LLM Fallback:</strong> For complex or conversational queries, the assistant itself can emit a simple text-based tool call. The app executes it, and the result is fed back into the context.</li>
                 </ul>
-                <pre>{"tool": "weather", "params": {"location": "Tel Aviv"}}</pre>
+                <pre>```tool:run
+weather
+location: Tel Aviv
+```</pre>
                 <h3 id="tools-info">Information Tools</h3>
                 <div class="tool-grid">
-                    <div class="tool-card"><span class="tool-name">weather</span><div class="tool-body"><p>Gets current weather conditions.</p><pre>{"tool": "weather", "params": {"location": "Tel Aviv"}}</pre></div></div>
-                    <div class="tool-card"><span class="tool-name">wikipedia</span><div class="tool-body"><p>Fetches a Wikipedia summary.</p><pre>{"tool": "wikipedia", "params": {"query": "Bijective numeration"}}</pre></div></div>
-                    <div class="tool-card"><span class="tool-name">currency</span><div class="tool-body"><p>Converts currency amounts.</p><pre>{"tool": "currency", "params": {"from": "USD", "to": "EUR", "amount": 100}}</pre></div></div>
-                    <div class="tool-card"><span class="tool-name">time</span><div class="tool-body"><p>Returns time for an IANA timezone.</p><pre>{"tool": "time", "params": {"timezone": "Asia/Jerusalem"}}</pre></div></div>
-                    <div class="tool-card"><span class="tool-name">date</span><div class="tool-body"><p>Date utilities: now, diff, convert, parse.</p><pre>{"tool": "date", "params": {"action": "diff", "date": "2025-01-01", "date2": "2026-01-01"}}</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">weather</span><div class="tool-body"><p>Gets current weather conditions.</p><pre>weather
+location: Tel Aviv</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">wikipedia</span><div class="tool-body"><p>Fetches a Wikipedia summary.</p><pre>wikipedia
+query: Bijective numeration</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">currency</span><div class="tool-body"><p>Converts currency amounts.</p><pre>currency
+from: USD, to: EUR, amount: 100</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">time</span><div class="tool-body"><p>Returns time for an IANA timezone.</p><pre>time
+timezone: Asia/Jerusalem</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">date</span><div class="tool-body"><p>Date utilities: now, diff, convert, parse.</p><pre>date
+action: diff, date: 2025-01-01, date2: 2026-01-01</pre></div></div>
                 </div>
                 <h3 id="tools-util">Utility Tools</h3>
                 <div class="tool-grid">
-                    <div class="tool-card"><span class="tool-name">uuid</span><div class="tool-body"><p>Generates cryptographically secure UUIDs.</p><pre>{"tool": "uuid", "params": {"count": 3}}</pre></div></div>
-                    <div class="tool-card"><span class="tool-name">password</span><div class="tool-body"><p>Creates strong passwords.</p><pre>{"tool": "password", "params": {"length": 24, "count": 1, "symbols": true}}</pre></div></div>
-                    <div class="tool-card"><span class="tool-name">palette</span><div class="tool-body"><p>Generates color palettes.</p><pre>{"tool": "palette", "params": {"base": "#00ff41", "scheme": "triadic", "count": 5}}</pre></div></div>
-                    <div class="tool-card"><span class="tool-name">timer</span><div class="tool-body"><p>Starts a countdown timer.</p><pre>{"tool": "timer", "params": {"seconds": 1500, "label": "Pomodoro"}}</pre></div></div>
-                    <div class="tool-card"><span class="tool-name">file</span><div class="tool-body"><p>Processes uploaded file content.</p><pre>{"tool": "file", "params": {"filename": "data.txt", "content": "..."}}</pre></div></div>
-                    <div class="tool-card"><span class="tool-name">search</span><div class="tool-body"><p>Searches a local Orama knowledge index.</p><pre>{"tool": "search", "params": {"query": "browser inference"}}</pre></div></div>
-                    <div class="tool-card"><span class="tool-name">python</span><div class="tool-body"><p>Runs Python code in Pyodide and returns stdout/output.</p><pre>{"tool": "python", "params": {"code": "print('Hello from Python')"}}</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">uuid</span><div class="tool-body"><p>Generates cryptographically secure UUIDs.</p><pre>uuid
+count: 3</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">password</span><div class="tool-body"><p>Creates strong passwords.</p><pre>password
+length: 24, count: 1, symbols: true</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">palette</span><div class="tool-body"><p>Generates color palettes.</p><pre>palette
+base: #00ff41, scheme: triadic, count: 5</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">timer</span><div class="tool-body"><p>Starts a countdown timer.</p><pre>timer
+seconds: 1500, label: Pomodoro</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">file</span><div class="tool-body"><p>Processes uploaded file content.</p><pre>file
+filename: data.txt, content: ...</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">search</span><div class="tool-body"><p>Searches a local Orama knowledge index.</p><pre>search
+query: browser inference</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">python</span><div class="tool-body"><p>Runs Python code in Pyodide and returns stdout/output.</p><pre>python
+code: print('Hello from Python')</pre></div></div>
                 </div>
                 <h3 id="tools-device">Device Tools</h3>
                 <div class="tool-grid">
-                    <div class="tool-card"><span class="tool-name">clipboard</span><div class="tool-body"><p>Reads clipboard text with permission.</p><pre>{"tool": "clipboard", "params": {}}</pre></div></div>
-                    <div class="tool-card"><span class="tool-name">location</span><div class="tool-body"><p>Returns GPS coordinates.</p><pre>{"tool": "location", "params": {}}</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">clipboard</span><div class="tool-body"><p>Reads clipboard text with permission.</p><pre>clipboard</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">location</span><div class="tool-body"><p>Returns GPS coordinates.</p><pre>location</pre></div></div>
                 </div>
             </section>
             <section class="doc-section" id="architecture">

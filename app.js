@@ -231,15 +231,38 @@ async function handleToolCalls(message, targetId, originChatId) {
 }
 
 function parseToolCalls(text) {
-    // Capture everything between ```tool:run and ``` — let JSON.parse handle nested objects.
-    // The old [^}]* pattern broke on params: { ... } because it stopped at the first }.
     const toolRegex = /```tool:run\s*([\s\S]*?)\s*```/g;
     const calls = [];
     let match;
     while ((match = toolRegex.exec(text)) !== null) {
         try {
-            const parsed = JSON.parse(match[1].trim());
-            if (parsed.tool && parsed.params) calls.push(parsed);
+            const lines = match[1].trim().split('\n');
+            if (lines.length > 0) {
+                const toolName = lines[0].trim();
+                const params = {};
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+                    
+                    // Support comma-separated inline params like "from: USD, to: EUR, amount: 100" (from the prompt example)
+                    // Or single line params like "location: Tokyo"
+                    const parts = line.split(',');
+                    for (const part of parts) {
+                        const colonIdx = part.indexOf(':');
+                        if (colonIdx !== -1) {
+                            const key = part.substring(0, colonIdx).trim();
+                            let value = part.substring(colonIdx + 1).trim();
+                            
+                            if (value === 'true') value = true;
+                            else if (value === 'false') value = false;
+                            else if (!isNaN(Number(value)) && value !== '') value = Number(value);
+                            
+                            params[key] = value;
+                        }
+                    }
+                }
+                calls.push({ tool: toolName, params });
+            }
         } catch (e) {
             console.error('Failed to parse tool call:', match[1], e);
         }
