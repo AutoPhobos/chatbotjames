@@ -376,7 +376,11 @@ function updateLiveBubble(text, targetId) {
         chatLog.appendChild(messageWrap);
     }
 
-    bubble.innerHTML = formatAssistantMessage(text);
+    if (text === '...') {
+        bubble.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+    } else {
+        bubble.innerHTML = formatAssistantMessage(text);
+    }
     chatLog.scrollTop = chatLog.scrollHeight;
 }
 
