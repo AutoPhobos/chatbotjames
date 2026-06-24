@@ -238,7 +238,7 @@ async function handleToolCalls(message, targetId, originChatId) {
 }
 
 function parseToolCalls(text) {
-    const toolRegex = /```tool:run\s*([\s\S]*?)\s*```/g;
+    const toolRegex = /```\s*tool:run\s*([\s\S]*?)(?:\s*```|$)/g;
     const calls = [];
     let match;
     while ((match = toolRegex.exec(text)) !== null) {
