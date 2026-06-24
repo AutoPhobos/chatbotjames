@@ -257,11 +257,12 @@ function reportWorkerError(err, targetId) {
 }
 
 async function initializeModel(provider, dtype, model) {
-    // For WebGPU: pass dtype as a plain string — the ONNX runtime on WebGPU
-    // does NOT accept a dtype mapping object and will abort() if given one.
-    // For WASM/CPU: a mapping is fine and lets us pin sub-components.
+    // WebGPU: always pass dtype as a plain string.
+    // Correct dtype for WebGPU is 'q4f16' (4-bit weights, fp16 compute) or 'q4'.
+    // 'fp16' alone means full fp16 precision — too large and often unsupported.
+    // WASM/CPU: a per-module mapping pins sub-components to avoid OOM.
     const resolvedDtype = provider === 'webgpu'
-        ? dtype  // plain string: 'fp16', 'q4', etc.
+        ? dtype
         : { model: dtype, decoder_model_merged: dtype, default: 'fp32' };
 
     return pipeline('text-generation', model, {
@@ -290,16 +291,17 @@ function isTVDevice() {
 
 const MODEL_PRESETS = [
     // ── GPU · WebGPU ───────────────────────────────────────────────────────
-    // dtype 'fp16' is what onnx-community WebGPU files actually publish.
-    // Using 'q4'/'q8' on WebGPU causes Aborted() because those ONNX files don't exist for WebGPU.
-    { id: 'gpu-qwen25-05b-fp16',    label: 'Qwen2.5 0.5B',      backend: 'webgpu', model: 'onnx-community/Qwen2.5-0.5B-Instruct',          dtype: 'fp16', requires: 'gpu', autoSelect: true,  sizeMB: 900,  ram: '2 GB' },
-    { id: 'gpu-smollm-17b-fp16',    label: 'SmolLM2 1.7B',      backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct',           dtype: 'fp16', requires: 'gpu', autoSelect: true,  sizeMB: 1800, ram: '4 GB' },
-    { id: 'gpu-llama32-1b-fp16',    label: 'Llama 3.2 1B',      backend: 'webgpu', model: 'onnx-community/Llama-3.2-1B-Instruct',          dtype: 'fp16', requires: 'gpu', autoSelect: true,  sizeMB: 1400, ram: '3 GB' },
-    { id: 'gpu-qwen25-15b-fp16',    label: 'Qwen2.5 1.5B',      backend: 'webgpu', model: 'onnx-community/Qwen2.5-1.5B-Instruct',          dtype: 'fp16', requires: 'gpu', autoSelect: true,  sizeMB: 1800, ram: '4 GB' },
-    { id: 'gpu-llama32-3b-fp16',    label: 'Llama 3.2 3B',      backend: 'webgpu', model: 'onnx-community/Llama-3.2-3B-Instruct',          dtype: 'fp16', requires: 'gpu', autoSelect: true,  sizeMB: 3800, ram: '6 GB' },
-    { id: 'gpu-gemma3-1b-fp16',     label: 'Gemma 3 1B',        backend: 'webgpu', model: 'onnx-community/gemma-3-1b-it',                  dtype: 'fp16', requires: 'gpu', autoSelect: false, sizeMB: 1000, ram: '3 GB' },
-    { id: 'gpu-deepseek-15b-fp16',  label: 'DeepSeek-R1 1.5B',  backend: 'webgpu', model: 'onnx-community/DeepSeek-R1-Distill-Qwen-1.5B', dtype: 'fp16', requires: 'gpu', autoSelect: false, sizeMB: 1800, ram: '4 GB' },
-    { id: 'gpu-phi35-mini-fp16',    label: 'Phi-3.5-mini 3.8B', backend: 'webgpu', model: 'onnx-community/Phi-3.5-mini-instruct',          dtype: 'fp16', requires: 'gpu', autoSelect: false, sizeMB: 7000, ram: '8 GB' },
+    // dtype 'q4f16' = 4-bit quantized weights with fp16 activations.
+    // This is the correct dtype for WebGPU — confirmed by official transformers.js docs.
+    // 'q4' also works but 'q4f16' is faster on Nvidia (uses native fp16 compute units).
+    { id: 'gpu-qwen25-05b-q4f16',   label: 'Qwen2.5 0.5B',      backend: 'webgpu', model: 'onnx-community/Qwen2.5-0.5B-Instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 400,  ram: '2 GB' },
+    { id: 'gpu-smollm-17b-q4f16',   label: 'SmolLM2 1.7B',      backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct',           dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 950,  ram: '3 GB' },
+    { id: 'gpu-llama32-1b-q4f16',   label: 'Llama 3.2 1B',      backend: 'webgpu', model: 'onnx-community/Llama-3.2-1B-Instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 750,  ram: '3 GB' },
+    { id: 'gpu-qwen25-15b-q4f16',   label: 'Qwen2.5 1.5B',      backend: 'webgpu', model: 'onnx-community/Qwen2.5-1.5B-Instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 950,  ram: '4 GB' },
+    { id: 'gpu-llama32-3b-q4f16',   label: 'Llama 3.2 3B',      backend: 'webgpu', model: 'onnx-community/Llama-3.2-3B-Instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 2100, ram: '6 GB' },
+    { id: 'gpu-gemma3-1b-q4f16',    label: 'Gemma 3 1B',        backend: 'webgpu', model: 'onnx-community/gemma-3-1b-it',                  dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 600,  ram: '3 GB' },
+    { id: 'gpu-deepseek-15b-q4f16', label: 'DeepSeek-R1 1.5B',  backend: 'webgpu', model: 'onnx-community/DeepSeek-R1-Distill-Qwen-1.5B', dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 1000, ram: '4 GB' },
+    { id: 'gpu-phi35-mini-q4f16',   label: 'Phi-3.5-mini 3.8B', backend: 'webgpu', model: 'onnx-community/Phi-3.5-mini-instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 2200, ram: '8 GB' },
     // ── CPU · WASM ─────────────────────────────────────────────────────────
     { id: 'cpu-llama32-1b-q4',   label: 'Llama 3.2 1B',         backend: 'wasm',   model: 'onnx-community/Llama-3.2-1B-Instruct',          dtype: 'q4', requires: 'cpu', autoSelect: true,  sizeMB: 650,  ram: '2 GB' },
     { id: 'cpu-tinyllama-q4',    label: 'TinyLlama 1.1B',       backend: 'wasm',   model: 'Xenova/TinyLlama-1.1B-Chat-v1.0',               dtype: 'q4', requires: 'cpu', autoSelect: true,  sizeMB: 600,  ram: '2 GB' },
@@ -585,7 +587,7 @@ self.onmessage = async (e) => {
             const output = await chatbot(prompt, {
                 max_new_tokens: 512,
                 do_sample: true,
-                temperature: 0.6,
+                temperature: 0.15,
                 top_k: 40,
                 top_p: 0.9,
                 return_full_text: false,
