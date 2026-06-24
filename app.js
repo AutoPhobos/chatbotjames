@@ -845,7 +845,7 @@ modelPanelOverlay?.addEventListener('click', closeModelPanel);
 
 /** Render (or re-render) the GPU status card and preset list. */
 function renderModelPanel() {
-    // ── GPU status card ──────────────────────────────────────────────────────
+    // ── GPU status card (informational only) ─────────────────────────────────
     const card = document.getElementById('gpuStatusCard');
     const icon = document.getElementById('gpuStatusIcon');
     const title = document.getElementById('gpuStatusTitle');
@@ -883,12 +883,10 @@ function renderModelPanel() {
         detail.textContent = `${reason}\n${vendorStr}${bufStr} · ${ramStr}`;
     }
 
-    // ── Preset cards (grouped by category) ───────────────────────────────────
+    // ── Preset cards (grouped by category, all always enabled) ───────────────
     const list = document.getElementById('modelPresetList');
     if (!list || !_presets.length) return;
     list.innerHTML = '';
-
-    const gpuAvailable = _gpuInfo?.hasGpu ?? false;
 
     const GROUPS = [
         { key: 'gpu', title: '⚡ GPU · WebGPU', filter: p => p.requires === 'gpu' },
@@ -907,14 +905,12 @@ function renderModelPanel() {
         list.appendChild(divider);
 
         presets.forEach(preset => {
-            const needsGpu = preset.requires === 'gpu';
-            const isDisabled = needsGpu && !gpuAvailable;
             const isRunning = preset.id === _activePresetId;
             const isSelected = preset.id === _selectedPresetId;
 
             let pillClass = 'pill-cpu';
             let pillText = 'CPU';
-            if (needsGpu) { pillClass = 'pill-gpu'; pillText = 'GPU'; }
+            if (preset.requires === 'gpu') { pillClass = 'pill-gpu'; pillText = 'GPU'; }
             if (preset.id.startsWith('lite-')) { pillClass = 'pill-lite'; pillText = 'LITE'; }
             if (isRunning) { pillClass = 'pill-active'; pillText = 'ACTIVE'; }
 
@@ -930,7 +926,6 @@ function renderModelPanel() {
             const el = document.createElement('div');
             el.className = [
                 'preset-card',
-                isDisabled ? 'preset-disabled' : '',
                 isSelected && !isRunning ? 'preset-selected' : '',
                 isRunning ? 'preset-active-running' : '',
             ].filter(Boolean).join(' ');
@@ -944,21 +939,11 @@ function renderModelPanel() {
                 <span class="preset-pill ${pillClass}">${pillText}</span>
                 <div class="preset-check"></div>`;
 
-            if (!isDisabled) {
-                el.addEventListener('click', () => selectPreset(preset.id));
-            }
+            // All presets are always clickable — user knows what they're doing
+            el.addEventListener('click', () => selectPreset(preset.id));
             list.appendChild(el);
         });
     });
-
-    // Advisory note when no GPU
-    if (!gpuAvailable) {
-        const note = document.createElement('div');
-        note.className = 'preset-placeholder';
-        note.style.cssText = 'color:#fbbf24;font-size:11px;padding:10px 6px 4px;text-align:left;';
-        note.textContent = '⚠️ GPU models are greyed out — no capable GPU detected. They activate automatically once you install a discrete GPU.';
-        list.appendChild(note);
-    }
 }
 
 function selectPreset(id) {
