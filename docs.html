@@ -3,20 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JAMES // Documentation</title>
-    <meta name="description" content="JAMES documentation — tools, system prompt, architecture, and usage guide for the browser-native assistant.">
-    <meta name="keywords" content="JAMES, documentation, tools, browser AI, local AI, WebGPU, Pyodide, Orama">
+    <title>JAMES Docs — How to Use the Local Browser AI Chatbot</title>
+    <meta name="description" content="Complete documentation for JAMES: how to use the local browser AI chatbot, available tools (weather, Wikipedia, currency, Python, and more), backend selection, and privacy model.">
+    <meta name="keywords" content="JAMES documentation, local AI docs, browser AI tools, WebGPU AI, offline AI assistant, JAMES chatbot guide">
     <meta name="author" content="Andrey Lopukhov">
+    <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://chatbotjames.onrender.com/docs.html">
-    <meta property="og:title" content="JAMES // Documentation">
-    <meta property="og:description" content="JAMES documentation — tools, system prompt, architecture, and usage guide for the browser-native assistant.">
+    <meta property="og:title" content="JAMES Docs — How to Use the Local Browser AI">
+    <meta property="og:description" content="Complete documentation for JAMES: tools, backend selection, model switching, architecture, and privacy model.">
     <meta property="og:image" content="https://chatbotjames.onrender.com/preview.png">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://chatbotjames.onrender.com/docs.html">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="JAMES // Documentation">
-    <meta name="twitter:description" content="JAMES documentation — tools, system prompt, architecture, and usage guide for the browser-native assistant.">
+    <meta name="twitter:title" content="JAMES Docs — How to Use the Local Browser AI">
+    <meta name="twitter:description" content="Complete documentation for JAMES: tools, backend selection, model switching, architecture, and privacy model.">
     <meta name="twitter:image" content="https://chatbotjames.onrender.com/preview.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "JAMES Documentation — Local Browser AI Chatbot",
+      "description": "Complete reference for JAMES: architecture, tools, backend selection, model switching, and privacy.",
+      "url": "https://chatbotjames.onrender.com/docs.html",
+      "author": { "@type": "Person", "name": "Andrey Lopukhov" },
+      "publisher": { "@type": "Person", "name": "Andrey Lopukhov" },
+      "dateModified": "2026-06-24"
+    }
+    </script>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="stylesheet" href="style.css">
     <style>
@@ -98,8 +111,8 @@
         <main>
             <div class="page-header">
                 <p class="eyebrow">Reference // Genesis</p>
-                <h1>Documentation</h1>
-                <p>Complete reference for JAMES — architecture, tools, backend selection, and privacy.</p>
+                <h1>JAMES Documentation</h1>
+                <p>Complete reference for JAMES — the free local browser AI chatbot. Covers architecture, tools, backend selection, model switching, and privacy.</p>
             </div>
             <section class="doc-section" id="overview">
                 <h2>Overview</h2>
@@ -117,16 +130,26 @@
             </section>
             <section class="doc-section" id="backends">
                 <h2>Backends</h2>
-                <p>JAMES selects the best available execution path for your browser.</p>
-                <h3>WebGPU — primary</h3>
-                <p>The preferred high-performance backend for compatible Chrome/Edge hardware.</p>
-                <pre>Model: HuggingFaceTB/SmolLM2-1.7B-Instruct
-Device: webgpu | dtype: q4 | size: ~950 MB</pre>
-                <h3>WASM — fallback</h3>
-                <p>Used when WebGPU is unavailable. It is slower but broadly compatible.</p>
-                <pre>Model: onnx-community/Llama-3.2-1B-Instruct
-Device: wasm | dtype: q4 | size: ~650 MB</pre>
-                <div class="callout">Heavy GPU models require a WebGPU-compatible runtime. The WASM fallback models are smaller, quantised, and run on any device.</div>
+                <p>JAMES selects the best available execution path for your hardware and automatically falls back if a preferred backend is unavailable.</p>
+                <h3>WebGPU &mdash; primary (GPU)</h3>
+                <p>The preferred high-performance backend for Chrome/Edge with a compatible GPU. JAMES tries progressively larger models based on your available VRAM.</p>
+                <pre>GPU models (WebGPU / q4f16):
+  Qwen2.5 0.5B   &mdash; ~400 MB  (auto-select)
+  SmolLM2 1.7B   &mdash; ~950 MB  (auto-select)
+  Llama 3.2 1B   &mdash; ~750 MB  (auto-select)
+  Qwen2.5 1.5B   &mdash; ~950 MB  (auto-select)
+  Llama 3.2 3B   &mdash; ~2.1 GB  (auto-select)
+  Gemma 3 1B     &mdash; ~600 MB  (manual only)
+  DeepSeek-R1 1.5B &mdash; ~1 GB  (manual only)
+  Phi-3.5-mini 3.8B &mdash; ~2.2 GB (manual only)</pre>
+                <h3>WASM &mdash; CPU fallback</h3>
+                <p>Used when WebGPU is unavailable. Slower but compatible with any modern browser.</p>
+                <pre>CPU models (WASM / q4 or q8):
+  Llama 3.2 1B   &mdash; ~650 MB
+  TinyLlama 1.1B &mdash; ~600 MB
+  Qwen2.5 0.5B   &mdash; ~400 MB
+  SmolLM2 1.7B   &mdash; ~950 MB</pre>
+                <div class="callout">You can manually pick any model via the <strong>&#9881;&#65039; Model Settings</strong> panel at the top-right of the terminal.</div>
             </section>
             <section class="doc-section" id="threads">
                 <h2>Threads</h2>
@@ -150,58 +173,72 @@ Device: wasm | dtype: q4 | size: ~650 MB</pre>
             </section>
             <section class="doc-section" id="python">
                 <h2>Python Execution</h2>
-                <p>JAMES can execute Python in-browser via Pyodide. When needed, it emits a runnable Python block and evaluates it inside the browser.</p>
-                <pre>```python:run
-import math
-print(math.factorial(20))
+                <p>JAMES can execute Python code in-browser via Pyodide. Ask JAMES to run a Python calculation and it will use the <code>python</code> tool automatically:</p>
+                <pre>```tool:run
+python
+code: import math; print(math.factorial(20))
 ```</pre>
-                <p>Execution results are returned into the conversation and used to answer the query.</p>
+                <p>Execution results are returned into the conversation and used to answer your query. Pyodide loads on first use; subsequent calls are instant.</p>
             </section>
             <section class="doc-section" id="tools">
                 <h2>Tool Reference</h2>
-                <p>Tools let JAMES retrieve live or external data, execute local Python code, or search a local Orama index. JAMES uses a hybrid approach to tool calling:</p>
-                <ul>
-                    <li><strong>Regex Routing:</strong> Common intents (like "weather in Tokyo" or "convert 100 USD to EUR") are detected client-side deterministically via regex. The tool executes instantly, and the LLM is only used to read and format the final answer.</li>
-                    <li><strong>LLM Fallback:</strong> For complex or conversational queries, the assistant itself can emit a simple text-based tool call. The app executes it, and the result is fed back into the context.</li>
-                </ul>
+                <p>JAMES uses model-driven tool calling. When you ask a question that needs live or external data, the model emits a tool call block, the app executes it, and feeds the result back to the model for a final answer:</p>
                 <pre>```tool:run
 weather
 location: Tel Aviv
 ```</pre>
                 <h3 id="tools-info">Information Tools</h3>
                 <div class="tool-grid">
-                    <div class="tool-card"><span class="tool-name">weather</span><div class="tool-body"><p>Gets current weather conditions.</p><pre>weather
+                    <div class="tool-card"><span class="tool-name">weather</span><div class="tool-body"><p>Gets current weather conditions via Open-Meteo (no API key needed).</p><pre>weather
 location: Tel Aviv</pre></div></div>
-                    <div class="tool-card"><span class="tool-name">wikipedia</span><div class="tool-body"><p>Fetches a Wikipedia summary.</p><pre>wikipedia
+                    <div class="tool-card"><span class="tool-name">wikipedia</span><div class="tool-body"><p>Fetches a Wikipedia article summary.</p><pre>wikipedia
 query: Bijective numeration</pre></div></div>
-                    <div class="tool-card"><span class="tool-name">currency</span><div class="tool-body"><p>Converts currency amounts.</p><pre>currency
+                    <div class="tool-card"><span class="tool-name">currency</span><div class="tool-body"><p>Converts currency amounts via frankfurter.app.</p><pre>currency
 from: USD, to: EUR, amount: 100</pre></div></div>
-                    <div class="tool-card"><span class="tool-name">time</span><div class="tool-body"><p>Returns time for an IANA timezone.</p><pre>time
+                    <div class="tool-card"><span class="tool-name">time</span><div class="tool-body"><p>Returns current time for an IANA timezone.</p><pre>time
 timezone: Asia/Jerusalem</pre></div></div>
                     <div class="tool-card"><span class="tool-name">date</span><div class="tool-body"><p>Date utilities: now, diff, convert, parse.</p><pre>date
 action: diff, date: 2025-01-01, date2: 2026-01-01</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">websearch</span><div class="tool-body"><p>Returns a DuckDuckGo search link for a query.</p><pre>websearch
+query: best local AI models 2025</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">ip</span><div class="tool-body"><p>Looks up IP geolocation info.</p><pre>ip
+target: self</pre></div></div>
                 </div>
                 <h3 id="tools-util">Utility Tools</h3>
                 <div class="tool-grid">
                     <div class="tool-card"><span class="tool-name">uuid</span><div class="tool-body"><p>Generates cryptographically secure UUIDs.</p><pre>uuid
 count: 3</pre></div></div>
-                    <div class="tool-card"><span class="tool-name">password</span><div class="tool-body"><p>Creates strong passwords.</p><pre>password
+                    <div class="tool-card"><span class="tool-name">password</span><div class="tool-body"><p>Creates strong random passwords.</p><pre>password
 length: 24, count: 1, symbols: true</pre></div></div>
-                    <div class="tool-card"><span class="tool-name">palette</span><div class="tool-body"><p>Generates color palettes.</p><pre>palette
+                    <div class="tool-card"><span class="tool-name">palette</span><div class="tool-body"><p>Generates color palettes from a base color.</p><pre>palette
 base: #00ff41, scheme: triadic, count: 5</pre></div></div>
-                    <div class="tool-card"><span class="tool-name">timer</span><div class="tool-body"><p>Starts a countdown timer.</p><pre>timer
+                    <div class="tool-card"><span class="tool-name">timer</span><div class="tool-body"><p>Starts a countdown timer with a visible widget.</p><pre>timer
 seconds: 1500, label: Pomodoro</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">calculator</span><div class="tool-body"><p>Evaluates a math expression safely.</p><pre>calculator
+expr: (12 * 8) / 3 + sqrt(144)</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">convert</span><div class="tool-body"><p>Converts units (length, weight, temperature, speed, etc.).</p><pre>convert
+value: 100, from: km, to: miles</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">base64</span><div class="tool-body"><p>Encodes or decodes Base64 strings.</p><pre>base64
+mode: encode, input: Hello World</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">hash</span><div class="tool-body"><p>Hashes a string using SHA-256, SHA-512, or MD5.</p><pre>hash
+algorithm: sha256, input: hello</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">color</span><div class="tool-body"><p>Converts between HEX, RGB, and HSL color formats.</p><pre>color
+input: #ff6b6b</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">random</span><div class="tool-body"><p>Generates random numbers, dice rolls, or coin flips.</p><pre>random
+mode: dice, count: 2, sides: 6</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">countdown</span><div class="tool-body"><p>Calculates time remaining to a target date.</p><pre>countdown
+target: 2027-01-01</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">python</span><div class="tool-body"><p>Runs Python code in Pyodide and returns stdout output.</p><pre>python
+code: print('Hello from Python')</pre></div></div>
                     <div class="tool-card"><span class="tool-name">file</span><div class="tool-body"><p>Processes uploaded file content.</p><pre>file
 filename: data.txt, content: ...</pre></div></div>
-                    <div class="tool-card"><span class="tool-name">search</span><div class="tool-body"><p>Searches a local Orama knowledge index.</p><pre>search
+                    <div class="tool-card"><span class="tool-name">search</span><div class="tool-body"><p>Searches a local Orama knowledge index seeded with JAMES documentation.</p><pre>search
 query: browser inference</pre></div></div>
-                    <div class="tool-card"><span class="tool-name">python</span><div class="tool-body"><p>Runs Python code in Pyodide and returns stdout/output.</p><pre>python
-code: print('Hello from Python')</pre></div></div>
                 </div>
                 <h3 id="tools-device">Device Tools</h3>
                 <div class="tool-grid">
-                    <div class="tool-card"><span class="tool-name">clipboard</span><div class="tool-body"><p>Reads clipboard text with permission.</p><pre>clipboard</pre></div></div>
-                    <div class="tool-card"><span class="tool-name">location</span><div class="tool-body"><p>Returns GPS coordinates.</p><pre>location</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">clipboard</span><div class="tool-body"><p>Reads clipboard text (requires user permission).</p><pre>clipboard</pre></div></div>
+                    <div class="tool-card"><span class="tool-name">location</span><div class="tool-body"><p>Returns GPS coordinates (requires user permission).</p><pre>location</pre></div></div>
                 </div>
             </section>
             <section class="doc-section" id="architecture">
