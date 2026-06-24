@@ -1,5 +1,28 @@
-import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.3.3';
+import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0';
 
+// --- CONFIGURATION ---
+// ... existing code ...
+    const deviceLabel = isTV ? '📺 TV' : isMobile ? '📱 Mobile' : '🖥️ Desktop';
+    console.log(`🛠️ Model init — GPU: ${hasGpu} | RAM: ${ramGB} GB | Device: ${deviceLabel} | Force: ${forcePresetId || lastPresetId || 'auto'}`);
+
+    self.postMessage({ status: 'model-info', presets: MODEL_PRESETS, gpuInfo, ramGB, isMobile, isTV, wasmCaps });
+
+    let lastError = null;
+
+    // Free up GPU memory if a model is already loaded (crucial for v4 WebGPU stability)
+    if (chatbot && typeof chatbot.dispose === 'function') {
+        console.log('🧹 Disposing existing model to free memory...');
+        try {
+            await chatbot.dispose();
+        } catch (e) {
+            console.warn('Failed to dispose previous pipeline:', e);
+        }
+        chatbot = null;
+    }
+
+    // ── 0. Forced preset — load directly, no capability filtering ────────────
+    // This is the key fix: when the user explicitly picks a model (including any
+// ... existing code ...
 // --- CONFIGURATION ---
 env.allowLocalModels = false;
 env.useBrowserCache = false;
