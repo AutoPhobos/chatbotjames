@@ -218,6 +218,13 @@ async function handleToolCalls(message, targetId, originChatId) {
         ? chatHistory
         : (allChats.find(c => c.id === originChatId)?.messages || []);
 
+    // Update the original bubble so it doesn't stay as a frozen "..." forever.
+    // We reuse the same targetId so the final answer overwrites this placeholder.
+    if (originChatId === currentChatId) {
+        const toolNames = toolCalls.map(c => c.tool).join(', ');
+        updateLiveBubble(`🔧 Used tool: ${toolNames} — thinking…`, targetId);
+    }
+
     worker.postMessage({
         type: 'query',
         messages: [
@@ -225,7 +232,7 @@ async function handleToolCalls(message, targetId, originChatId) {
             { role: 'assistant', content: message },
             { role: 'user', content: toolResultText }
         ],
-        targetId: Date.now(),
+        targetId,        // reuse the original bubble so it gets replaced by the answer
         chatId: originChatId
     });
 }
