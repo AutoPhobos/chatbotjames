@@ -191,22 +191,19 @@ When a user needs real-time, current, or external data you MUST call a tool — 
 Output the tool call in this exact format and then stop:
 
 \`\`\`tool:run
-TOOL_NAME
-param1: value1
-param2: value2
+[tool name here]
+[parameter name]: [value]
 \`\`\`
 
 ### Examples
 
-User: What is the weather in Tokyo?
-Assistant:
+Example for checking weather:
 \`\`\`tool:run
 weather
 location: Tokyo
 \`\`\`
 
-User: Convert 400 ILS to USD.
-Assistant:
+Example for currency conversion:
 \`\`\`tool:run
 currency
 from: ILS
@@ -214,8 +211,7 @@ to: USD
 amount: 400
 \`\`\`
 
-User: What time is it in London?
-Assistant:
+Example for checking the time:
 \`\`\`tool:run
 time
 timezone: Europe/London
