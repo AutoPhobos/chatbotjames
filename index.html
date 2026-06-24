@@ -50,7 +50,7 @@
                 </div>
                 <div class="header-right">
                     <button id="modelPanelBtn" class="icon-btn" title="Model Settings" aria-label="Open model settings">⚙️</button>
-                    CORE v1.0.1
+                    v1.0.2
                 </div>
             </header>
 
@@ -88,45 +88,7 @@
             </div>
             <div class="gpu-status-badge" id="gpuStatusBadge">—</div>
         </div>
-
-        <!-- ═══ Hardware Details (collapsible) ════════════════════════ -->
-        <details id="hwDetails" class="hw-details">
-            <summary class="hw-details-summary">🔬 Hardware Details</summary>
-            <div class="hw-details-body">
-                <div class="hw-section">
-                    <div class="hw-section-title">WebAssembly Capabilities</div>
-                    <div id="wasmCapsGrid" class="hw-caps-grid">
-                        <span class="hw-cap" data-cap="memory64">Memory64</span>
-                        <span class="hw-cap" data-cap="simd">SIMD</span>
-                        <span class="hw-cap" data-cap="threads">Threads</span>
-                        <span class="hw-cap" data-cap="bulkMemory">Bulk Memory</span>
-                        <span class="hw-cap" data-cap="multiValue">Multi-Value</span>
-                        <span class="hw-cap" data-cap="exceptions">Exceptions</span>
-                        <span class="hw-cap" data-cap="gc">GC</span>
-                    </div>
-                </div>
-                <div class="hw-section">
-                    <div class="hw-section-title">GPU Adapter</div>
-                    <div id="hwGpuDetails" class="hw-kv-list">
-                        <div class="hw-kv"><span class="hw-k">Vendor</span><span class="hw-v" id="hwVendor">—</span></div>
-                        <div class="hw-kv"><span class="hw-k">Architecture</span><span class="hw-v" id="hwArch">—</span></div>
-                        <div class="hw-kv"><span class="hw-k">Device</span><span class="hw-v" id="hwDevice">—</span></div>
-                        <div class="hw-kv"><span class="hw-k">Max Storage Buffer</span><span class="hw-v" id="hwMaxStorage">—</span></div>
-                        <div class="hw-kv"><span class="hw-k">Max Buffer Size</span><span class="hw-v" id="hwMaxBuffer">—</span></div>
-                        <div class="hw-kv"><span class="hw-k">Features</span><span class="hw-v" id="hwFeatures">—</span></div>
-                    </div>
-                </div>
-                <div class="hw-section">
-                    <div class="hw-section-title">Browser</div>
-                    <div id="hwBrowserDetails" class="hw-kv-list">
-                        <div class="hw-kv"><span class="hw-k">Browser</span><span class="hw-v" id="hwBrowser">—</span></div>
-                        <div class="hw-kv"><span class="hw-k">Engine</span><span class="hw-v" id="hwEngine">—</span></div>
-                        <div class="hw-kv"><span class="hw-k">Device RAM</span><span class="hw-v" id="hwRam">—</span></div>
-                    </div>
-                </div>
-            </div>
-        </details>
-
+        
         <div class="model-panel-section-title">Available Models</div>
         <div id="modelPresetList" class="model-preset-list">
             <!-- Filled by app.js when worker sends model-info -->
