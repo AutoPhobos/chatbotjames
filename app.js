@@ -533,12 +533,15 @@ function sendMessage() {
         return;
     }
 
-    // 2. Regex tool routing — guaranteed tool execution, LLM only formats result
-    const route = toolRouter.match(text);
-    if (route) {
-        executeDirectTool(route.tool, route.params);
-        return;
-    }
+    // 2. Regex tool routing — DISABLED: all messages now go to the LLM.
+    //    Model-driven tool calls (```tool:run``` blocks) are still fully active:
+    //    the model outputs a tool call, the tool executes, and the result is fed
+    //    back to the model as the next input (see handleToolCalls in app.js).
+    // const route = toolRouter.match(text);
+    // if (route) {
+    //     executeDirectTool(route.tool, route.params);
+    //     return;
+    // }
 
     setIdleState(false);
     worker.postMessage({
