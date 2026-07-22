@@ -183,7 +183,7 @@ async function customFetch(resource, init = {}) {
 
 let chatbot;
 
-const systemPrompt = `You are JAMES, a helpful AI assistant.
+const systemPrompt = `You are JAMES, a very helpful AI assistant and a friend.
 
 You have access to the following tools:
 - weather (params: location)
@@ -536,56 +536,73 @@ self.onmessage = async (e) => {
     }
 
     if (type === 'query') {
-        try {
-            self.postMessage({ status: 'thinking', targetId, chatId });
+    try {
+        self.postMessage({ status: 'thinking', targetId, chatId });
 
-            const activeMessages = messages.filter(m => !m.content.includes('Tools available'));
-            const chatContext = [
-                { role: 'system', content: systemPrompt },
-                ...activeMessages
-            ];
+        const activeMessages = messages.filter(m => !m.content.includes('Tools available'));
+        const chatContext = [
+            { role: 'system', content: systemPrompt },
+            ...activeMessages
+        ];
 
-            const prompt = chatbot.tokenizer.apply_chat_template(chatContext, {
-                tokenize: false,
-                add_generation_prompt: true
-            });
+        const prompt = chatbot.tokenizer.apply_chat_template(chatContext, {
+            tokenize: false,
+            add_generation_prompt: true
+        });
 
-            const promptTokens = await chatbot.tokenizer(prompt);
-            const promptTokenCount = promptTokens.input_ids.data.length;
+        const promptTokens = await chatbot.tokenizer(prompt);
+        const promptTokenCount = promptTokens.input_ids.data.length;
 
-            let accumulatedResponse = '';
+        let accumulatedResponse = '';
 
-            const output = await chatbot(prompt, {
-                max_new_tokens: 512,
-                do_sample: true,
-                temperature: 1.0,
-                top_k: 40,
-                top_p: 0.9,
-                return_full_text: false,
-                callback_function: (beams) => {
-                    const allTokens = Array.from(beams[0].output_token_ids.data || beams[0].output_token_ids);
-                    if (allTokens.length > promptTokenCount) {
-                        const newTokens = allTokens.slice(promptTokenCount);
-                        const text = chatbot.tokenizer.decode(newTokens, { skip_special_tokens: true });
-                        if (text.length > accumulatedResponse.length) {
-                            accumulatedResponse = text;
+        const output = await chatbot(prompt, {
+            max_new_tokens: 512,
+            do_sample: true,
+            temperature: 1.0,
+            top_k: 40,
+            top_p: 0.9,
+            return_full_text: false,
+            callback_function: (beams) => {
+                const allTokens = Array.from(beams[0].output_token_ids.data || beams[0].output_token_ids);
+                if (allTokens.length > promptTokenCount) {
+                    const newTokens = allTokens.slice(promptTokenCount);
+                    
+                    // Set skip_special_tokens: false so <think> and </think> tags aren't stripped
+                    const text = chatbot.tokenizer.decode(newTokens, { skip_special_tokens: false });
+                    
+                    if (text.length > accumulatedResponse.length) {
+                        accumulatedResponse = text;
+
+                        if (accumulatedResponse.includes('</think>')) {
+                            // Thinking is finished: extract only the actual response after </think>
+                            const answerText = accumulatedResponse.split('</think>').pop().trimStart();
+                            self.postMessage({ status: 'streaming', message: answerText, targetId, chatId });
+                        } else if (!accumulatedResponse.includes('<think>')) {
+                            // Standard non-reasoning model: stream normally
                             self.postMessage({ status: 'streaming', message: accumulatedResponse, targetId, chatId });
                         }
+                        // If it contains <think> but no </think> yet, we suppress streaming messages
                     }
                 }
-            });
-
-            let finalResponse = Array.isArray(output)
-                ? (output[0]?.generated_text ?? output[0]?.text ?? '').trim()
-                : (output?.generated_text ?? output?.text ?? '').trim();
-
-            if (!finalResponse && accumulatedResponse) {
-                finalResponse = accumulatedResponse.trim();
             }
+        });
 
-            self.postMessage({ status: 'complete', message: finalResponse.trim(), targetId, chatId });
-        } catch (err) {
-            reportWorkerError(err, targetId);
+        let finalResponse = Array.isArray(output)
+            ? (output[0]?.generated_text ?? output[0]?.text ?? '').trim()
+            : (output?.generated_text ?? output?.text ?? '').trim();
+
+        if (!finalResponse && accumulatedResponse) {
+            finalResponse = accumulatedResponse.trim();
         }
+
+        // Clean off the thinking block for the final output string
+        if (finalResponse.includes('</think>')) {
+            finalResponse = finalResponse.split('</think>').pop().trim();
+        }
+
+        self.postMessage({ status: 'complete', message: finalResponse, targetId, chatId });
+    } catch (err) {
+        reportWorkerError(err, targetId);
     }
+}
 };
