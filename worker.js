@@ -180,10 +180,9 @@ async function customFetch(resource, init = {}) {
         return nativeFetch(request);
     }
 }
-
 let chatbot;
 
-const systemPrompt = `You are JAMES, a very helpful AI assistant and a friend.
+const systemPrompt = `You are JAMES (Just A Machine, Engineered for Speech), a very helpful AI assistant and a friend.
 
 You have access to the following tools:
 - weather (params: location)
