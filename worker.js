@@ -558,7 +558,7 @@ self.onmessage = async (e) => {
             const output = await chatbot(prompt, {
                 max_new_tokens: 512,
                 do_sample: true,
-                temperature: 0.15,
+                temperature: 1.0,
                 top_k: 40,
                 top_p: 0.9,
                 return_full_text: false,
