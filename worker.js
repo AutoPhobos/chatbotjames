@@ -12,7 +12,7 @@ env.allowLocalModels = false;
 env.useBrowserCache = false;
 const DOWNLOAD_CACHE = 'JAMES-model-cache';
 const CHUNK_SIZE = 4 * 1024 * 1024; // 4 MiB
-const MAX_DOWNLOAD_CONCURRENCY = 3;
+const MAX_DOWNLOAD_CONCURRENCY = 8;
 
 const nativeFetch = self.fetch.bind(self);
 self.fetch = customFetch;
