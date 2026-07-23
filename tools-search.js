@@ -1,80 +1,90 @@
 // tools-search.js
-// Keyless search implementation using public, CORS-friendly APIs (DuckDuckGo & Wikipedia)
+// Keyless search using DuckDuckGo/Wikipedia + automatic page crawling via Jina Reader
 
 export async function performWebSearch(query) {
     if (!query) {
         return [{ error: 'Search query cannot be empty.' }];
     }
 
-    const results = [];
-    const maxResults = 3;
+    let topUrl = null;
+    let searchTitle = '';
+    let searchSnippet = '';
 
-    // ── 1. DuckDuckGo Instant Answer API (No key, CORS-friendly) ─────────
+    // ── 1. Get Top Search Result URL (DuckDuckGo Instant Answer API) ─────
     try {
         const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1`;
         const res = await fetch(ddgUrl);
         if (res.ok) {
             const data = await res.json();
-
+            
             if (data.AbstractText && data.AbstractURL) {
-                results.push({
-                    engine: 'DuckDuckGo Instant Answer',
-                    title: data.Heading || query,
-                    url: data.AbstractURL,
-                    snippet: data.AbstractText
-                });
-            }
-
-            if (data.RelatedTopics && data.RelatedTopics.length > 0) {
+                searchTitle = data.Heading || query;
+                topUrl = data.AbstractURL;
+                searchSnippet = data.AbstractText;
+            } else if (data.RelatedTopics && data.RelatedTopics.length > 0) {
                 for (const topic of data.RelatedTopics) {
-                    if (topic.Text && topic.FirstURL && results.length < maxResults) {
-                        results.push({
-                            engine: 'DuckDuckGo Instant Answer',
-                            title: topic.Text.split(' - ')[0] || 'Related Topic',
-                            url: topic.FirstURL,
-                            snippet: topic.Text
-                        });
+                    if (topic.Text && topic.FirstURL) {
+                        searchTitle = topic.Text.split(' - ')[0] || 'Result';
+                        topUrl = topic.FirstURL;
+                        searchSnippet = topic.Text;
+                        break;
                     }
                 }
             }
         }
     } catch (e) {
-        console.warn('DuckDuckGo Instant Answer fetch failed:', e);
+        console.warn('DuckDuckGo API failed:', e);
     }
 
-    if (results.length >= maxResults) {
-        return results.slice(0, maxResults);
-    }
-
-    // ── 2. Wikipedia Search API (No key, completely open CORS) ───────────
-    try {
-        const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*`;
-        const res = await fetch(wikiUrl);
-        if (res.ok) {
-            const data = await res.json();
-            if (data.query && data.query.search) {
-                for (const item of data.query.search) {
-                    if (results.length >= maxResults) break;
-                    // Strip HTML formatting tags from Wikipedia snippets
-                    const cleanSnippet = item.snippet ? item.snippet.replace(/<\/?[^>]+(>|$)/g, "") : '';
-                    results.push({
-                        engine: 'Wikipedia',
-                        title: item.title,
-                        url: `https://en.wikipedia.org/?curid=${item.pageid}`,
-                        snippet: cleanSnippet
-                    });
+    // Fallback to Wikipedia search if DDG didn't yield a direct URL
+    if (!topUrl) {
+        try {
+            const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*`;
+            const res = await fetch(wikiUrl);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.query && data.query.search && data.query.search.length > 0) {
+                    const item = data.query.search[0];
+                    searchTitle = item.title;
+                    topUrl = `https://en.wikipedia.org/?curid=${item.pageid}`;
+                    searchSnippet = item.snippet ? item.snippet.replace(/<\/?[^>]+(>|$)/g, "") : '';
                 }
+            }
+        } catch (e) {
+            console.warn('Wikipedia search fallback failed:', e);
+        }
+    }
+
+    if (!topUrl) {
+        return [{ error: 'No search results found to crawl.' }];
+    }
+
+    // ── 2. Auto-Crawl the First Page (Extract Large Texts via Jina Reader) ─
+    let fullPageText = searchSnippet;
+    try {
+        // Prepending r.jina.ai/ bypasses browser CORS restrictions and extracts clean body text
+        const crawlRes = await fetch(`https://r.jina.ai/${topUrl}`, {
+            headers: {
+                'Accept': 'text/plain'
+            }
+        });
+        if (crawlRes.ok) {
+            const markdownText = await crawlRes.text();
+            if (markdownText && markdownText.length > searchSnippet.length) {
+                fullPageText = markdownText;
             }
         }
     } catch (e) {
-        console.warn('Wikipedia search fetch failed:', e);
+        console.warn('Auto-crawl of top URL failed, using snippet fallback:', e);
     }
 
-    if (results.length > 0) {
-        return results;
-    }
-
-    return [{ error: 'No results found via keyless public APIs.' }];
+    return [{
+        engine: 'DuckDuckGo + Auto-Crawler',
+        title: searchTitle,
+        url: topUrl,
+        snippet: searchSnippet,
+        fullContent: fullPageText // Contains the full extracted text of the first page
+    }];
 }
 
 /**
