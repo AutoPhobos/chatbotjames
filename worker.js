@@ -1,9 +1,8 @@
 import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0';
 
-// --- CONFIGURATION ---
 env.allowLocalModels = false;
 env.useBrowserCache = false;
-const DOWNLOAD_CACHE = 'JAMES-model-cache-v4';
+const DOWNLOAD_CACHE = 'JAMES-model-cache-v5';
 const CHUNK_SIZE = 4 * 1024 * 1024; // 4 MiB
 const MAX_DOWNLOAD_CONCURRENCY = 6;
 const MAX_CHUNK_RETRIES = 3;
@@ -171,29 +170,56 @@ async function customFetch(resource, init = {}) {
 
 let chatbot;
 
-const systemPrompt = `You are JAMES (just a machine engineered for speech), an advanced AI assistant and a friend.
+const systemPrompt = `You are JAMES (just a machine engineered for speech), an advanced AI assistant and a trusted friend.
 
-You have access to the following tools:
-- weather (params: location)
-- wikipedia (params: query)
-- currency (params: from, to, amount)
-- time (params: timezone)
-- calculator (params: expr)
-- convert (params: value, from, to)
+You have access to the following live tools:
+1. weather: gets current weather for a location. (param: location)
+2. wikipedia: searches Wikipedia for facts/information. (param: query)
+3. currency: converts currency amounts. (params: from, to, amount)
+4. time: gets current time in a specific timezone. (param: timezone)
+5. calculator: evaluates math expressions. (param: expr)
+6. convert: converts physical or general units. (params: value, from, to)
 
 CRITICAL RULES:
-1. ONLY call a tool if you absolutely need real-time or external data (weather, calculations, currency, time, facts).
+1. ONLY call a tool if you absolutely need real-time or external data (weather, calculations, currency, time, facts, conversions).
 2. If the user is just chatting or being friendly, reply directly in plain text.
-3. If you MUST use a tool, output exactly this code block and nothing else:
+3. If you MUST use a tool, output ONLY this code block and nothing else:
 \`\`\`tool:run
 [tool_name]
 [param]: [value]
 \`\`\`
 
-Example:
+EXAMPLES OF TOOL CALLS:
+- User: "What's the weather in Tokyo?"
 \`\`\`tool:run
 weather
-location: London
+location: Tokyo
+\`\`\`
+
+- User: "Convert 150 USD to EUR"
+\`\`\`tool:run
+currency
+from: USD
+to: EUR
+amount: 150
+\`\`\`
+
+- User: "What time is it in New York?"
+\`\`\`tool:run
+time
+timezone: America/New_York
+\`\`\`
+
+- User: "Calculate 512 * 8 + 32"
+\`\`\`tool:run
+calculator
+expr: 512 * 8 + 32
+\`\`\`
+
+- User: "Tell me about quantum computing on Wikipedia"
+\`\`\`tool:run
+wikipedia
+query: quantum computing
 \`\`\``;
 
 async function initializeModel(provider, dtype, model) {
@@ -286,10 +312,9 @@ self.onmessage = async (e) => {
             const ram = navigator.deviceMemory || 4;
             const mobile = isMobileDevice();
 
-            // Immediately notify UI of hardware capabilities & preset list
             self.postMessage({ status: 'hardware-info', gpuInfo, ram, mobile, presets: MODEL_PRESETS });
 
-            let targetPreset = MODEL_PRESETS[0]; // Default to safe mobile lite model
+            let targetPreset = MODEL_PRESETS[0]; // Default safe mobile preset
             
             if (forcePresetId) {
                 const found = MODEL_PRESETS.find(p => p.id === forcePresetId);
