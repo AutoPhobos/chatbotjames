@@ -521,7 +521,7 @@ function parseToolCalls(text) {
 }
 
 async function executeTool(toolName, params) {
-    if (toolName === 'search_web') {
+    if (toolName === 'search_web' || toolName === 'web_search') {
         try {
             return await import('./tools-search.js').then(m => m.performWebSearch(params.query || params.q));
         } catch (error) {
@@ -585,6 +585,7 @@ async function executeTool(toolName, params) {
         }, 30000);
     });
 }
+
 
 pythonWorker.onmessage = (e) => {
     const { status, output, error, execId } = e.data;
