@@ -692,43 +692,55 @@ function isTVDevice() {
     return /SmartTV|SMART-TV|Tizen|WebOS|Web0S|HbbTV|BRAVIA|NetCast|Roku|AFT[A-Z]|CrKey|AppleTV|Android TV|googletv/i.test(ua);
 }
 
-function getLightweightWelcomeMessage() {
+function getLightweightWelcomeMessage(showTools = true) {
+    const toolsBlock = showTools 
+        ? `\n───────────────\n🧰 **Tools available**\n───────────────\n🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia · 🔍 search\n🔑 uuid · 🔐 password · 🎨 palette · ⏳ timer · 📋 clipboard\n───────────────\n` 
+        : '';
+
     return {
         role: 'assistant',
-        content: `✨ **Your local, private AI assistant.**
+        content: `✨ **JAMES — Your local, private AI assistant.**
 🛡️ Runs entirely in this browser — nothing leaves your device.
 📱 Running in **lightweight mode** — tool use may be limited on this device.
-
+${toolsBlock}
 💬 Type a message below to begin.`
     };
 }
 
-function getFullWelcomeMessage() {
-    return {
-        role: 'assistant',
-        content: `✨ **Your local, private AI assistant.**
-🛡️ Runs entirely in this browser — nothing leaves your device.
-🔄 Every session starts fresh.
-
-───────────────
+function getFullWelcomeMessage(showTools = true) {
+    const toolsBlock = showTools 
+        ? `───────────────
 
 🧰 **Tools available**
 ───────────────
-🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia
+🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia · 🔍 search
 🔑 uuid · 🔐 password · 🎨 palette · ⏳ timer · 📋 clipboard
 ───────────────
 
-💬 Type a message below to begin.`
+` 
+        : '';
+
+    return {
+        role: 'assistant',
+        content: `✨ **JAMES — Your local, private AI assistant.**
+🛡️ Runs entirely in this browser — nothing leaves your device.
+🔄 Every session starts fresh.
+
+${toolsBlock}💬 Type a message below to begin.`
     };
 }
 
-function getTVWelcomeMessage() {
+function getTVWelcomeMessage(showTools = true) {
+    const toolsBlock = showTools 
+        ? `\n───────────────\n🧰 **Tools available**\n───────────────\n🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia · 🔍 search\n🔑 uuid · 🔐 password · 🎨 palette · ⏳ timer · 📋 clipboard\n───────────────\n` 
+        : '';
+
     return {
         role: 'assistant',
-        content: `✨ **Your local, private AI assistant.**
+        content: `✨ **JAMES — Your local, private AI assistant.**
 🛡️ Runs entirely in this browser — nothing leaves your device.
 📺 Running in **TV mode** — lightweight model loaded for this device.
-
+${toolsBlock}
 💬 Use a keyboard or remote to type a message below.`
     };
 }
