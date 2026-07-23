@@ -55,25 +55,30 @@ const sendBtn = document.getElementById('sendBtn');
  */
 let _isGeneratingUI = false;
 function setIdleState(isIdle) {
-    if (isIdle) {
-        cmdInput.disabled = false;
-        sendBtn.innerHTML = '➔';
-        sendBtn.classList.remove('stop-btn');
-        _isGeneratingUI = false;
 
-        cmdInput.classList.remove('loading-state');
-        cmdInput.placeholder = "Message JAMES...";
-        cmdInput.focus();
-    } else {
-        cmdInput.disabled = true;
-        sendBtn.innerHTML = '⏹';
-        sendBtn.classList.add('stop-btn');
-        sendBtn.disabled = false; // Always keep enabled so we can stop
-        _isGeneratingUI = true;
+    try {
 
-        cmdInput.classList.add('loading-state');
-        cmdInput.placeholder = "JAMES is busy...";
+        if (isIdle) {
+            cmdInput.disabled = false;
+            sendBtn.innerHTML = '➔';
+            sendBtn.classList.remove('stop-btn');
+            _isGeneratingUI = false;
+
+            cmdInput.classList.remove('loading-state');
+            cmdInput.placeholder = "Message JAMES...";
+            cmdInput.focus();
+        } else {
+            cmdInput.disabled = true;
+            sendBtn.innerHTML = '⏹';
+            sendBtn.classList.add('stop-btn');
+            sendBtn.disabled = false; // Always keep enabled so we can stop
+            _isGeneratingUI = true;
+
+            cmdInput.classList.add('loading-state');
+            cmdInput.placeholder = "JAMES is busy...";
+        }
     }
+    catch (err) { console.log(err) }
 }
 
 // Global Message Handler
