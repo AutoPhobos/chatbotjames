@@ -286,7 +286,7 @@ function handleFilesSelected(files) {
 }
 
 function renderAttachmentPreviews() {
-    const previewContainer = document.getElementById('attachment-preview');
+    const previewContainer = document.getElementById('attachmentPreview');
     if (!previewContainer) return;
 
     previewContainer.innerHTML = '';
@@ -367,8 +367,8 @@ function sendMessage() {
 }
 
 function setupEventListeners() {
-    const sendButton = document.getElementById('sendButton') || document.getElementById('send-button');
-    const inputField = document.getElementById('userInput') || document.getElementById('user-input');
+    const sendButton = document.getElementById('sendBtn') || document.getElementById('sendButton');
+    const inputField = document.getElementById('cmdInput') || document.getElementById('userInput');
     const stopButton = document.getElementById('stopButton') || document.getElementById('stop-button');
 
     if (sendButton && inputField) {
