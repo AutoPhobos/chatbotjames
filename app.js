@@ -4,6 +4,10 @@ import { toolRouter } from './tool-router.js';
 // ─── Sound Engine (Web Audio API, no external files) ─────────────────────────
 const _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
+document.addEventListener('DOMContentLoaded', () => {
+    setupEventListeners();
+});
+
 function _playTone({ freq = 440, type = 'sine', gainPeak = 0.18, duration = 0.12, rampUp = 0.01, rampDown = 0.10 } = {}) {
     try {
         const osc = _audioCtx.createOscillator();
@@ -270,6 +274,30 @@ function initWorker() {
             scrollToBottom();
         }
     };
+}
+
+// Replace or update setupEventListeners() in app.js
+function setupEventListeners() {
+    const sendButton = document.getElementById('send-button');
+    const inputField = document.getElementById('user-input');
+    const stopButton = document.getElementById('stop-button');
+
+    if (sendButton && inputField) {
+        sendButton.addEventListener('click', () => handleUserSubmit());
+        inputField.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleUserSubmit();
+            }
+        });
+    }
+
+    if (stopButton) {
+        // Explicitly bind the click event to handleStopGeneration
+        stopButton.addEventListener('click', handleStopGeneration);
+    } else {
+        console.warn('Stop button element (#stop-button) not found in the DOM.');
+    }
 }
 
 // Replace handleStopGeneration() in app.js
