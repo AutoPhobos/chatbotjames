@@ -345,6 +345,14 @@ function parseToolCalls(text) {
 }
 
 async function executeTool(toolName, params) {
+    if (toolName === 'search_web') {
+        try {
+            const results = await import('./tools-search.js').then(m => m.performWebSearch(params.query || params.q));
+            return results;
+        } catch (error) {
+            throw new Error('Web search failed: ' + error.message);
+        }
+    }
     if (toolName === 'location') {
         try {
             const location = await import('./tools-bridge.js').then(m => m.getLocation());
