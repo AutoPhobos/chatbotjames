@@ -44,8 +44,13 @@ const pythonWorker = new Worker('python-worker.js');
 const pythonCallbacks = new Map();
 
 // UI References
-const cmdInput = document.getElementById('userInput');
-const sendBtn = document.getElementById('sendButton');
+const cmdInput = document.getElementById('cmdInput')
+    || document.getElementById('userInput')
+    || document.getElementById('user-input');
+
+const sendBtn = document.getElementById('sendBtn')
+    || document.getElementById('sendButton')
+    || document.getElementById('send-button');
 
 /**
  * Modern UI Toggle
