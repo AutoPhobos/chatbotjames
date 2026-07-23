@@ -1,14 +1,14 @@
 import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0';
 
 env.allowLocalModels = false;
-env.useBrowserCache = true; // Use transformers.js robust native caching to prevent download hangs
+env.useBrowserCache = true; // Robust native browser caching
 
 let chatbot;
 let activeAbortController = null;
 
-const systemPrompt = `You are JAMES (just a machine engineered for speech), an advanced AI assistant and a friend.
+const systemPrompt = `You are JAMES (just a machine engineered for speech), an advanced AI assistant and a trusted friend.
 
-You have access to the following tools:
+You have access to the following live tools:
 - weather (params: location)
 - wikipedia (params: query)
 - currency (params: from, to, amount)
@@ -67,15 +67,25 @@ to: kilometers
 \`\`\``;
 
 const MODEL_PRESETS = [
-    { id: 'lite-smollm-135m-q4',   label: 'SmolLM2 135M q4 (Safe Mobile)', backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-135M-Instruct',           dtype: 'q4',    requires: 'cpu', autoSelect: true,  sizeMB: 90,   ram: '256 MB' },
-    { id: 'lite-smollm-135m-q8',   label: 'SmolLM2 135M q8 (Lite)',         backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-135M-Instruct',           dtype: 'q8',    requires: 'cpu', autoSelect: true,  sizeMB: 150,  ram: '512 MB' },
-    { id: 'cpu-qwen25-05b-q4',     label: 'Qwen2.5 0.5B (WASM)',            backend: 'wasm',   model: 'onnx-community/Qwen2.5-0.5B-Instruct',          dtype: 'q4',    requires: 'cpu', autoSelect: true,  sizeMB: 400,  ram: '1 GB' },
-    { id: 'gpu-qwen25-05b-q4f16',   label: 'Qwen2.5 0.5B (WebGPU)',        backend: 'webgpu', model: 'onnx-community/Qwen2.5-0.5B-Instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 400,  ram: '2 GB' },
-    { id: 'gpu-llama32-1b-q4f16',   label: 'Llama 3.2 1B (WebGPU)',        backend: 'webgpu', model: 'onnx-community/Llama-3.2-1B-Instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 750,  ram: '3 GB' },
-    { id: 'gpu-smollm2-1.7b-q4f16', label: 'SmolLM2 1.7B (WebGPU)',        backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct',           dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 950,  ram: '3 GB' },
-    { id: 'gpu-gemma3-1b-q4f16',    label: 'Gemma 3 1B (WebGPU)',          backend: 'webgpu', model: 'onnx-community/gemma-3-1b-it',                  dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 600,  ram: '3 GB' },
-    { id: 'gpu-deepseek-15b-q4f16', label: 'DeepSeek-R1 1.5B (WebGPU)',    backend: 'webgpu', model: 'onnx-community/DeepSeek-R1-Distill-Qwen-1.5B', dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 1000, ram: '4 GB' },
-    { id: 'gpu-phi35-mini-q4f16',   label: 'Phi-3.5-mini 3.8B (WebGPU)',   backend: 'webgpu', model: 'onnx-community/Phi-3.5-mini-instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 2200, ram: '8 GB' },
+    // ── Ultra-Lite / Mobile Safe (WASM) ────────────────────────────────────
+    { id: 'lite-smollm2-135m-q4',   label: 'SmolLM2 135M q4 (Ultra Lite)',  backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-135M-Instruct',           dtype: 'q4',    requires: 'cpu', autoSelect: true,  sizeMB: 90,   ram: '256 MB' },
+    { id: 'lite-smollm2-360m-q4',   label: 'SmolLM2 360M q4 (Lite)',        backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-360M-Instruct',           dtype: 'q4',    requires: 'cpu', autoSelect: true,  sizeMB: 250,  ram: '512 MB' },
+
+    // ── CPU / WASM Standard Models ─────────────────────────────────────────
+    { id: 'cpu-qwen25-05b-q4',      label: 'Qwen2.5 0.5B (WASM)',           backend: 'wasm',   model: 'onnx-community/Qwen2.5-0.5B-Instruct',          dtype: 'q4',    requires: 'cpu', autoSelect: true,  sizeMB: 400,  ram: '1 GB' },
+    { id: 'cpu-tinyllama-1.1b-q4',  label: 'TinyLlama 1.1B (WASM)',         backend: 'wasm',   model: 'Xenova/TinyLlama-1.1B-Chat-v1.0',               dtype: 'q4',    requires: 'cpu', autoSelect: true,  sizeMB: 600,  ram: '2 GB' },
+    { id: 'cpu-llama32-1b-q4',      label: 'Llama 3.2 1B (WASM)',           backend: 'wasm',   model: 'onnx-community/Llama-3.2-1B-Instruct',          dtype: 'q4',    requires: 'cpu', autoSelect: true,  sizeMB: 650,  ram: '2 GB' },
+
+    // ── WebGPU Accelerated Models (High Performance) ───────────────────────
+    { id: 'gpu-smollm2-360m-q4f16', label: 'SmolLM2 360M (WebGPU)',         backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-360M-Instruct',           dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 250,  ram: '1 GB' },
+    { id: 'gpu-qwen25-05b-q4f16',   label: 'Qwen2.5 0.5B (WebGPU)',         backend: 'webgpu', model: 'onnx-community/Qwen2.5-0.5B-Instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 400,  ram: '2 GB' },
+    { id: 'gpu-gemma3-1b-q4f16',    label: 'Gemma 3 1B (WebGPU)',           backend: 'webgpu', model: 'onnx-community/gemma-3-1b-it',                  dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 600,  ram: '3 GB' },
+    { id: 'gpu-llama32-1b-q4f16',   label: 'Llama 3.2 1B (WebGPU)',         backend: 'webgpu', model: 'onnx-community/Llama-3.2-1B-Instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 750,  ram: '3 GB' },
+    { id: 'gpu-smollm2-17b-q4f16',  label: 'SmolLM2 1.7B (WebGPU)',         backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct',           dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 950,  ram: '3 GB' },
+    { id: 'gpu-qwen25-15b-q4f16',   label: 'Qwen2.5 1.5B (WebGPU)',         backend: 'webgpu', model: 'onnx-community/Qwen2.5-1.5B-Instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 950,  ram: '4 GB' },
+    { id: 'gpu-deepseek-r1-1.5b',   label: 'DeepSeek-R1 1.5B (WebGPU)',     backend: 'webgpu', model: 'onnx-community/DeepSeek-R1-Distill-Qwen-1.5B', dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 1000, ram: '4 GB' },
+    { id: 'gpu-llama32-3b-q4f16',   label: 'Llama 3.2 3B (WebGPU)',         backend: 'webgpu', model: 'onnx-community/Llama-3.2-3B-Instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 2100, ram: '6 GB' },
+    { id: 'gpu-phi35-mini-q4f16',   label: 'Phi-3.5-mini 3.8B (WebGPU)',    backend: 'webgpu', model: 'onnx-community/Phi-3.5-mini-instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 2200, ram: '8 GB' }
 ];
 
 function isMobileDevice() {
@@ -87,8 +97,8 @@ function isMobileDevice() {
 }
 
 async function detectGpu() {
-    if (isMobileDevice()) return { hasGpu: false, reason: 'Mobile device forced to WASM for stability' };
-    if (!navigator.gpu) return { hasGpu: false, reason: 'No WebGPU API' };
+    if (isMobileDevice()) return { hasGpu: false, reason: 'Mobile device forced to WASM for safety' };
+    if (!navigator.gpu) return { hasGpu: false, reason: 'No WebGPU API found' };
     try {
         const adapter = await navigator.gpu.requestAdapter();
         if (!adapter || adapter.isFallbackAdapter) return { hasGpu: false, reason: 'Fallback adapter' };
@@ -120,7 +130,7 @@ async function initializeModel(provider, dtype, model) {
         });
     } catch (err) {
         if (provider === 'webgpu') {
-            console.warn('WebGPU init failed, falling back to WASM:', err);
+            console.warn('WebGPU failed, falling back to WASM:', err);
             return await pipeline('text-generation', model, {
                 device: 'wasm',
                 dtype: { model: 'q4', decoder_model_merged: 'q4', default: 'fp32' },
@@ -152,15 +162,16 @@ self.onmessage = async (e) => {
             const ram = navigator.deviceMemory || 4;
             const mobile = isMobileDevice();
 
+            // Notify UI of hardware specs and presets list
             self.postMessage({ status: 'hardware-info', gpuInfo, ram, mobile, presets: MODEL_PRESETS });
 
-            let targetPreset = MODEL_PRESETS[0]; // SmolLM2 135M safe mobile default
+            let targetPreset = MODEL_PRESETS[0]; // SmolLM2 135M lite mobile default
 
             if (forcePresetId) {
                 const found = MODEL_PRESETS.find(p => p.id === forcePresetId);
                 if (found) targetPreset = found;
             } else if (!mobile && gpuInfo.hasGpu) {
-                targetPreset = MODEL_PRESETS.find(p => p.id === 'gpu-qwen25-05b-q4f16') || MODEL_PRESETS[3];
+                targetPreset = MODEL_PRESETS.find(p => p.id === 'gpu-qwen25-05b-q4f16') || MODEL_PRESETS[5];
             } else if (!mobile) {
                 targetPreset = MODEL_PRESETS.find(p => p.backend === 'wasm' && !p.id.startsWith('lite-')) || MODEL_PRESETS[2];
             }
@@ -201,9 +212,9 @@ self.onmessage = async (e) => {
             let generatedTokensCount = 0;
 
             const output = await chatbot(prompt, {
-                max_new_tokens: 512,
+                max_new_tokens: 1024,
                 do_sample: true,
-                temperature: 0.7,
+                temperature: 0.9,
                 top_k: 40,
                 top_p: 0.9,
                 return_full_text: false,
