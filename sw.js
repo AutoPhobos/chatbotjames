@@ -1,86 +1,48 @@
-const CACHE_NAME = 'JAMES-v5.2';
-
-// Only cache truly static assets — NOT app logic files
-const STATIC_ASSETS = [
-    'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css'
+const CACHE_NAME = 'james-v1-prod';
+const ASSETS = [
+  '/',
+  '/index.html',
+  '/style.css',
+  '/app.js',
+  '/worker.js',
+  '/tool-router.js',
+  '/manifest.json'
 ];
 
-// App files: network-first but cached for offline PWA compliance
-const NETWORK_FIRST = [
-    'app.js',
-    'worker.js',
-    'tools-worker.js',
-    'python-worker.js',
-    'orama.js',
-    'index.html',
-    'style.css',
-    'manifest.json'
-];
-
-// ── Install: pre-cache only CDN static assets ─────────────────────────────
-self.addEventListener('install', (e) => {
-    e.waitUntil(
-        caches.open(CACHE_NAME).then(c => c.addAll(STATIC_ASSETS))
-    );
-    self.skipWaiting();
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+  );
+  self.skipWaiting();
 });
 
-// ── Activate: delete old caches ───────────────────────────────────────────
-self.addEventListener('activate', (e) => {
-    e.waitUntil(
-        caches.keys().then(keys =>
-            Promise.all(
-                keys.filter(k => k !== CACHE_NAME && k !== 'JAMES-model-cache' && k !== 'transformers-cache')
-                    .map(k => caches.delete(k))
-            )
-        )
-    );
-    self.clients.claim();
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+      )
+    )
+  );
+  self.clients.claim();
 });
 
-// ── Fetch: network-first for app files, cache-first for CDN assets ────────
 self.addEventListener('fetch', (event) => {
-    // Only cache GET requests (Transformers.js sends HEAD requests for file sizes)
-    if (event.request.method !== 'GET') return;
-
-    const url = new URL(event.request.url);
-    const filename = url.pathname.split('/').pop();
-
-    // Always bypass SW for model weight files (large .bin / .onnx fetches)
-    if (url.pathname.includes('.onnx') || url.pathname.includes('.bin')) {
-        return; // Let browser handle directly
-    }
-
-    // Network-first for app files (caches them for offline PWA installability)
-    if (NETWORK_FIRST.some(f => filename === f || url.pathname.endsWith(f))) {
-        event.respondWith(
-            fetch(event.request)
-                .then(res => {
-                    const clone = res.clone();
-                    caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
-                    return res;
-                })
-                .catch(() => caches.match(event.request))
-        );
-        return;
-    }
-
-    // CDN assets: cache-first (they're versioned and never change)
-    if (url.hostname.includes('jsdelivr.net') || url.hostname.includes('cdn.')) {
-        event.respondWith(
-            caches.match(event.request).then(cached =>
-                cached ?? fetch(event.request).then(res => {
-                    const clone = res.clone();
-                    caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
-                    return res;
-                })
-            )
-        );
-        return;
-    }
-
-    // Everything else: network with cache fallback
-    event.respondWith(
-        fetch(event.request).catch(() => caches.match(event.request))
-    );
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+      return fetch(event.request).then((response) => {
+        return caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, response.clone());
+          return response;
+        });
+      }).catch(() => {
+        if (event.request.mode === 'navigate') {
+          return caches.match('/index.html');
+        }
+      });
+    })
+  );
 });
