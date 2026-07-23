@@ -1,65 +1,235 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About — JAMES</title>
+    <title>About JAMES — Private Browser AI Chatbot, No Account Needed</title>
+    <meta name="description" content="JAMES is a free, private AI chatbot that runs locally in your browser with no account, no server and no data sent anywhere. Learn about its architecture, tools, and privacy model.">
+    <meta name="keywords" content="about JAMES, local AI chatbot, private AI, browser AI, offline AI, no account AI, WebGPU chatbot, free AI assistant">
+    <meta name="author" content="Andrey Lopukhov">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://chatbotjames.onrender.com/about.html">
+    <meta property="og:title" content="About JAMES — Private Browser AI Chatbot">
+    <meta property="og:description" content="JAMES is a free, private AI chatbot that runs in your browser — no account, no server, no data sent anywhere.">
+    <meta property="og:image" content="https://chatbotjames.onrender.com/preview.png">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://chatbotjames.onrender.com/about.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="About JAMES — Private Browser AI Chatbot">
+    <meta name="twitter:description" content="JAMES is a free, private AI chatbot that runs in your browser — no account, no server, no data sent anywhere.">
+    <meta name="twitter:image" content="https://chatbotjames.onrender.com/preview.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "JAMES",
+      "url": "https://chatbotjames.onrender.com/",
+      "description": "A free, private AI chatbot that runs entirely in your browser using WebGPU or WASM. No account, no server, no data sent anywhere.",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "Any (browser-based)",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "author": { "@type": "Person", "name": "Andrey Lopukhov", "url": "https://github.com/tripping-alien" }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "Is JAMES free to use?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes, JAMES is completely free. No account, no subscription, no API key required." } },
+        { "@type": "Question", "name": "Does JAMES send my messages to a server?",
+          "acceptedAnswer": { "@type": "Answer", "text": "No. All AI inference runs locally in your browser using WebGPU or WASM. Your messages never leave your device unless you explicitly use a tool that fetches external data (like weather or Wikipedia)." } },
+        { "@type": "Question", "name": "Does JAMES work offline?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. After the model weights are downloaded once, JAMES works completely offline. The app can also be installed as a PWA for offline access." } },
+        { "@type": "Question", "name": "What AI models does JAMES use?",
+          "acceptedAnswer": { "@type": "Answer", "text": "JAMES automatically selects the best model for your hardware from a range including Qwen2.5 0.5B, SmolLM2 1.7B, Llama 3.2 1B, and Llama 3.2 3B. GPU models run via WebGPU; CPU fallbacks use WASM." } },
+        { "@type": "Question", "name": "What browser do I need?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Chrome or Edge is recommended for WebGPU acceleration. Firefox works via WASM. Safari has limited support." } }
+      ]
+    }
+    </script>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="stylesheet" href="style.css">
-    <link rel="icon" href="favicon.ico">
+    <style>
+        body { overflow: auto; }
+        .page-shell { min-height: 100vh; background: var(--bg-main); }
+        nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(26,26,26,0.98);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(12px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+        }
+        .nav-brand { color: var(--primary-purple); text-decoration: none; font-weight: 700; letter-spacing: 0.14em; }
+        .nav-links { display: flex; gap: 1.5rem; }
+        .nav-links a { color: var(--text-secondary); text-decoration: none; font-size: 0.88rem; text-transform: uppercase; letter-spacing: 0.08em; transition: color 0.2s ease; }
+        .nav-links a:hover, .nav-links a.active { color: var(--primary-blue); }
+        .page-content { max-width: 1080px; margin: 0 auto; padding: 3rem 2rem 4rem; }
+        .hero { padding: 3rem 0 2rem; border-bottom: 1px solid var(--border); }
+        .eyebrow { display: inline-block; margin-bottom: 1rem; font-size: 0.78rem; letter-spacing: 0.24em; text-transform: uppercase; color: var(--text-secondary); }
+        .hero-title { font-size: clamp(2.6rem, 5vw, 4.4rem); line-height: 1; margin-bottom: 1rem; color: var(--primary-purple); }
+        .hero-copy { max-width: 760px; line-height: 1.85; color: var(--text-primary); margin-bottom: 1.75rem; }
+        .hero-actions { display: flex; flex-wrap: wrap; gap: 1rem; }
+        .hero-visual { margin: 2rem 0 1.5rem; }
+        .hero-preview { width: 100%; max-width: 880px; border-radius: 22px; border: 1px solid var(--border); box-shadow: 0 30px 90px rgba(0,0,0,0.18); }
+        .btn { display: inline-flex; align-items: center; justify-content: center; padding: 0.95rem 1.6rem; border-radius: 999px; border: 1px solid transparent; font-size: 0.85rem; font-weight: 600; text-decoration: none; transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease; }
+        .btn-primary { background: var(--primary-purple); color: #fff; }
+        .btn-primary:hover { transform: translateY(-2px); background: #7c3aed; }
+        .btn-secondary { background: transparent; color: var(--text-primary); border-color: var(--border); }
+        .btn-secondary:hover { transform: translateY(-2px); border-color: var(--primary-blue); color: var(--primary-blue); }
+        .section-block { margin-top: 3rem; display: grid; gap: 1.75rem; }
+        .section-title { font-size: 0.92rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.16em; color: var(--text-primary); margin-bottom: 0.75rem; }
+        .section-copy { max-width: 780px; color: var(--text-secondary); line-height: 1.85; }
+        .grid { display: grid; gap: 1.2rem; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+        .card { background: var(--assistant-bubble); border: 1px solid var(--border); border-radius: 18px; padding: 1.75rem; transition: transform 0.2s ease, border-color 0.2s ease; }
+        .card:hover { transform: translateY(-3px); border-color: var(--primary-purple); }
+        .card h3 { margin-bottom: 0.9rem; color: var(--primary-blue); font-size: 1rem; }
+        .card p { color: var(--text-secondary); line-height: 1.75; }
+        .hero-note { background: var(--assistant-bubble); border: 1px solid var(--border); border-radius: 18px; padding: 1.6rem 1.8rem; color: var(--text-primary); }
+        .author-section { display: grid; grid-template-columns: 120px 1fr; gap: 1.75rem; background: var(--assistant-bubble); border: 1px solid var(--border); border-radius: 20px; padding: 2rem; }
+        .author-avatar { width: 100px; height: 100px; border-radius: 24px; background: linear-gradient(180deg, var(--primary-purple), var(--primary-blue)); display: grid; place-items: center; color: #fff; font-size: 2rem; font-weight: 700; }
+        .author-title { margin-bottom: 0.35rem; font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
+        .author-subtitle { margin-bottom: 1rem; color: var(--text-secondary); letter-spacing: 0.1em; }
+        .author-copy { line-height: 1.85; color: var(--text-secondary); }
+        .author-links { display: flex; flex-wrap: wrap; gap: 0.9rem; margin-top: 1.2rem; }
+        .author-link { color: var(--primary-green); text-decoration: none; font-size: 0.83rem; letter-spacing: 0.08em; }
+        .page-footer { border-top: 1px solid var(--border); margin-top: 3rem; padding-top: 2rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; color: var(--text-secondary); font-size: 0.85rem; flex-wrap: wrap; }
+        .page-footer a { color: var(--text-secondary); text-decoration: none; }
+        .page-footer a:hover { color: var(--primary-blue); }
+        @media (max-width: 840px) { .author-section { grid-template-columns: 1fr; } }
+        @media (max-width: 620px) { nav { flex-direction: column; align-items: flex-start; gap: 1rem; } }
+    </style>
 </head>
-
 <body>
-    <header>
-        <nav class="container">
-            <a href="index.html" class="logo">JAMES</a>
+    <div class="page-shell">
+        <nav>
+            <a class="nav-brand" href="index.html">JAMES</a>
             <div class="nav-links">
-                <a href="index.html">Chat</a>
-                <a href="docs.html">Docs</a>
+                <a href="index.html">Terminal</a>
                 <a href="about.html" class="active">About</a>
+                <a href="docs.html">Docs</a>
             </div>
         </nav>
-    </header>
-
-    <main class="container content-page">
-        <h1>About JAMES</h1>
-        <p class="subtitle">Your local, private AI assistant running entirely in the browser.</p>
-
-        <section>
-            <h2>What is JAMES?</h2>
-            <p>JAMES is a next-generation, browser-native AI assistant designed with absolute privacy at its core.
-                Unlike traditional AI services that route your data through remote cloud servers, JAMES executes
-                completely on your local device using WebGPU, WebAssembly, and ONNX Runtime Web.</p>
-            <p>Every session starts completely fresh, ensuring no chat history or personal data ever leaves your
-                browser.</p>
-        </section>
-
-        <section>
-            <h2>Key Features</h2>
-            <ul>
-                <li><strong>100% Client-Side Inference:</strong> Powered locally in your browser with zero server
-                    tracking or telemetry.</li>
-                <li><strong>Real-Time Tool Suite:</strong> Equipped with built-in tools for web search, weather,
-                    currency conversion, Wikipedia summaries, timezones, and more.</li>
-                <li><strong>Multiple Operation Modes:</strong> Optimized for standard desktop use, lightweight fallback
-                    devices, and TV/remote control displays.</li>
-                <li><strong>Lightning Fast Small-Talk:</strong> Instant response handling for greetings and common
-                    queries without waiting for model inference.</li>
-            </ul>
-        </section>
-
-        <section>
-            <h2>Created By</h2>
-            <p>JAMES is developed by <strong>Andrey Lopukhov</strong> as a demonstration of high-performance,
-                privacy-first client-side web AI.</p>
-        </section>
-    </main>
-
-    <footer>
-        <div class="container">
-            <p>&copy; 2026 Andrey Lopukhov. All rights reserved.</p>
-        </div>
-    </footer>
+        <main class="page-content">
+            <section class="hero">
+                <span class="eyebrow">Project / About</span>
+                <h1 class="hero-title">JAMES &mdash; Private AI That Runs in Your Browser</h1>
+                <p class="hero-copy">A free, local-first AI assistant that runs entirely in your browser &mdash; no account, no server, and no data ever sent anywhere. JAMES combines browser-native inference, streaming responses, and a tool-aware architecture so your conversations stay private while still being powerful.</p>                <div class="hero-visual">
+                    <img src="preview.png" alt="JAMES preview" class="hero-preview">
+                </div>                <div class="hero-actions">
+                    <a class="btn btn-primary" href="index.html">Open Terminal</a>
+                    <a class="btn btn-secondary" href="docs.html">Read Docs</a>
+                </div>
+            </section>
+            <section class="section-block">
+                <div>
+                    <p class="section-title">What makes JAMES different?</p>
+                    <p class="section-copy">Unlike cloud-based chat apps, JAMES keeps computation local. The model runs in a Web Worker, the UI is responsive, and no conversation data is sent to external servers unless you explicitly request external information through tools.</p>
+                </div>
+                <div class="hero-note"><strong>Local by default.</strong> Model weights are downloaded once and cached by the browser. Downloads use chunked fetching so interrupted transfers can recover and cached files load much faster on subsequent starts.</div>
+            </section>
+            <section class="section-block">
+                <p class="section-title">Core values</p>
+                <div class="grid">
+                    <article class="card">
+                        <h3>Privacy first</h3>
+                        <p>Threads live only on your device. Clearing site data removes everything: history, session state, and cached model files.</p>
+                    </article>
+                    <article class="card">
+                        <h3>Browser native</h3>
+                        <p>No native wrapper is required. JAMES runs in the browser using standard web APIs, no install needed.</p>
+                    </article>
+                    <article class="card">
+                        <h3>Streaming responses</h3>
+                        <p>Answers appear token by token, giving a fast and alive experience even when the model computes locally.</p>
+                    </article>
+                    <article class="card">
+                        <h3>Tool aware</h3>
+                        <p>Built-in tools let JAMES fetch weather, lookup Wikipedia, convert currency, execute Python, and more.</p>
+                    </article>
+                </div>
+            </section>
+            <section class="section-block">
+                <p class="section-title">Built for the browser</p>
+                <div class="grid">
+                    <article class="card">
+                        <h3>Transformers.js</h3>
+                        <p>Handles model loading, tokenization, and generation in the browser, with support for both WebGPU and WASM backends.</p>
+                    </article>
+                    <article class="card">
+                        <h3>Web Workers</h3>
+                        <p>Inference runs off the main thread so the UI remains smooth while generation is in progress.</p>
+                    </article>
+                    <article class="card">
+                        <h3>Dynamic Models</h3>
+                        <p>Automatically evaluates your hardware capabilities (RAM, WebGPU) to select the optimal model for your device.</p>
+                    </article>
+                    <article class="card">
+                        <h3>Smart UI Modes</h3>
+                        <p>Adapts fluidly across devices with dedicated Desktop, Mobile, and 10-foot TV viewing interfaces.</p>
+                    </article>
+                    <article class="card">
+                        <h3>IndexedDB</h3>
+                        <p>Stores chat threads locally in the browser. No external database, no cloud sync.</p>
+                    </article>
+                    <article class="card">
+                        <h3>Tools bridge</h3>
+                        <p>Routes browser APIs like clipboard and geolocation through a safe bridge into the tool system.</p>
+                    </article>
+                </div>
+            </section>
+            <section class="section-block">
+                <p class="section-title">Frequently Asked Questions</p>
+                <div style="display:grid;gap:1rem;">
+                    <article class="card">
+                        <h3>Is JAMES free?</h3>
+                        <p>Yes, completely free. No account, no subscription, no API key. Open the site and start chatting.</p>
+                    </article>
+                    <article class="card">
+                        <h3>Does JAMES send my messages to a server?</h3>
+                        <p>No. All AI inference runs locally in your browser using WebGPU or WASM. Your messages never leave your device unless you explicitly use a tool that fetches external data (like weather or Wikipedia).</p>
+                    </article>
+                    <article class="card">
+                        <h3>Does it work offline?</h3>
+                        <p>Yes. After the model weights download once (a one-time step), JAMES works fully offline. You can also install it as a PWA for a native-like offline experience.</p>
+                    </article>
+                    <article class="card">
+                        <h3>What browser do I need?</h3>
+                        <p>Chrome or Edge for the fastest WebGPU experience. Firefox works via WASM. Safari has limited support. No extensions or plugins needed.</p>
+                    </article>
+                    <article class="card">
+                        <h3>What AI models does JAMES use?</h3>
+                        <p>JAMES auto-selects from Qwen2.5 0.5B, SmolLM2 1.7B, Llama 3.2 1B, and Llama 3.2 3B based on your hardware. You can also pick a model manually via the ⚙️ settings panel.</p>
+                    </article>
+                </div>
+            </section>
+            <section class="section-block">
+                <p class="section-title">Author</p>
+                <div class="author-section">
+                    <div class="author-avatar">A</div>
+                    <div>
+                        <h2 class="author-title">Andrey Lopukhov</h2>
+                        <p class="author-subtitle">Creator · Privacy-minded developer</p>
+                        <p class="author-copy">Andrey builds experiments that prioritize privacy and browser-first execution. JAMES is one such project: an AI terminal that runs locally and keeps your data in your control.</p>
+                        <div class="author-links">
+                            <a class="author-link" href="https://chatbotjames.onrender.com" target="_blank" rel="noopener">Project Site</a>
+                            <a class="author-link" href="https://github.com/tripping-alien" target="_blank" rel="noopener">GitHub</a>
+                            <a class="author-link" href="mailto: synecraft@gmail.com">Contact</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <footer class="page-footer">
+                <span>JAMES // Local browser AI</span>
+                <span><a href="index.html">Terminal</a> · <a href="docs.html">Docs</a> · MIT License</span>
+            </footer>
+        </main>
+    </div>
 </body>
-
 </html>

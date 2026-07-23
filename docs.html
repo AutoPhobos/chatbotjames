@@ -4,72 +4,688 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Documentation — JAMES</title>
+    <title>JAMES Docs — How to Use the Local Browser AI Chatbot</title>
+    <meta name="description"
+        content="Complete documentation for JAMES: how to use the local browser AI chatbot, available tools (weather, Wikipedia, currency, Python, and more), backend selection, and privacy model.">
+    <meta name="keywords"
+        content="JAMES documentation, local AI docs, browser AI tools, WebGPU AI, offline AI assistant, JAMES chatbot guide">
+    <meta name="author" content="Andrey Lopukhov">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://chatbotjames.onrender.com/docs.html">
+    <meta property="og:title" content="JAMES Docs — How to Use the Local Browser AI">
+    <meta property="og:description"
+        content="Complete documentation for JAMES: tools, backend selection, model switching, architecture, and privacy model.">
+    <meta property="og:image" content="https://chatbotjames.onrender.com/preview.png">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://chatbotjames.onrender.com/docs.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="JAMES Docs — How to Use the Local Browser AI">
+    <meta name="twitter:description"
+        content="Complete documentation for JAMES: tools, backend selection, model switching, architecture, and privacy model.">
+    <meta name="twitter:image" content="https://chatbotjames.onrender.com/preview.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "JAMES Documentation — Local Browser AI Chatbot",
+      "description": "Complete reference for JAMES: architecture, tools, backend selection, model switching, and privacy.",
+      "url": "https://chatbotjames.onrender.com/docs.html",
+      "author": { "@type": "Person", "name": "Andrey Lopukhov" },
+      "publisher": { "@type": "Person", "name": "Andrey Lopukhov" },
+      "dateModified": "2026-06-24"
+    }
+    </script>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="stylesheet" href="style.css">
-    <link rel="icon" href="favicon.ico">
+    <style>
+        body {
+            overflow: auto;
+        }
+
+        body {
+            background: var(--bg-main);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(26, 26, 26, 0.98);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(12px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+        }
+
+        .nav-brand {
+            color: var(--primary-purple);
+            text-decoration: none;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.88rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            transition: color 0.2s ease;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: var(--primary-blue);
+        }
+
+        aside {
+            width: 260px;
+            position: sticky;
+            top: 76px;
+            align-self: flex-start;
+            max-height: calc(100vh - 76px);
+            overflow-y: auto;
+            padding: 2rem 1.5rem;
+            border-right: 1px solid var(--border);
+            background: rgba(26, 26, 26, 0.96);
+        }
+
+        .sidebar-section {
+            margin-bottom: 2rem;
+        }
+
+        .sidebar-section-label {
+            display: block;
+            margin-bottom: 0.75rem;
+            font-size: 0.68rem;
+            letter-spacing: 0.35em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+        }
+
+        .sidebar-link {
+            display: block;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.84rem;
+            line-height: 1.6;
+            transition: color 0.15s;
+        }
+
+        .sidebar-link:hover,
+        .sidebar-link.active {
+            color: var(--primary-purple);
+        }
+
+        .sidebar-link.sub {
+            padding-left: 1rem;
+            font-size: 0.8rem;
+        }
+
+        main {
+            flex: 1;
+            padding: 3rem 3rem 4rem;
+            max-width: 880px;
+        }
+
+        .page-header {
+            margin-bottom: 3rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 2rem;
+        }
+
+        .page-header .eyebrow {
+            display: block;
+            margin-bottom: 0.75rem;
+            font-size: 0.75rem;
+            letter-spacing: 0.35em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+        }
+
+        .page-header h1 {
+            font-size: clamp(1.8rem, 4vw, 2.8rem);
+            color: var(--primary-purple);
+            margin-bottom: 0.75rem;
+        }
+
+        .page-header p {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            line-height: 1.75;
+        }
+
+        .doc-section {
+            margin-bottom: 3.5rem;
+            scroll-margin-top: 90px;
+        }
+
+        .doc-section h2 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--primary-purple);
+            letter-spacing: 0.08em;
+            margin-bottom: 1.25rem;
+            position: relative;
+        }
+
+        .doc-section p,
+        .doc-section li {
+            color: var(--text-primary);
+            line-height: 1.85;
+            font-size: 0.92rem;
+        }
+
+        .doc-section ul,
+        .doc-section ol {
+            padding-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        pre {
+            background: var(--assistant-bubble);
+            border: 1px solid var(--border);
+            padding: 1.2rem 1.4rem;
+            border-left: 3px solid var(--primary-blue);
+            border-radius: 16px;
+            color: var(--primary-blue);
+            font-family: monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            margin-bottom: 1.25rem;
+        }
+
+        code {
+            background: rgba(59, 130, 246, 0.1);
+            padding: 0.15rem 0.4rem;
+            border-radius: 6px;
+            color: var(--primary-blue);
+            font-family: monospace;
+        }
+
+        .callout {
+            border-left: 3px solid var(--primary-blue);
+            background: rgba(59, 130, 246, 0.08);
+            padding: 1rem 1.2rem;
+            margin: 1rem 0 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .callout strong {
+            color: var(--primary-purple);
+        }
+
+        .tool-grid {
+            display: grid;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .tool-card {
+            background: var(--assistant-bubble);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 1.3rem;
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .tool-name {
+            font-weight: 700;
+            color: var(--primary-purple);
+            margin-bottom: 0.6rem;
+        }
+
+        .tool-body p {
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+        }
+
+        .arch-diagram {
+            background: var(--assistant-bubble);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 1.8rem;
+            color: var(--text-secondary);
+            line-height: 1.9;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            margin-bottom: 1.5rem;
+        }
+
+        .arch-diagram .node {
+            color: var(--primary-purple);
+            font-weight: 700;
+        }
+
+        .page-footer {
+            border-top: 1px solid var(--border);
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            color: var(--text-secondary);
+            flex-wrap: wrap;
+        }
+
+        .page-footer a {
+            color: var(--text-secondary);
+            text-decoration: none;
+        }
+
+        .page-footer a:hover {
+            color: var(--primary-blue);
+        }
+
+        @media (max-width: 960px) {
+            body {
+                display: block;
+            }
+
+            aside {
+                display: none;
+            }
+
+            main {
+                padding: 2rem 1.5rem 4rem;
+            }
+        }
+    </style>
 </head>
 
 <body>
-    <header>
-        <nav class="container">
-            <a href="index.html" class="logo">JAMES</a>
-            <div class="nav-links">
-                <a href="index.html">Chat</a>
-                <a href="docs.html" class="active">Docs</a>
-                <a href="about.html">About</a>
-            </div>
-        </nav>
-    </header>
-
-    <main class="container content-page">
-        <h1>Documentation</h1>
-        <p class="subtitle">Learn how to configure, use, and interact with JAMES.</p>
-
-        <section>
-            <h2>Getting Started</h2>
-            <p>Simply open <a href="index.html">JAMES</a> in any modern browser supporting WebGPU. The application loads
-                models and dependencies directly into your browser cache on first launch.</p>
-        </section>
-
-        <section>
-            <h2>Available Tools</h2>
-            <p>JAMES can invoke various browser-native tools to fetch live data and perform utility tasks:</p>
-            <ul>
-                <li><code>🔍 search</code> — Real-time web search summaries.</li>
-                <li><code>🌤️ weather</code> — Current weather conditions and forecasts.</li>
-                <li><code>💱 currency</code> — Live currency exchange rate calculations.</li>
-                <li><code>📚 wikipedia</code> — Concise summaries from Wikipedia.</li>
-                <li><code>⏰ time</code> — Accurate time and timezone lookups.</li>
-                <li><code>🔑 uuid</code> — Generate unique identifiers.</li>
-                <li><code>🔐 password</code> — Secure local password generation.</li>
-                <li><code>🎨 palette</code> — Color palette generation and manipulation.</li>
-                <li><code>⏳ timer</code> — Local countdown timers.</li>
-                <li><code>📋 clipboard</code> — Clipboard utility operations.</li>
-            </ul>
-        </section>
-
-        <section>
-            <h2>System Modes</h2>
-            <ul>
-                <li><strong>Full Mode:</strong> Full model capabilities with all integrated tools enabled.</li>
-                <li><strong>Lightweight Mode:</strong> Optimized for lower-spec hardware with streamlined tool
-                    execution.</li>
-                <li><strong>TV Mode:</strong> Tailored UI layout for big screens and keyboard or remote navigation.</li>
-            </ul>
-        </section>
-
-        <section>
-            <h2>Privacy & Security</h2>
-            <p>Because JAMES runs entirely client-side via WebAssembly and ONNX Runtime, your conversations never touch
-                a remote database. Every session is ephemeral and self-contained on your machine.</p>
-        </section>
-    </main>
-
-    <footer>
-        <div class="container">
-            <p>&copy; 2026 Andrey Lopukhov. All rights reserved.</p>
+    <nav>
+        <a class="nav-brand" href="index.html">JAMES</a>
+        <div class="nav-links">
+            <a href="index.html">Terminal</a>
+            <a href="about.html">About</a>
+            <a href="docs.html" class="active">Docs</a>
         </div>
+    </nav>
+    <div style="display:flex; gap:0; min-height:calc(100vh - 76px);">
+        <aside>
+            <div class="sidebar-section">
+                <p class="sidebar-section-label">Getting Started</p>
+                <a class="sidebar-link active" href="#overview">Overview</a>
+                <a class="sidebar-link" href="#loading">Model Loading</a>
+                <a class="sidebar-link" href="#backends">Backends</a>
+            </div>
+            <div class="sidebar-section">
+                <p class="sidebar-section-label">Using JAMES</p>
+                <a class="sidebar-link" href="#threads">Threads</a>
+                <a class="sidebar-link" href="#stop">Stop Generation</a>
+                <a class="sidebar-link" href="#python">Python Execution</a>
+            </div>
+            <div class="sidebar-section">
+                <p class="sidebar-section-label">Tools</p>
+                <a class="sidebar-link" href="#tools">Tool Reference</a>
+                <a class="sidebar-link sub" href="#tools-info">Info Tools</a>
+                <a class="sidebar-link sub" href="#tools-util">Utility Tools</a>
+                <a class="sidebar-link sub" href="#tools-device">Device Tools</a>
+            </div>
+            <div class="sidebar-section">
+                <p class="sidebar-section-label">Architecture</p>
+                <a class="sidebar-link" href="#architecture">Data Flow</a>
+                <a class="sidebar-link" href="#privacy">Privacy Model</a>
+                <a class="sidebar-link" href="#sw">Service Worker</a>
+            </div>
+        </aside>
+        <main>
+            <div class="page-header">
+                <p class="eyebrow">Reference // Genesis</p>
+                <h1>JAMES Documentation</h1>
+                <p>Complete reference for JAMES — the free local browser AI chatbot. Covers architecture, tools, backend
+                    selection, model switching, and privacy.</p>
+            </div>
+            <section class="doc-section" id="overview">
+                <h2>Overview</h2>
+                <p>JAMES (Just A Machine, Engineered for Speech) is a browser-native AI chat interface. It runs a
+                    quantized language model entirely inside your browser using WebGPU or WASM — no server, no API, no
+                    data leaving your device.</p>
+                <p>Conversation state is persisted in IndexedDB. Model weights are cached by the browser after first
+                    download. Once cached, JAMES works completely offline.</p>
+                <div class="callout"><strong>Local inference means:</strong> every token is generated on your CPU or
+                    GPU. Response speed depends entirely on your hardware.</div>
+            </section>
+            <section class="doc-section" id="loading">
+                <h2>Model Loading</h2>
+                <p>On first launch, JAMES downloads model weights from Hugging Face. This is a one-time operation —
+                    weights are cached by the browser indefinitely.</p>
+                <p>Model files are fetched in parallel chunks and cached locally, so the download can recover gracefully
+                    and load faster on future launches.</p>
+                <p>The progress bar at the top of the terminal reflects download progress. Status transitions are:</p>
+                <pre>downloading → streaming → complete → done</pre>
+                <div class="callout">Cached weights load much faster after the first run. The browser serves them from
+                    its cache on subsequent launches.</div>
+            </section>
+            <section class="doc-section" id="backends">
+                <h2>Backends</h2>
+                <p>JAMES selects the best available execution path for your hardware and automatically falls back if a
+                    preferred backend is unavailable.</p>
+                <h3>WebGPU &mdash; primary (GPU)</h3>
+                <p>The preferred high-performance backend for Chrome/Edge with a compatible GPU. JAMES tries
+                    progressively larger models based on your available VRAM.</p>
+                <pre>GPU models (WebGPU / q4f16):
+  Qwen2.5 0.5B   &mdash; ~400 MB  (auto-select)
+  SmolLM2 1.7B   &mdash; ~950 MB  (auto-select)
+  Llama 3.2 1B   &mdash; ~750 MB  (auto-select)
+  Qwen2.5 1.5B   &mdash; ~950 MB  (auto-select)
+  Llama 3.2 3B   &mdash; ~2.1 GB  (auto-select)
+  Gemma 3 1B     &mdash; ~600 MB  (manual only)
+  DeepSeek-R1 1.5B &mdash; ~1 GB  (manual only)
+  Phi-3.5-mini 3.8B &mdash; ~2.2 GB (manual only)</pre>
+                <h3>WASM &mdash; CPU fallback</h3>
+                <p>Used when WebGPU is unavailable. Slower but compatible with any modern browser.</p>
+                <pre>CPU models (WASM / q4 or q8):
+  Llama 3.2 1B   &mdash; ~650 MB
+  TinyLlama 1.1B &mdash; ~600 MB
+  Qwen2.5 0.5B   &mdash; ~400 MB
+  SmolLM2 1.7B   &mdash; ~950 MB</pre>
+                <div class="callout">You can manually pick any model via the <strong>&#9881;&#65039; Model
+                        Settings</strong> panel at the top-right of the terminal.</div>
+            </section>
+            <section class="doc-section" id="threads">
+                <h2>Threads</h2>
+                <p>Each conversation is a thread in the sidebar. Threads represent independent context histories and are
+                    saved locally.</p>
+                <ul>
+                    <li>Click <strong>+ New Chat</strong> to start a fresh session.</li>
+                    <li>Thread titles are derived from the first user message.</li>
+                    <li>Use the <strong>×</strong> button to delete a thread permanently.</li>
+                    <li>The active thread state is stored in localStorage and restored on revisit.</li>
+                </ul>
+            </section>
+            <section class="doc-section" id="stop">
+                <h2>Stop Generation</h2>
+                <p>The stop button terminates the worker and restarts generation state.</p>
+                <ol>
+                    <li>Worker is terminated immediately.</li>
+                    <li>Partial streamed text is saved if available.</li>
+                    <li>The model restarts from the browser cache.</li>
+                </ol>
+                <div class="callout">Stopping forces a fresh worker session. It may take a few seconds afterward, but no
+                    model re-download occurs.</div>
+            </section>
+            <section class="doc-section" id="python">
+                <h2>Python Execution</h2>
+                <p>JAMES can execute Python code in-browser via Pyodide. Ask JAMES to run a Python calculation and it
+                    will use the <code>python</code> tool automatically:</p>
+                <pre>```tool:run
+python
+code: import math; print(math.factorial(20))
+```</pre>
+                <p>Execution results are returned into the conversation and used to answer your query. Pyodide loads on
+                    first use; subsequent calls are instant.</p>
+            </section>
+            <section class="doc-section" id="tools">
+                <h2>Tool Reference</h2>
+                <p>JAMES uses model-driven tool calling. When you ask a question that needs live or external data, the
+                    model emits a tool call block, the app executes it, and feeds the result back to the model for a
+                    final answer:</p>
+                <pre>```tool:run
+weather
+location: Tel Aviv
+```</pre>
+                <h3 id="tools-info">Information Tools</h3>
+                <div class="tool-grid">
+                    <div class="tool-card"><span class="tool-name">weather</span>
+                        <div class="tool-body">
+                            <p>Gets current weather conditions via Open-Meteo (no API key needed).</p>
+                            <pre>weather
+location: Tel Aviv</pre>
+                        </div>
+                    </div>
+                    <div class="tool-card"><span class="tool-name">wikipedia</span>
+                        <div class="tool-body">
+                            <p>Fetches a Wikipedia article summary.</p>
+                            <pre>wikipedia
+query: Bijective numeration</pre>
+                        </div>
+                    </div>
+                    <div class="tool-card"><span class="tool-name">currency</span>
+                        <div class="tool-body">
+                            <p>Converts currency amounts via frankfurter.app.</p>
+                            <pre>currency
+from: USD, to: EUR, amount: 100</pre>
+                        </div>
+                    </div>
+                    <div class="tool-card"><span class="tool-name">time</span>
+                        <div class="tool-body">
+                            <p>Returns current time for an IANA timezone.</p>
+                            <pre>time
+timezone: Asia/Jerusalem</pre>
+                        </div>
+                    </div>
+                    <div class="tool-card"><span class="tool-name">date</span>
+                        <div class="tool-body">
+                            <p>Date utilities: now, diff, convert, parse.</p>
+                            <pre>date
+action: diff, date: 2025-01-01, date2: 2026-01-01</pre>
+                        </div>
+                    </div>
+                    <div class="tool-card"><span class="tool-name">websearch</span>
+                        <div class="tool-body">
+                            <p>Returns a DuckDuckGo search link for a query.</p>
+                            <pre>websearch
+query: best local AI models 2025</pre>
+                        </div>
+                    </div>
+                    <div class="tool-card"><span class="tool-name">ip</span>
+                        <div class="tool-body">
+                            <p>Looks up IP geolocation info.</p>
+                            <pre>ip
+target: self</pre>
+                        </div>
+                    </div>
+                </div>
+                <h3 id="tools-util">Utility Tools</h3>
+                <div class="tool-grid">
+                    <div class="tool-card"><span class="tool-name">uuid</span>
+                        <div class="tool-body">
+                            <p>Generates cryptographically secure UUIDs.</p>
+                            <pre>uuid
+count: 3</pre>
+                        </div>
+                    </div>
+                    <div class="tool-card"><span class="tool-name">password</span>
+                        <div class="tool-body">
+                            <p>Creates strong random passwords.</p>
+                            <pre>password
+length: 24, count: 1, symbols: true</pre>
+                        </div>
+                    </div>
+                    <div class="tool-card"><span class="tool-name">palette</span>
+                        <div class="tool-body">
+                            <p>Generates color palettes from a base color.</p>
+                            <pre>palette
+base: #00ff41, scheme: triadic, count: 5</pre>
+                        </div>
+                    </div>
+                    <div class="tool-card"><span class="tool-name">timer</span>
+                        <div class="tool-body">
+                            <p>Starts a countdown timer with a visible widget.</p>
+                            <pre>timer
+seconds: 1500, label: Pomodoro</pre>
+                        </div>
+                    </div>
+                    <div class="tool-card"><span class="tool-name">calculator</span>
+                        <div class="tool-body">
+                            <p>Evaluates a math expression safely.</p>
+                            <pre>calculator
+expr: (12 * 8) / 3 + sqrt(144)</pre>
+                        </div>
+                    </div>
+                    <div class="tool-card"><span class="tool-name">convert</span>
+                        <div class="tool-body">
+                            <p>Converts units (length, weight, temperature, speed, etc.).</p>
+                            <pre>convert
+value: 100, from: km, to: miles</pre>
+                        </div>
+                    </div>
+                    <div class="tool-card"><span class="tool-name">base64</span>
+                        <div class="tool-body">
+                            <p>Encodes or decodes Base64 strings.</p>
+                            <pre>base64
+mode: encode, input: Hello World</pre>
+                        </div>
+                    </div>
+                    <div class="tool-card"><span class="tool-name">hash</span>
+                        <div class="tool-body">
+                            <p>Hashes a string using SHA-256, SHA-512, or MD5.</p>
+                            <pre>hash
+algorithm: sha256, input: hello</pre>
+                        </div>
+                    </div>
+                    <div class="tool-card"><span class="tool-name">color</span>
+                        <div class="tool-body">
+                            <p>Converts between HEX, RGB, and HSL color formats.</p>
+                            <pre>color
+input: #ff6b6b</pre>
+                        </div>
+                    </div>
+                    <div class="tool-card"><span class="tool-name">random</span>
+                        <div class="tool-body">
+                            <p>Generates random numbers, dice rolls, or coin flips.</p>
+                            <pre>random
+mode: dice, count: 2, sides: 6</pre>
+                        </div>
+                    </div>
+                    <div class="tool-card"><span class="tool-name">countdown</span>
+                        <div class="tool-body">
+                            <p>Calculates time remaining to a target date.</p>
+                            <pre>countdown
+target: 2027-01-01</pre>
+                        </div>
+                    </div>
+                    <div class="tool-card"><span class="tool-name">python</span>
+                        <div class="tool-body">
+                            <p>Runs Python code in Pyodide and returns stdout output.</p>
+                            <pre>python
+code: print('Hello from Python')</pre>
+                        </div>
+                    </div>
+                    <div class="tool-card"><span class="tool-name">file</span>
+                        <div class="tool-body">
+                            <p>Processes uploaded file content.</p>
+                            <pre>file
+filename: data.txt, content: ...</pre>
+                        </div>
+                    </div>
+                    <div class="tool-card"><span class="tool-name">search</span>
+                        <div class="tool-body">
+                            <p>Searches a local Orama knowledge index seeded with JAMES documentation.</p>
+                            <pre>search
+query: browser inference</pre>
+                        </div>
+                    </div>
+                </div>
+                <h3 id="tools-device">Device Tools</h3>
+                <div class="tool-grid">
+                    <div class="tool-card"><span class="tool-name">clipboard</span>
+                        <div class="tool-body">
+                            <p>Reads clipboard text (requires user permission).</p>
+                            <pre>clipboard</pre>
+                        </div>
+                    </div>
+                    <div class="tool-card"><span class="tool-name">location</span>
+                        <div class="tool-body">
+                            <p>Returns GPS coordinates (requires user permission).</p>
+                            <pre>location</pre>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <section class="doc-section" id="architecture">
+                <h2>Architecture</h2>
+                <div class="arch-diagram">
+                    Browser Main Thread → app.js → worker.js → Transformers.js → WebGPU / WASM
+                    <br>postMessage() → Storage → IndexedDB / localStorage
+                </div>
+                <p>The worker owns inference and model state. The main thread owns the UI, tools bridge, and storage.
+                </p>
+            </section>
+            <section class="doc-section" id="privacy">
+                <h2>Privacy Model</h2>
+                <p>JAMES is designed so no conversation data leaves your browser unless you explicitly request external
+                    information via tools.</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Where it lives</th>
+                            <th>Network exposure</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Conversation messages</td>
+                            <td>IndexedDB</td>
+                            <td>None</td>
+                        </tr>
+                        <tr>
+                            <td>Session metadata</td>
+                            <td>IndexedDB / localStorage</td>
+                            <td>None</td>
+                        </tr>
+                        <tr>
+                            <td>Model weights</td>
+                            <td>Browser cache</td>
+                            <td>One-time download</td>
+                        </tr>
+                        <tr>
+                            <td>Static assets</td>
+                            <td>Service Worker cache</td>
+                            <td>One-time download</td>
+                        </tr>
+                        <tr>
+                            <td>Inference compute</td>
+                            <td>Web Worker</td>
+                            <td>None</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="callout"><strong>Delete your data:</strong> clear site data to remove stored threads and
+                    cached weights.</div>
+            </section>
+            <section class="doc-section" id="sw">
+                <h2>Service Worker</h2>
+                <p>The service worker caches static app assets as an enhancement. Model weights bypass the SW and use
+                    the browser cache instead.</p>
+                <ul>
+                    <li><strong>App logic:</strong> network-first.</li>
+                    <li><strong>CDN assets:</strong> cache-first.</li>
+                    <li><strong>Model weights:</strong> browser cache.</li>
+                </ul>
+                <div class="callout">If the app behaves oddly, unregister the service worker and refresh.</div>
+            </section>
+        </main>
+    </div>
+    <footer class="page-footer">
+        <span>JAMES // CORE Genesis</span>
+        <span><a href="about.html">About</a> · <a href="index.html">Terminal</a> · MIT License</span>
     </footer>
+    <script>
+        const sections = document.querySelectorAll('.doc-section');
+        const links = document.querySelectorAll('.sidebar-link');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const id = entry.target.id;
+                    links.forEach(link => link.classList.toggle('active', link.getAttribute('href') === `#${id}`));
+                }
+            });
+        }, { rootMargin: '-30% 0px -60% 0px' });
+        sections.forEach(section => observer.observe(section));
+    </script>
 </body>
 
 </html>
