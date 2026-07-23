@@ -1,5 +1,11 @@
 // tools-search.js
-// Keyless search using DuckDuckGo/Wikipedia + automatic page crawling via Jina Reader
+// Keyless general web search using public SearXNG JSON APIs + Wikipedia + Jina Reader crawling
+
+const SEARXNG_INSTANCES = [
+    'https://searx.be',
+    'https://cursus.space',
+    'https://search.inetwork.fr'
+];
 
 export async function performWebSearch(query) {
     if (!query) {
@@ -10,33 +16,30 @@ export async function performWebSearch(query) {
     let searchTitle = '';
     let searchSnippet = '';
 
-    // ── 1. Get Top Search Result URL (DuckDuckGo Instant Answer API) ─────
-    try {
-        const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1`;
-        const res = await fetch(ddgUrl);
-        if (res.ok) {
-            const data = await res.json();
-            
-            if (data.AbstractText && data.AbstractURL) {
-                searchTitle = data.Heading || query;
-                topUrl = data.AbstractURL;
-                searchSnippet = data.AbstractText;
-            } else if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-                for (const topic of data.RelatedTopics) {
-                    if (topic.Text && topic.FirstURL) {
-                        searchTitle = topic.Text.split(' - ')[0] || 'Result';
-                        topUrl = topic.FirstURL;
-                        searchSnippet = topic.Text;
-                        break;
-                    }
+    // ── 1. General Web Search via Public SearXNG JSON API ────────────────
+    for (const instance of SEARXNG_INSTANCES) {
+        try {
+            const searchUrl = `${instance}/search?q=${encodeURIComponent(query)}&format=json`;
+            const res = await fetch(searchUrl, {
+                headers: { 'Accept': 'application/json' }
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                if (data.results && data.results.length > 0) {
+                    const topResult = data.results[0];
+                    searchTitle = topResult.title || query;
+                    topUrl = topResult.url;
+                    searchSnippet = topResult.content || topResult.snippet || '';
+                    break;
                 }
             }
+        } catch (e) {
+            console.warn(`SearXNG instance ${instance} failed:`, e);
         }
-    } catch (e) {
-        console.warn('DuckDuckGo API failed:', e);
     }
 
-    // Fallback to Wikipedia search if DDG didn't yield a direct URL
+    // ── 2. Fallback to Wikipedia API if SearXNG instances fail ────────────
     if (!topUrl) {
         try {
             const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*`;
@@ -59,14 +62,11 @@ export async function performWebSearch(query) {
         return [{ error: 'No search results found to crawl.' }];
     }
 
-    // ── 2. Auto-Crawl the First Page (Extract Large Texts via Jina Reader) ─
+    // ── 3. Auto-Crawl the First Page (Extract Large Texts via Jina Reader) ─
     let fullPageText = searchSnippet;
     try {
-        // Prepending r.jina.ai/ bypasses browser CORS restrictions and extracts clean body text
         const crawlRes = await fetch(`https://r.jina.ai/${topUrl}`, {
-            headers: {
-                'Accept': 'text/plain'
-            }
+            headers: { 'Accept': 'text/plain' }
         });
         if (crawlRes.ok) {
             const markdownText = await crawlRes.text();
@@ -79,11 +79,11 @@ export async function performWebSearch(query) {
     }
 
     return [{
-        engine: 'DuckDuckGo + Auto-Crawler',
+        engine: 'SearXNG / Wikipedia + Auto-Crawler',
         title: searchTitle,
         url: topUrl,
         snippet: searchSnippet,
-        fullContent: fullPageText // Contains the full extracted text of the first page
+        fullContent: fullPageText
     }];
 }
 
