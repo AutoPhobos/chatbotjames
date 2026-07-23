@@ -2,60 +2,124 @@
  * SmallTalkHandler
  * Intercepts common small-talk messages and returns an instant canned response,
  * bypassing the LLM entirely. Fast, free, and always available even while the
- * model is still loading.
+ * model is still loading. Supports multiple top world languages and robust edge cases.
  */
 export class SmallTalkHandler {
     constructor() {
         this._patterns = [
 
-            // ── Greetings ──────────────────────────────────────────────────────
+            // ── Greetings (Multilingual) ────────────────────────────────────────
             {
-                triggers: ['hello', 'hi', 'hey', 'howdy', 'hiya', 'yo', 'hola', 'sup', 'ello', 'heya', 'hai'],
+                triggers: [
+                    // English
+                    'hello', 'hi', 'hey', 'howdy', 'hiya', 'yo', 'sup', 'ello', 'heya', 'hai',
+                    // Spanish
+                    'hola', 'que tal',
+                    // French
+                    'bonjour', 'salut',
+                    // German
+                    'hallo', 'servus',
+                    // Russian
+                    'privet', 'привет',
+                    // Portuguese
+                    'ola', 'olá',
+                    // Italian
+                    'ciao',
+                    // Chinese (Pinyin)
+                    'ni hao'
+                ],
                 responses: [
                     "Hey! What's on your mind?",
                     "Hi there! How can I help?",
                     "Hello! Ready to assist — what do you need?",
                     "Hey! What can I do for you today?",
+                    "¡Hola! ¿En qué puedo ayudarte?",
+                    "Bonjour ! Comment puis-je vous aider ?",
+                    "Hallo! Wie kann ich Ihnen helfen?",
+                    "Привет! Чем могу помочь?",
+                    "Olá! Como posso ajudar?"
                 ],
             },
             {
-                triggers: ['good morning', 'morning', 'gm', 'rise and shine'],
+                triggers: [
+                    'good morning', 'morning', 'gm', 'rise and shine',
+                    'buenos dias', 'buenos días',
+                    'bonjour',
+                    'guten morgen',
+                    'dobroe utro', 'доброе утро',
+                    'bom dia',
+                    'buongiorno',
+                    'zao shang hao'
+                ],
                 responses: [
                     "Good morning! ☀️ What can I help you with today?",
                     "Morning! Ready to go. What do you need?",
                     "Good morning! Hope the day's treating you well. What's up?",
+                    "¡Buenos días! ☀️ ¿Qué tal tu mañana?",
+                    "Guten Morgen! ☀️ Wie kann ich helfen?"
                 ],
             },
             {
-                triggers: ['good afternoon', 'afternoon'],
+                triggers: [
+                    'good afternoon', 'afternoon',
+                    'buenas tardes',
+                    'bon apres-midi', 'bon après-midi',
+                    'guten tag',
+                    'dobry den', 'добрый день',
+                    'boa tarde',
+                    'buon pomeriggio'
+                ],
                 responses: [
                     "Good afternoon! How can I help?",
                     "Afternoon! What do you need?",
+                    "¡Buenas tardes! ¿En qué te puedo colaborar?"
                 ],
             },
             {
-                triggers: ['good evening', 'evening', 'good night', 'goodnight', 'good nite', 'gn'],
+                triggers: [
+                    'good evening', 'evening', 'good night', 'goodnight', 'good nite', 'gn',
+                    'buenas noches',
+                    'bonsoir', 'bonne nuit',
+                    'guten abend', 'gute nacht',
+                    'dobry vecher', 'добрый вечер', 'спокойной ночи',
+                    'boa noite',
+                    'buonasera', 'buonanotte'
+                ],
                 responses: [
                     "Good evening! How can I assist?",
                     "Evening! What do you need?",
                     "Good night! 🌙 Let me know if there's anything before you go.",
+                    "¡Buenas noches! 🌙 ¿En qué te puedo ayudar antes de descansar?"
                 ],
             },
             {
-                triggers: ['greetings', 'salutations', 'ahoy', 'aloha', 'namaste', 'shalom', 'ciao'],
+                triggers: ['greetings', 'salutations', 'ahoy', 'aloha', 'namaste', 'shalom'],
                 responses: [
                     "Greetings! How can I help?",
                     "Hello! What's on your mind?",
                 ],
             },
 
-            // ── How are you ────────────────────────────────────────────────────
+            // ── How are you (Multilingual) ─────────────────────────────────────
             {
                 triggers: [
+                    // English
                     'how are you', 'how are you doing', 'how do you do', 'how is it going',
                     "how's it going", 'how are things', 'you ok', 'are you ok', 'how have you been',
                     "how're you", 'how r u', "how's everything", 'how goes it',
                     'are you well', 'you good', 'you alright', 'how are u',
+                    // Spanish
+                    'como estas', 'cómo estás', 'que tal todo', 'como te va',
+                    // French
+                    'comment ca va', 'comment ça va', 'ca va', 'ça va',
+                    // German
+                    'wie geht es dir', 'wie gehts', 'wie geht\'s',
+                    // Russian
+                    'kak dela', 'как дела', 'как ты',
+                    // Portuguese
+                    'tudo bem', 'como vai',
+                    // Italian
+                    'come stai', 'come va'
                 ],
                 responses: [
                     "I'm doing great, thanks for asking! How can I help?",
@@ -63,6 +127,8 @@ export class SmallTalkHandler {
                     "All good on my end! What do you need?",
                     "Doing well! Ready to help. What's up?",
                     "Functioning at 100%! What's on your mind?",
+                    "¡Todo excelente por aquí! ¿Y tú, qué tal?",
+                    "¡Funcionando al 100%! ¿En qué te puedo colaborar?"
                 ],
             },
 
@@ -81,6 +147,7 @@ export class SmallTalkHandler {
                 triggers: [
                     'who are you', 'what are you', "what's your name", 'whats your name',
                     'introduce yourself', 'tell me about yourself', 'who is JAMES', 'what is JAMES',
+                    'quien eres', 'qui es tu', 'wer bist du', 'kto ty', 'quem e voce', 'chi sei'
                 ],
                 responses: [
                     "I'm JAMES — a local, private AI assistant running entirely in your browser. No servers, no tracking.",
@@ -92,7 +159,7 @@ export class SmallTalkHandler {
                     'are you ai', 'are you an ai', 'are you a bot', 'are you a robot',
                     'are you human', 'are you real', 'are you sentient', 'are you alive',
                     'do you have feelings', 'do you feel', 'do you think', 'are you conscious',
-                    'do you have a body', 'are you a person',
+                    'do you have a body', 'are you a person'
                 ],
                 responses: [
                     "I'm an AI — no feelings, no consciousness, but quite good at being helpful. 🤖",
@@ -121,6 +188,7 @@ export class SmallTalkHandler {
                     'what can you do', 'what are your capabilities', 'what do you know',
                     'what are your features', 'how can you help me', 'what are you good at',
                     'what do you offer', 'what tools do you have', 'show me what you can do',
+                    'que puedes hacer', 'qu\'est-ce que tu peux faire'
                 ],
                 responses: [
                     "I can chat, answer questions, look up weather, convert currencies, fetch Wikipedia summaries, generate passwords and UUIDs, tell time in any timezone, set timers, read your clipboard, and more. Just ask!",
@@ -128,19 +196,32 @@ export class SmallTalkHandler {
                 ],
             },
             {
-                triggers: ['help', 'help me'],
+                triggers: ['help', 'help me', 'ayuda', 'aide', 'hilfe', 'помощь', 'ajuda'],
                 responses: [
                     "Of course! Just tell me what you need — I can answer questions, use tools, or just chat.",
                     "I'm here to help! What do you need?",
                 ],
             },
 
-            // ── Gratitude ──────────────────────────────────────────────────────
+            // ── Gratitude (Multilingual) ───────────────────────────────────────
             {
                 triggers: [
+                    // English
                     'thanks', 'thank you', 'thank you so much', 'thanks a lot', 'ty', 'thx',
                     'thnks', 'much appreciated', 'cheers', 'appreciate it', 'appreciated',
                     'thank u', 'many thanks', 'thanks a bunch', 'thanks a million',
+                    // Spanish
+                    'gracias', 'muchas gracias', 'te agradezco',
+                    // French
+                    'merci', 'merci beaucoup',
+                    // German
+                    'danke', 'vielen dank',
+                    // Russian
+                    'spasibo', 'спасибо', 'благодарю',
+                    // Portuguese
+                    'obrigado', 'obrigada', 'valeu',
+                    // Italian
+                    'grazie', 'grazie mille'
                 ],
                 responses: [
                     "Happy to help! 😊",
@@ -149,25 +230,37 @@ export class SmallTalkHandler {
                     "Glad I could help!",
                     "Of course! Let me know if there's anything else.",
                     "No problem at all!",
+                    "¡De nada! 😊 Con mucho gusto.",
+                    "¡A ti! Avísame si necesitas algo más."
                 ],
             },
 
-            // ── Farewells ──────────────────────────────────────────────────────
+            // ── Farewells (Multilingual) ───────────────────────────────────────
             {
                 triggers: [
+                    // English
                     'bye', 'goodbye', 'see you', 'see ya', 'later', 'take care', 'cya',
-                    'farewell', 'adios', 'peace', 'ttyl', 'gotta go', 'i have to go',
+                    'farewell', 'adios', 'adiós', 'peace', 'ttyl', 'gotta go', 'i have to go',
                     'im leaving', "i'm leaving", 'catch you later', 'so long', 'tata',
-                    'hasta la vista', 'auf wiedersehen', 'auf wiedersehen', 'arrivederci',
+                    'hasta la vista', 'auf wiedersehen', 'arrivederci',
                     'im out', "i'm out", 'laters',
+                    // French
+                    'au revoir', 'salut', 'a plus', 'à plus',
+                    // German
+                    'tschuss', 'tschüss', 'bis bald',
+                    // Russian
+                    'poka', 'до свидания', 'пока',
+                    // Portuguese
+                    'tchau', 'ate logo', 'até logo'
                 ],
-
                 responses: [
                     "Take care! Come back anytime. 👋",
                     "Goodbye! See you next time.",
                     "Later! 👋",
                     "Bye! Don't be a stranger.",
                     "See you around! 👋",
+                    "¡Cuídate mucho! Vuelve cuando quieras. 👋",
+                    "¡Hasta luego! Que tengas un excelente día."
                 ],
             },
 
@@ -177,6 +270,7 @@ export class SmallTalkHandler {
                     'ok', 'okay', 'sure', 'got it', 'understood', 'alright', 'sounds good',
                     'noted', 'roger', 'copy that', 'i see', 'i understand', 'makes sense',
                     'fair enough', 'ok cool', 'ok great', 'ok thanks', 'yep', 'yup', 'yeah',
+                    'vale', 'de acuerdo', 'entendido'
                 ],
                 responses: [
                     "Got it! Let me know if you need anything else.",
@@ -193,6 +287,7 @@ export class SmallTalkHandler {
                     'impressive', "you're smart", "you're the best", 'you rock',
                     'you are great', 'you are awesome', 'you are the best', 'amazing',
                     'fantastic', 'brilliant', 'well played', 'nicely done',
+                    'muy bien', 'eres genial'
                 ],
                 responses: [
                     "Aw, thanks! 😊 You're pretty great yourself.",
@@ -219,6 +314,7 @@ export class SmallTalkHandler {
                 triggers: [
                     'tell me a joke', 'say something funny', 'make me laugh',
                     'tell a joke', 'tell me something funny', 'joke', 'give me a joke',
+                    'cuentame un chiste', 'chiste'
                 ],
                 responses: [
                     "Why do programmers prefer dark mode? Because light attracts bugs. 🐛",
@@ -232,7 +328,7 @@ export class SmallTalkHandler {
 
             // ── Boredom ────────────────────────────────────────────────────────
             {
-                triggers: ["i'm bored", 'im bored', 'i am bored', 'entertain me', 'amuse me', 'bored'],
+                triggers: ["i'm bored", 'im bored', 'i am bored', 'entertain me', 'amuse me', 'bored', 'estoy aburrido'],
                 responses: [
                     "Let's fix that! Ask me anything — trivia, a joke, currency rates, weather somewhere exotic. 🌍",
                     "How about a joke? Or I can look something up on Wikipedia, generate a color palette, or just chat. What sounds good?",
@@ -289,7 +385,8 @@ export class SmallTalkHandler {
             {
                 triggers: [
                     'who made you', 'who created you', 'who is your creator', 'who is your maker',
-                    'who developed you', 'who built you', 'where did you come from'
+                    'who developed you', 'who built you', 'where did you come from',
+                    'quien te creo', 'qui t\'a cree'
                 ],
                 responses: [
                     "I was developed by Andrey Lopukhov.",
@@ -302,7 +399,7 @@ export class SmallTalkHandler {
             {
                 triggers: [
                     'sorry', 'im sorry', "i'm sorry", 'my bad', 'my apologies', 'apologies',
-                    'forgive me', 'i apologize'
+                    'forgive me', 'i apologize', 'lo siento', 'perdón'
                 ],
                 responses: [
                     "No worries at all!",
@@ -355,7 +452,7 @@ export class SmallTalkHandler {
             {
                 triggers: [
                     'what is the meaning of life', 'meaning of life', 'why are we here',
-                    'what is the purpose of life'
+                    'what is the purpose of life', 'cual es el sentido de la vida'
                 ],
                 responses: [
                     "42. At least, that's what Douglas Adams said. 🌌",
@@ -382,7 +479,7 @@ export class SmallTalkHandler {
             {
                 triggers: [
                     'i love you', 'love you', 'will you marry me', 'do you love me',
-                    'marry me', 'be my valentine'
+                    'marry me', 'be my valentine', 'te amo', 'te quiero'
                 ],
                 responses: [
                     "I appreciate the sentiment! I'm just an AI, though. 🤖💙",
@@ -420,11 +517,14 @@ export class SmallTalkHandler {
     }
 
     /**
-     * Normalize input: lowercase, collapse whitespace, strip punctuation except apostrophes.
+     * Normalize input: lowercase, strip accents/diacritics, collapse whitespace, strip punctuation except apostrophes.
      */
     _normalize(text) {
+        if (!text || typeof text !== 'string') return '';
         return text
             .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '') // Strip diacritics/accents safely (e.g. café -> cafe)
             .replace(/[^\w\s']/g, ' ')
             .replace(/\s+/g, ' ')
             .trim();
@@ -435,13 +535,15 @@ export class SmallTalkHandler {
      * or null if the message should be forwarded to the LLM.
      */
     match(input) {
+        if (!input || typeof input !== 'string') return null;
         const normalized = this._normalize(input);
+        if (!normalized) return null;
 
-        // Exact match, or with "JAMES" appended/prepended
+        // 1. Exact match, or with "JAMES" appended/prepended
         for (const pattern of this._patterns) {
             for (const trigger of pattern.triggers) {
-                const lowerTrigger = trigger.toLowerCase();
-                const j = 'JAMES'.toLowerCase();
+                const lowerTrigger = this._normalize(trigger);
+                const j = 'james';
                 if (
                     normalized === lowerTrigger ||
                     normalized === lowerTrigger + ' ' + j ||
@@ -452,13 +554,15 @@ export class SmallTalkHandler {
             }
         }
 
-        // Lenient pass: input starts with a trigger and isn't much longer
-        // (catches "hi!", "hey there", "thanks!!!", etc.)
+        // 2. Lenient boundary-safe pass: input starts with a trigger followed by a space/punctuation boundary
+        // (prevents short triggers like "hi" from falsely matching "history")
         for (const pattern of this._patterns) {
             for (const trigger of pattern.triggers) {
+                const lowerTrigger = this._normalize(trigger);
                 if (
-                    normalized.startsWith(trigger) &&
-                    normalized.length <= trigger.length + 8
+                    normalized.startsWith(lowerTrigger) &&
+                    normalized.length <= lowerTrigger.length + 8 &&
+                    (normalized.charAt(lowerTrigger.length) === ' ' || normalized.length === lowerTrigger.length)
                 ) {
                     return this._pick(pattern.responses);
                 }
