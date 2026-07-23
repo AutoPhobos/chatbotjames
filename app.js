@@ -12,6 +12,10 @@ aiWorker.onmessage = function (e) {
       statusBadge.textContent = 'Engine Ready (WebGPU)';
       statusBadge.className = 'badge ready';
       break;
+    case 'MODEL_READY_SIMULATED':
+      statusBadge.textContent = 'Engine Ready (Simulated)';
+      statusBadge.className = 'badge ready';
+      break;
     case 'STREAM_START':
       appendMessage('assistant', '');
       break;
@@ -21,6 +25,7 @@ aiWorker.onmessage = function (e) {
     case 'ERROR':
       console.error(payload);
       statusBadge.textContent = 'Engine Error';
+      statusBadge.className = 'badge loading';
       break;
   }
 };
