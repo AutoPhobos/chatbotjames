@@ -130,6 +130,11 @@ body {
   outline: none;
 }
 
+#user-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 #user-input:focus {
   border-color: var(--accent-color);
 }
@@ -143,8 +148,14 @@ body {
   font-weight: 600;
   cursor: pointer;
   font-size: 0.95rem;
+  transition: background-color 0.2s, opacity 0.2s;
 }
 
-#send-btn:hover {
+#send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#send-btn:hover:not(:disabled) {
   background-color: var(--accent-hover);
 }
