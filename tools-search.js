@@ -1,11 +1,14 @@
 // tools-search.js
-// Keyless general web search using public SearXNG JSON APIs + Wikipedia + Jina Reader crawling
+// Keyless search with strict memory/context guardrails to prevent browser OOM crashes
 
 const SEARXNG_INSTANCES = [
     'https://searx.be',
     'https://cursus.space',
     'https://search.inetwork.fr'
 ];
+
+// Hard character limit to protect browser-local model context windows from OOM
+const MAX_CONTENT_LENGTH = 6000;
 
 export async function performWebSearch(query) {
     if (!query) {
@@ -62,15 +65,23 @@ export async function performWebSearch(query) {
         return [{ error: 'No search results found to crawl.' }];
     }
 
-    // ── 3. Auto-Crawl the First Page (Extract Large Texts via Jina Reader) ─
+    // ── 3. Safe Auto-Crawl with Strict Length Guardrails ─────────────────
     let fullPageText = searchSnippet;
     try {
         const crawlRes = await fetch(`https://r.jina.ai/${topUrl}`, {
-            headers: { 'Accept': 'text/plain' }
+            headers: {
+                'Accept': 'text/plain',
+                'X-Max-Tokens': '2000' // Instructs Jina Reader to trim response size
+            }
         });
+
         if (crawlRes.ok) {
-            const markdownText = await crawlRes.text();
-            if (markdownText && markdownText.length > searchSnippet.length) {
+            let markdownText = await crawlRes.text();
+            if (markdownText) {
+                // Hard JavaScript safeguard: slice text if it exceeds browser safety limits
+                if (markdownText.length > MAX_CONTENT_LENGTH) {
+                    markdownText = markdownText.slice(0, MAX_CONTENT_LENGTH) + '\n\n[Content truncated to protect local browser memory limits...]';
+                }
                 fullPageText = markdownText;
             }
         }
@@ -79,7 +90,7 @@ export async function performWebSearch(query) {
     }
 
     return [{
-        engine: 'SearXNG / Wikipedia + Auto-Crawler',
+        engine: 'SearXNG / Wikipedia + Guarded Crawler',
         title: searchTitle,
         url: topUrl,
         snippet: searchSnippet,
