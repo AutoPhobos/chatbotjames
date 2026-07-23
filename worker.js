@@ -1,13 +1,6 @@
 import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0';
 
 // --- CONFIGURATION ---
-// ... existing code ...
-    
-
-    // ── 0. Forced preset — load directly, no capability filtering ────────────
-    // This is the key fix: when the user explicitly picks a model (including any
-// ... existing code ...
-// --- CONFIGURATION ---
 env.allowLocalModels = false;
 env.useBrowserCache = false;
 const DOWNLOAD_CACHE = 'JAMES-model-cache';

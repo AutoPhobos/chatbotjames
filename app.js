@@ -213,6 +213,20 @@ async function handleToolCalls(message, targetId, originChatId) {
             : `[${r.tool} result]: ${JSON.stringify(r.result)}`
     ).join('\n');
 
+    // Persist the tool-call exchange (assistant tool call + user result) into the
+    // correct chat history so context is intact on reload.
+    const assistantToolTurn = { role: 'assistant', content: message };
+    const toolResultTurn    = { role: 'user',      content: toolResultText };
+
+    if (originChatId === currentChatId) {
+        chatHistory.push(assistantToolTurn, toolResultTurn);
+    } else {
+        const bgChat = allChats.find(c => c.id === originChatId);
+        if (bgChat) bgChat.messages.push(assistantToolTurn, toolResultTurn);
+    }
+    // Persist to localStorage so the history survives a reload.
+    localStorage.setItem('chatbot-chats', JSON.stringify(allChats));
+
     // We must pass the correct chat array down. If the user switched chats, we use the background chat's array.
     const activeMessages = originChatId === currentChatId
         ? chatHistory
@@ -227,11 +241,7 @@ async function handleToolCalls(message, targetId, originChatId) {
 
     worker.postMessage({
         type: 'query',
-        messages: [
-            ...activeMessages,
-            { role: 'assistant', content: message },
-            { role: 'user', content: toolResultText }
-        ],
+        messages: activeMessages,
         targetId,        // reuse the original bubble so it gets replaced by the answer
         chatId: originChatId
     });
@@ -250,22 +260,19 @@ function parseToolCalls(text) {
                 for (let i = 1; i < lines.length; i++) {
                     const line = lines[i].trim();
                     if (!line) continue;
-                    
-                    // Support comma-separated inline params like "from: USD, to: EUR, amount: 100" (from the prompt example)
-                    // Or single line params like "location: Tokyo"
-                    const parts = line.split(',');
-                    for (const part of parts) {
-                        const colonIdx = part.indexOf(':');
-                        if (colonIdx !== -1) {
-                            const key = part.substring(0, colonIdx).trim();
-                            let value = part.substring(colonIdx + 1).trim();
-                            
-                            if (value === 'true') value = true;
-                            else if (value === 'false') value = false;
-                            else if (!isNaN(Number(value)) && value !== '') value = Number(value);
-                            
-                            params[key] = value;
-                        }
+
+                    // Each line is one param: "key: value"
+                    // Do NOT split on commas first — values can contain commas (e.g. "location: New York, NY")
+                    const colonIdx = line.indexOf(':');
+                    if (colonIdx !== -1) {
+                        const key = line.substring(0, colonIdx).trim();
+                        let value = line.substring(colonIdx + 1).trim();
+
+                        if (value === 'true') value = true;
+                        else if (value === 'false') value = false;
+                        else if (!isNaN(Number(value)) && value !== '') value = Number(value);
+
+                        params[key] = value;
                     }
                 }
                 calls.push({ tool: toolName, params });
@@ -299,7 +306,7 @@ async function executeTool(toolName, params) {
     if (toolName === 'python') {
         if (!params || !params.code) throw new Error('Python tool requires a code parameter');
         return new Promise((resolve, reject) => {
-            const execId = Date.now() + Math.random();
+            const execId = crypto.randomUUID();
             const handler = (e) => {
                 if (e.data.execId === execId) {
                     pythonWorker.removeEventListener('message', handler);
@@ -318,7 +325,7 @@ async function executeTool(toolName, params) {
     }
 
     return new Promise((resolve, reject) => {
-        const execId = Date.now() + Math.random();
+        const execId = crypto.randomUUID();
         const handler = (e) => {
             if (e.data.execId === execId) {
                 toolsWorker.removeEventListener('message', handler);
@@ -335,9 +342,8 @@ async function executeTool(toolName, params) {
     });
 }
 
-toolsWorker.onmessage = (e) => {
-    if (e.data.status === 'timer') { /* handled by tools-bridge.js */ }
-};
+// toolsWorker messages are handled per-call via addEventListener inside executeTool.
+// Timer messages are handled by the listener set up in tools-bridge.js setupToolsBridge.
 
 pythonWorker.onmessage = (e) => {
     const { status, output, error, execId } = e.data;
@@ -763,7 +769,8 @@ if (window.innerWidth <= 768) document.getElementById('sidebar').classList.add('
 setIdleState(false);
 worker.postMessage({
     type: 'init',
-    lastPresetId: localStorage.getItem('JAMES-last-preset-id') || null,
+    // Key must match the one written in the 'done' handler: 'james-last-preset-id' (lowercase)
+    lastPresetId: localStorage.getItem('james-last-preset-id') || null,
 });
 pythonWorker.postMessage({ type: 'init' });
 document.getElementById('statusText').textContent = 'INITIALIZING...';

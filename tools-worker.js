@@ -627,14 +627,15 @@ async function hashTool(params) {
     const { algorithm, value } = params;
     if (!value) throw new Error('No value to hash');
 
-    // Normalise algorithm name for SubtleCrypto
-    const algoMap = { md5: null, sha1: 'SHA-1', sha256: 'SHA-256', sha512: 'SHA-512' };
-    const subtleAlgo = algoMap[algorithm.toLowerCase()];
+    const algo = algorithm.toLowerCase().replace('-', '');
 
-    if (algorithm === 'md5') {
-        // SubtleCrypto does not support MD5; use a pure-JS fallback
+    if (algo === 'md5') {
         throw new Error('MD5 is not supported in the browser crypto API. Use sha256 or sha512 instead.');
     }
+
+    // Normalise algorithm name for SubtleCrypto
+    const algoMap = { sha1: 'SHA-1', sha256: 'SHA-256', sha512: 'SHA-512' };
+    const subtleAlgo = algoMap[algo];
     if (!subtleAlgo) throw new Error(`Unknown algorithm: ${algorithm}`);
 
     const data   = new TextEncoder().encode(value);
