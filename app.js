@@ -3,7 +3,7 @@ import { toolRouter } from './tool-router.js';
 
 // ─── Sound Engine (Web Audio API, no external files) ─────────────────────────
 const _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
+// UI References
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     setupFileAttachment(); // Call the new setup function
@@ -46,8 +46,9 @@ const pythonWorker = new Worker('python-worker.js');
 const pythonCallbacks = new Map();
 
 // UI References
-const cmdInput = document.getElementById('cmdInput');
-const sendBtn = document.getElementById('sendBtn');
+// UI References
+const cmdInput = document.getElementById('userInput'); // Changed from 'cmdInput'
+const sendBtn = document.getElementById('sendButton'); // Changed from 'sendBtn'
 
 /**
  * Modern UI Toggle
@@ -283,7 +284,7 @@ function initWorker() {
 }
 
 async function handleUserSubmit() {
-    const inputField = document.getElementById('user-input');
+    const inputField = document.getElementById('userInput'); // Changed from 'user-input'
     if (!inputField) return;
 
     const text = inputField.value.trim();
@@ -842,14 +843,14 @@ let attachedFiles = [];
 
 // Add this inside setupEventListeners() or call it on DOMContentLoaded
 function setupFileAttachment() {
-    const attachButton = document.getElementById('attach-button');
-    const fileInput = document.getElementById('file-input');
+    const attachButton = document.getElementById('attachButton'); // Changed from 'attach-button'
+    const fileInput = document.getElementById('fileInput');       // Changed from 'file-input'
 
     if (attachButton && fileInput) {
         attachButton.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', (e) => {
             handleFilesSelected(e.target.files);
-            fileInput.value = ''; // Reset input so same file can be re-selected if needed
+            fileInput.value = '';
         });
     }
 }
