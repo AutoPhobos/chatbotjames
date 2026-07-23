@@ -48,15 +48,24 @@ const sendBtn = document.getElementById('sendBtn');
  * Modern UI Toggle
  * Manages the "Redesign" state and interaction locks
  */
+let _isGeneratingUI = false;
 function setIdleState(isIdle) {
-    cmdInput.disabled = !isIdle;
-    sendBtn.disabled = !isIdle;
-
     if (isIdle) {
+        cmdInput.disabled = false;
+        sendBtn.innerHTML = '➔';
+        sendBtn.classList.remove('stop-btn');
+        _isGeneratingUI = false;
+
         cmdInput.classList.remove('loading-state');
         cmdInput.placeholder = "Message JAMES...";
         cmdInput.focus();
     } else {
+        cmdInput.disabled = true;
+        sendBtn.innerHTML = '⏹';
+        sendBtn.classList.add('stop-btn');
+        sendBtn.disabled = false; // Always keep enabled so we can stop
+        _isGeneratingUI = true;
+
         cmdInput.classList.add('loading-state');
         cmdInput.placeholder = "JAMES is busy...";
     }
@@ -441,13 +450,38 @@ function appendUserMessage(text) {
     const chatLog = document.getElementById('chatLog');
     const messageWrap = document.createElement('div');
     messageWrap.className = 'message-wrap user-msg';
+    
     const messageContent = document.createElement('div');
     messageContent.className = 'message-content';
     messageContent.textContent = text;
-    messageWrap.appendChild(messageContent);
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'edit-msg-btn';
+    editBtn.innerHTML = '✏️';
+    editBtn.title = 'Edit this message';
+    editBtn.onclick = () => window.editUserMessage(text);
+
+    const container = document.createElement('div');
+    container.className = 'user-msg-container';
+    container.appendChild(editBtn);
+    container.appendChild(messageContent);
+
+    messageWrap.appendChild(container);
     chatLog.appendChild(messageWrap);
     chatLog.scrollTop = chatLog.scrollHeight;
 }
+
+window.editUserMessage = function(text) {
+    if (_isGeneratingUI) return;
+    const idx = chatHistory.findLastIndex(m => m.role === 'user' && m.content === text);
+    if (idx !== -1) {
+        chatHistory = chatHistory.slice(0, idx);
+        persistCurrentChat();
+        cmdInput.value = text;
+        cmdInput.focus();
+        renderChatLog();
+    }
+};
 
 function updateLiveBubble(text, targetId) {
     const chatLog = document.getElementById('chatLog');
@@ -574,7 +608,7 @@ async function executeDirectTool(toolName, params) {
 
 function sendMessage() {
     const text = cmdInput.value.trim();
-    if (!text || cmdInput.disabled) return;
+    if (!text || _isGeneratingUI) return;
 
     chatHistory.push({ role: 'user', content: text });
     appendUserMessage(text);
@@ -840,8 +874,16 @@ if (_savedLastPresetId) {
 
 // ─── Event Listeners ─────────────────────────────────────────────────────────
 
-sendBtn.addEventListener('click', sendMessage);
-cmdInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+sendBtn.addEventListener('click', () => {
+    if (_isGeneratingUI) {
+        worker.postMessage({ type: 'abort' });
+    } else {
+        sendMessage();
+    }
+});
+cmdInput.addEventListener('keypress', (e) => { 
+    if (e.key === 'Enter' && !_isGeneratingUI) sendMessage(); 
+});
 
 document.getElementById('newChatBtn').addEventListener('click', startNewChat);
 
