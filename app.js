@@ -129,11 +129,11 @@ worker.onmessage = (e) => {
     const statusText = document.getElementById('statusText');
 
     // 1. Force the status text to update properly for every state
-    if (status === 'done' || status === 'complete' || status === 'error') {
+    if (status === 'done' || status === 'complete' || status === 'error' || status === 'aborted') {
         setIdleState(true);
         updateStatusLight('idle');
         if (statusText) statusText.textContent = 'READY';
-        if (status !== 'error') playDoneSound();
+        if (status !== 'error' && status !== 'aborted') playDoneSound();
     } else {
         setIdleState(false);
         updateStatusLight('thinking');
@@ -278,8 +278,8 @@ async function handleToolCalls(message, targetId, originChatId) {
 
     const toolResultText = toolResults.map(r =>
         r.error
-            ? `[${r.tool} error]: ${r.error}`
-            : `[${r.tool} result]: ${JSON.stringify(r.result)}`
+            ? `[${r.tool} error]:${r.error}`
+            : `[${r.tool} result]:${JSON.stringify(r.result)}`
     ).join('\n');
 
     // Persist the tool-call exchange (assistant tool call + user result) into the
@@ -911,7 +911,17 @@ if (_savedLastPresetId) {
 
 sendBtn.addEventListener('click', () => {
     if (_isGeneratingUI) {
+        // Send abort to worker
         worker.postMessage({ type: 'abort' });
+
+        // Immediately reset UI state and indicators
+        setIdleState(true);
+        updateStatusLight('idle');
+        const statusText = document.getElementById('statusText');
+        if (statusText) statusText.textContent = 'READY';
+
+        // Flush active streaming queues so partial text remains visible
+        streamQueues.forEach((_, targetId) => flushStreamQueue(targetId));
     } else {
         sendMessage();
     }
