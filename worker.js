@@ -571,8 +571,16 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
     throw lastError;
 }
 
+let isGenerating = false;
+let isAborted = false;
+
 self.onmessage = async (e) => {
     const { type, messages, targetId, chatId } = e.data;
+
+    if (type === 'abort') {
+        isAborted = true;
+        return;
+    }
 
     if (type === 'init') {
         try {
@@ -593,6 +601,14 @@ self.onmessage = async (e) => {
     }
 
     if (type === 'query') {
+        if (isGenerating) {
+            console.warn('Worker received query while already generating. Ignoring to prevent WebGPU corruption.');
+            reportWorkerError(new Error("JAMES is busy processing another request."), targetId);
+            return;
+        }
+        isGenerating = true;
+        isAborted = false;
+
         try {
             self.postMessage({ status: 'thinking', targetId, chatId });
 
@@ -620,6 +636,7 @@ self.onmessage = async (e) => {
                 top_p: 0.9,
                 return_full_text: false,
                 callback_function: (beams) => {
+                    if (isAborted) throw new Error('AbortGeneration');
                     const allTokens = Array.from(beams[0].output_token_ids.data || beams[0].output_token_ids);
                     if (allTokens.length > promptTokenCount) {
                         const newTokens = allTokens.slice(promptTokenCount);
@@ -642,7 +659,13 @@ self.onmessage = async (e) => {
 
             self.postMessage({ status: 'complete', message: finalResponse.trim(), targetId, chatId });
         } catch (err) {
-            reportWorkerError(err, targetId);
+            if (err.message === 'AbortGeneration') {
+                self.postMessage({ status: 'complete', message: accumulatedResponse.trim(), targetId, chatId });
+            } else {
+                reportWorkerError(err, targetId);
+            }
+        } finally {
+            isGenerating = false;
         }
     }
 };
