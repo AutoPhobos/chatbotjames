@@ -126,17 +126,18 @@
             <div id="chatLog" class="chat-log"></div>
 
             <!-- Input Box Area (Fixed nested main tag to div & corrected camelCase IDs) -->
-            <div class="chat-wrapper">
-                <div id="chatMessages" class="chat-container"></div>
-
-                <div id="attachmentPreview" class="attachment-preview"></div>
-
-                <div class="input-area">
-                    <input type="file" id="fileInput" style="display: none;" multiple>
-                    <button id="attachButton" title="Attach files">+</button>
-                    <textarea id="userInput" placeholder="Ask JAMES anything..." rows="1"></textarea>
-                    <button id="sendButton">Send</button>
-                    <button id="stopButton" style="display: none;">Stop</button>
+            <!-- Input Box Area -->
+            <div class="input-area">
+                <div class="input-container">
+                    <div id="attachmentPreview" class="attachment-preview"></div>
+                    <div class="input-wrapper">
+                        <input type="file" id="fileInput" style="display: none;" multiple>
+                        <button type="button" id="attachButton" class="icon-btn"
+                            title="Attach files or archives">+</button>
+                        <input type="text" id="cmdInput" placeholder="Ask JAMES anything..." autocomplete="off">
+                        <button type="button" id="sendBtn">➔</button>
+                    </div>
+                    <div class="input-footer-text">JAMES runs entirely client-side via WebGPU.</div>
                 </div>
             </div>
         </main>
