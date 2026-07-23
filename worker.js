@@ -175,6 +175,7 @@ async function customFetch(resource, init = {}) {
 }
 
 let chatbot;
+let activePreset = null;
 
 const systemPrompt = `You are JAMES, a helpful, friendly AI assistant running locally in the browser. Keep responses concise and under 512 tokens.
 
@@ -317,23 +318,23 @@ function isTVDevice() {
 
 const MODEL_PRESETS = [
     // ── GPU · WebGPU ───────────────────────────────────────────────────────
-    { id: 'gpu-qwen25-05b-q4f16',   label: 'Qwen2.5 0.5B',      backend: 'webgpu', model: 'onnx-community/Qwen2.5-0.5B-Instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 400,  ram: '2 GB', params: 0.5 },
-    { id: 'gpu-smollm-17b-q4f16',   label: 'SmolLM2 1.7B',      backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct',           dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 950,  ram: '3 GB', params: 1.7 },
-    { id: 'gpu-llama32-1b-q4f16',   label: 'Llama 3.2 1B',      backend: 'webgpu', model: 'onnx-community/Llama-3.2-1B-Instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 750,  ram: '3 GB', params: 1.2 },
-    { id: 'gpu-qwen25-15b-q4f16',   label: 'Qwen2.5 1.5B',      backend: 'webgpu', model: 'onnx-community/Qwen2.5-1.5B-Instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 950,  ram: '4 GB', params: 1.5 },
-    { id: 'gpu-llama32-3b-q4f16',   label: 'Llama 3.2 3B',      backend: 'webgpu', model: 'onnx-community/Llama-3.2-3B-Instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 2100, ram: '6 GB', params: 3.2 },
-    { id: 'gpu-gemma3-1b-q4f16',    label: 'Gemma 3 1B',        backend: 'webgpu', model: 'onnx-community/gemma-3-1b-it',                  dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 600,  ram: '3 GB', params: 1.0 },
-    { id: 'gpu-deepseek-15b-q4f16', label: 'DeepSeek-R1 1.5B',  backend: 'webgpu', model: 'onnx-community/DeepSeek-R1-Distill-Qwen-1.5B', dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 1000, ram: '4 GB', params: 1.5 },
-    { id: 'gpu-phi35-mini-q4f16',   label: 'Phi-3.5-mini 3.8B', backend: 'webgpu', model: 'onnx-community/Phi-3.5-mini-instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 2200, ram: '8 GB', params: 3.8 },
+    { id: 'gpu-qwen25-05b-q4f16', label: 'Qwen2.5 0.5B', backend: 'webgpu', model: 'onnx-community/Qwen2.5-0.5B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 400, ram: '2 GB', params: 0.5 },
+    { id: 'gpu-smollm-17b-q4f16', label: 'SmolLM2 1.7B', backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 950, ram: '3 GB', params: 1.7 },
+    { id: 'gpu-llama32-1b-q4f16', label: 'Llama 3.2 1B', backend: 'webgpu', model: 'onnx-community/Llama-3.2-1B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 750, ram: '3 GB', params: 1.2 },
+    { id: 'gpu-qwen25-15b-q4f16', label: 'Qwen2.5 1.5B', backend: 'webgpu', model: 'onnx-community/Qwen2.5-1.5B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 950, ram: '4 GB', params: 1.5 },
+    { id: 'gpu-llama32-3b-q4f16', label: 'Llama 3.2 3B', backend: 'webgpu', model: 'onnx-community/Llama-3.2-3B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 2100, ram: '6 GB', params: 3.2 },
+    { id: 'gpu-gemma3-1b-q4f16', label: 'Gemma 3 1B', backend: 'webgpu', model: 'onnx-community/gemma-3-1b-it', dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 600, ram: '3 GB', params: 1.0 },
+    { id: 'gpu-deepseek-15b-q4f16', label: 'DeepSeek-R1 1.5B', backend: 'webgpu', model: 'onnx-community/DeepSeek-R1-Distill-Qwen-1.5B', dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 1000, ram: '4 GB', params: 1.5 },
+    { id: 'gpu-phi35-mini-q4f16', label: 'Phi-3.5-mini 3.8B', backend: 'webgpu', model: 'onnx-community/Phi-3.5-mini-instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 2200, ram: '8 GB', params: 3.8 },
     // ── CPU · WASM ─────────────────────────────────────────────────────────
-    { id: 'cpu-llama32-1b-q4',   label: 'Llama 3.2 1B',         backend: 'wasm',   model: 'onnx-community/Llama-3.2-1B-Instruct',          dtype: 'q4', requires: 'cpu', autoSelect: true,  sizeMB: 650,  ram: '2 GB', params: 1.2 },
-    { id: 'cpu-tinyllama-q4',    label: 'TinyLlama 1.1B',       backend: 'wasm',   model: 'Xenova/TinyLlama-1.1B-Chat-v1.0',               dtype: 'q4', requires: 'cpu', autoSelect: true,  sizeMB: 600,  ram: '2 GB', params: 1.1 },
-    { id: 'cpu-tinyllama-q8',    label: 'TinyLlama 1.1B q8',    backend: 'wasm',   model: 'Xenova/TinyLlama-1.1B-Chat-v1.0',               dtype: 'q8', requires: 'cpu', autoSelect: true,  sizeMB: 1100, ram: '3 GB', params: 1.1 },
-    { id: 'cpu-qwen25-05b-q4',   label: 'Qwen2.5 0.5B',         backend: 'wasm',   model: 'onnx-community/Qwen2.5-0.5B-Instruct',          dtype: 'q4', requires: 'cpu', autoSelect: true,  sizeMB: 400,  ram: '1 GB', params: 0.5 },
-    { id: 'cpu-smollm-17b-q4',   label: 'SmolLM2 1.7B',         backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct',           dtype: 'q4', requires: 'cpu', autoSelect: false, sizeMB: 950,  ram: '3 GB', params: 1.7 },
+    { id: 'cpu-llama32-1b-q4', label: 'Llama 3.2 1B', backend: 'wasm', model: 'onnx-community/Llama-3.2-1B-Instruct', dtype: 'q4', requires: 'cpu', autoSelect: true, sizeMB: 650, ram: '2 GB', params: 1.2 },
+    { id: 'cpu-tinyllama-q4', label: 'TinyLlama 1.1B', backend: 'wasm', model: 'Xenova/TinyLlama-1.1B-Chat-v1.0', dtype: 'q4', requires: 'cpu', autoSelect: true, sizeMB: 600, ram: '2 GB', params: 1.1 },
+    { id: 'cpu-tinyllama-q8', label: 'TinyLlama 1.1B q8', backend: 'wasm', model: 'Xenova/TinyLlama-1.1B-Chat-v1.0', dtype: 'q8', requires: 'cpu', autoSelect: true, sizeMB: 1100, ram: '3 GB', params: 1.1 },
+    { id: 'cpu-qwen25-05b-q4', label: 'Qwen2.5 0.5B', backend: 'wasm', model: 'onnx-community/Qwen2.5-0.5B-Instruct', dtype: 'q4', requires: 'cpu', autoSelect: true, sizeMB: 400, ram: '1 GB', params: 0.5 },
+    { id: 'cpu-smollm-17b-q4', label: 'SmolLM2 1.7B', backend: 'wasm', model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct', dtype: 'q4', requires: 'cpu', autoSelect: false, sizeMB: 950, ram: '3 GB', params: 1.7 },
     // ── Lite ───────────────────────────────────────────────────────────────
-    { id: 'lite-smollm-135m-q8', label: 'SmolLM2 135M q8',      backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-135M-Instruct',           dtype: 'q8', requires: 'cpu', autoSelect: true,  sizeMB: 150,  ram: '512 MB', params: 0.135 },
-    { id: 'lite-smollm-135m-q4', label: 'SmolLM2 135M q4',      backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-135M-Instruct',           dtype: 'q4', requires: 'cpu', autoSelect: true,  sizeMB: 90,   ram: '256 MB', params: 0.135 },
+    { id: 'lite-smollm-135m-q8', label: 'SmolLM2 135M q8', backend: 'wasm', model: 'HuggingFaceTB/SmolLM2-135M-Instruct', dtype: 'q8', requires: 'cpu', autoSelect: true, sizeMB: 150, ram: '512 MB', params: 0.135 },
+    { id: 'lite-smollm-135m-q4', label: 'SmolLM2 135M q4', backend: 'wasm', model: 'HuggingFaceTB/SmolLM2-135M-Instruct', dtype: 'q4', requires: 'cpu', autoSelect: true, sizeMB: 90, ram: '256 MB', params: 0.135 },
 ];
 
 // ── WASM Capability Detection ─────────────────────────────────────────────────
@@ -346,13 +347,13 @@ async function detectWasmCapabilities() {
         catch { return false; }
     }
 
-    caps.memory64 = await probe([0x00,0x61,0x73,0x6d,0x01,0x00,0x00,0x00,0x05,0x04,0x01,0x04,0x00,0x01]);
-    caps.simd = await probe([0x00,0x61,0x73,0x6d,0x01,0x00,0x00,0x00,0x01,0x05,0x01,0x60,0x00,0x01,0x7b,0x03,0x02,0x01,0x00,0x0a,0x16,0x01,0x14,0x00,0xfd,0x0c,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x0b]);
-    caps.threads = await probe([0x00,0x61,0x73,0x6d,0x01,0x00,0x00,0x00,0x05,0x04,0x01,0x03,0x01,0x01]);
-    caps.bulkMemory = await probe([0x00,0x61,0x73,0x6d,0x01,0x00,0x00,0x00,0x01,0x04,0x01,0x60,0x00,0x00,0x03,0x02,0x01,0x00,0x05,0x03,0x01,0x00,0x01,0x0a,0x0e,0x01,0x0c,0x00,0x41,0x00,0x41,0x00,0x41,0x00,0xfc,0x0b,0x00,0x0b]);
-    caps.multiValue = await probe([0x00,0x61,0x73,0x6d,0x01,0x00,0x00,0x00,0x01,0x06,0x01,0x60,0x00,0x02,0x7f,0x7f,0x03,0x02,0x01,0x00,0x0a,0x08,0x01,0x06,0x00,0x41,0x00,0x41,0x00,0x0b]);
+    caps.memory64 = await probe([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x05, 0x04, 0x01, 0x04, 0x00, 0x01]);
+    caps.simd = await probe([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7b, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x16, 0x01, 0x14, 0x00, 0xfd, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b]);
+    caps.threads = await probe([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x05, 0x04, 0x01, 0x03, 0x01, 0x01]);
+    caps.bulkMemory = await probe([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x0a, 0x0e, 0x01, 0x0c, 0x00, 0x41, 0x00, 0x41, 0x00, 0x41, 0x00, 0xfc, 0x0b, 0x00, 0x0b]);
+    caps.multiValue = await probe([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60, 0x00, 0x02, 0x7f, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x08, 0x01, 0x06, 0x00, 0x41, 0x00, 0x41, 0x00, 0x0b]);
     if (typeof WebAssembly.Tag === 'function') caps.exceptions = true;
-    try { await WebAssembly.compile(new Uint8Array([0x00,0x61,0x73,0x6d,0x01,0x00,0x00,0x00,0x01,0x04,0x01,0x5f,0x00,0x00])); caps.gc = true; } catch {}
+    try { await WebAssembly.compile(new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x5f, 0x00, 0x00])); caps.gc = true; } catch { }
 
     console.log('🔬 WASM Capabilities:', caps);
     return caps;
@@ -366,9 +367,9 @@ async function detectWasmCapabilities() {
 function detectBrowserEngine() {
     const ua = navigator.userAgent;
     let browser = 'Unknown', engine = 'Unknown', version = '';
-    if (ua.includes('Firefox/'))                          { browser = 'Firefox'; engine = 'Gecko';  version = ua.match(/Firefox\/(\d+)/)?.[1] || ''; }
-    else if (ua.includes('Edg/'))                         { browser = 'Edge';    engine = 'Blink';  version = ua.match(/Edg\/(\d+)/)?.[1]     || ''; }
-    else if (ua.includes('Chrome/'))                      { browser = 'Chrome';  engine = 'Blink';  version = ua.match(/Chrome\/(\d+)/)?.[1]  || ''; }
+    if (ua.includes('Firefox/')) { browser = 'Firefox'; engine = 'Gecko'; version = ua.match(/Firefox\/(\d+)/)?.[1] || ''; }
+    else if (ua.includes('Edg/')) { browser = 'Edge'; engine = 'Blink'; version = ua.match(/Edg\/(\d+)/)?.[1] || ''; }
+    else if (ua.includes('Chrome/')) { browser = 'Chrome'; engine = 'Blink'; version = ua.match(/Chrome\/(\d+)/)?.[1] || ''; }
     else if (ua.includes('Safari/') && !ua.includes('Chrome/')) { browser = 'Safari'; engine = 'WebKit'; version = ua.match(/Version\/(\d+)/)?.[1] || ''; }
     return { browser, engine, version };
 }
@@ -406,19 +407,19 @@ async function detectGpu() {
     const vendorLower = vendor.toLowerCase();
     if (vendorLower === 'google' || vendorLower.includes('angle') || vendorLower === '') {
         const combined = (description + ' ' + device + ' ' + architecture).toLowerCase();
-        if      (combined.includes('nvidia'))                           normalizedVendor = 'nvidia';
+        if (combined.includes('nvidia')) normalizedVendor = 'nvidia';
         else if (combined.includes('amd') || combined.includes('radeon')) normalizedVendor = 'amd';
-        else if (combined.includes('intel'))                            normalizedVendor = 'intel';
+        else if (combined.includes('intel')) normalizedVendor = 'intel';
         else if (combined.includes('qualcomm') || combined.includes('adreno')) normalizedVendor = 'qualcomm';
-        else if (combined.includes('apple'))                            normalizedVendor = 'apple';
+        else if (combined.includes('apple')) normalizedVendor = 'apple';
         if (normalizedVendor !== vendor)
             console.log(`🔄 Vendor normalized: "${vendor}" → "${normalizedVendor}"`);
     }
 
-    const isFallback   = !!adapter.isFallbackAdapter;
+    const isFallback = !!adapter.isFallbackAdapter;
     const maxStorageMB = (adapter.limits?.maxStorageBufferBindingSize || 0) / (1024 * 1024);
-    const maxBufferMB  = (adapter.limits?.maxBufferSize || 0) / (1024 * 1024);
-    const featureList  = adapter.features ? [...adapter.features] : [];
+    const maxBufferMB = (adapter.limits?.maxBufferSize || 0) / (1024 * 1024);
+    const featureList = adapter.features ? [...adapter.features] : [];
 
     // ── OPTIMISTIC GPU detection ──────────────────────────────────────────
     // If the adapter is NOT a software fallback, we treat it as a capable GPU.
@@ -465,9 +466,9 @@ function rankAutoPresets(gpuInfo, ramGB, isConstrained, wasmCaps = null) {
     const cpuBudgetMB = ramGB * 1024 * cpuBudgetFactor;
 
     const candidates = MODEL_PRESETS.filter(p => {
-        if (p.id.startsWith('lite-'))        return false;
+        if (p.id.startsWith('lite-')) return false;
         if (p.requires === 'gpu' && !hasGpu) return false;
-        if (p.autoSelect === false)          return false;
+        if (p.autoSelect === false) return false;
         const budget = p.requires === 'gpu' ? gpuBudgetMB : cpuBudgetMB;
         return !(p.sizeMB && p.sizeMB > budget);
     });
@@ -477,7 +478,7 @@ function rankAutoPresets(gpuInfo, ramGB, isConstrained, wasmCaps = null) {
         const gpuA = a.requires === 'gpu' ? 1 : 0;
         const gpuB = b.requires === 'gpu' ? 1 : 0;
         if (gpuA !== gpuB) return gpuB - gpuA;
-        
+
         // Sort by parameter count (best models first)
         return (b.params || 0) - (a.params || 0);
     });
@@ -506,6 +507,7 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
         console.log(`⚡ Loading user-selected preset: ${preset.label} (${preset.backend}/${preset.dtype})`);
         try {
             chatbot = await initializeModel(preset.backend, preset.dtype, preset.model);
+            activePreset = preset;
             console.log(`✅ Loaded: ${preset.label}`);
             self.postMessage({ status: 'done', backend: preset.backend, dtype: preset.dtype, model: preset.model, isMobile, isTV });
             return;
@@ -524,6 +526,7 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
             self.postMessage({ status: 'warm-start', preset: last });
             try {
                 chatbot = await initializeModel(last.backend, last.dtype, last.model);
+                activePreset = last;
                 console.log(`✅ Warm start succeeded: ${last.label}`);
                 self.postMessage({ status: 'done', backend: last.backend, dtype: last.dtype, model: last.model, isMobile, isTV });
                 return;
@@ -542,6 +545,7 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
         try {
             console.log(`⏳ Trying: ${preset.label}`);
             chatbot = await initializeModel(preset.backend, preset.dtype, preset.model);
+            activePreset = preset;
             console.log(`✅ Loaded: ${preset.label}`);
             self.postMessage({ status: 'done', backend: preset.backend, dtype: preset.dtype, model: preset.model, isMobile, isTV });
             return;
@@ -559,6 +563,7 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
         try {
             console.log(`⏳ Last-resort lite: ${preset.label}`);
             chatbot = await initializeModel(preset.backend, preset.dtype, preset.model);
+            activePreset = preset;
             console.log(`✅ Loaded lite: ${preset.label}`);
             self.postMessage({ status: 'done', backend: preset.backend, dtype: preset.dtype, model: preset.model, isMobile, isTV });
             return;
@@ -588,11 +593,11 @@ self.onmessage = async (e) => {
             await new Promise((resolve) => setTimeout(resolve, 125));
             const [gpuInfo, wasmCaps] = await Promise.all([detectGpu(), detectWasmCapabilities()]);
             const mobile = isMobileDevice();
-            const tv     = isTVDevice();
+            const tv = isTVDevice();
             await tryInitializeModels(
                 gpuInfo, mobile, tv,
                 e.data.forcePresetId || null,
-                e.data.lastPresetId  || null,
+                e.data.lastPresetId || null,
                 wasmCaps
             );
         } catch (err) {
@@ -629,11 +634,24 @@ self.onmessage = async (e) => {
 
             let accumulatedResponse = '';
 
+            let maxTokens = 1024;
+            let temp = 1.0;
+            
+            if (activePreset) {
+                if (activePreset.params < 1.0) {
+                    maxTokens = 512;
+                    temp = 0.8;
+                } else if (activePreset.params >= 3.0) {
+                    maxTokens = 2048; // 3B models can generate much longer, coherent responses
+                    temp = 0.7;       // Lower temp helps the 3B models reliably format ```tool:run blocks
+                }
+            }
+
             const output = await chatbot(prompt, {
-                max_new_tokens: 512,
+                max_new_tokens: maxTokens,
                 do_sample: true,
-                temperature: 1.0,
-                top_k: 40,
+                temperature: temp,
+                top_k: 20,
                 top_p: 0.9,
                 return_full_text: false,
                 callback_function: (beams) => {
