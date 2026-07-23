@@ -82,22 +82,19 @@
             <div id="chatLog" class="chat-log"></div>
 
             <!-- Input Box Area -->
-            <footer class="input-area">
-                <div class="input-container">
-                    <div class="input-wrapper">
-                        <input type="text" id="cmdInput" placeholder="Message JAMES..." autocomplete="off">
-                        <button id="sendBtn" class="send-btn" aria-label="Send message">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <line x1="22" y1="2" x2="11" y2="13"></line>
-                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                            </svg>
-                        </button>
-                    </div>
-                    <div class="input-footer-text">JAMES can make mistakes. Local execution guarantees your privacy.
-                    </div>
+            <main class="chat-wrapper">
+                <div id="chat-messages" class="chat-container"></div>
+
+                <div id="attachment-preview" class="attachment-preview"></div>
+
+                <div class="input-area">
+                    <input type="file" id="file-input" style="display: none;" multiple>
+                    <button id="attach-button" title="Attach files">+</button>
+                    <textarea id="user-input" placeholder="Ask JAMES anything..." rows="1"></textarea>
+                    <button id="send-button">Send</button>
+                    <button id="stop-button" style="display: none;">Stop</button>
                 </div>
-            </footer>
+            </main>
         </main>
 
         <div id="sidebarOverlay"></div>

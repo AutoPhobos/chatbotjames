@@ -6,6 +6,7 @@ const _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
+    setupFileAttachment(); // Call the new setup function
 });
 
 function _playTone({ freq = 440, type = 'sine', gainPeak = 0.18, duration = 0.12, rampUp = 0.01, rampDown = 0.10 } = {}) {
@@ -274,6 +275,51 @@ function initWorker() {
             scrollToBottom();
         }
     };
+}
+
+async function handleUserSubmit() {
+    const inputField = document.getElementById('user-input');
+    if (!inputField) return;
+
+    const text = inputField.value.trim();
+    if (!text && attachedFiles.length === 0) return;
+    if (isGenerating) return;
+
+    // Build full prompt incorporating attached files as plaintext
+    let fullPrompt = text;
+    if (attachedFiles.length > 0) {
+        let fileContext = "\n\n[Attached Files Content]:\n";
+        attachedFiles.forEach(file => {
+            fileContext += `\n--- START FILE: ${file.name} ---\n${file.content}\n--- END FILE: ${file.name} ---\n`;
+        });
+        fullPrompt = (text ? text + "\n" : "Please analyze the attached file(s):") + fileContext;
+    }
+
+    // Display message in chat UI
+    const displayMessage = text + (attachedFiles.length > 0 ? ` [Attached: ${attachedFiles.map(f => f.name).join(', ')}]` : '');
+    appendUserMessage(displayMessage);
+
+    // Reset inputs & attachments
+    inputField.value = '';
+    const filesToSend = [...attachedFiles];
+    attachedFiles = [];
+    renderAttachmentPreviews();
+
+    // Check smalltalk only if no files are attached
+    if (filesToSend.length === 0) {
+        const quickResponse = smallTalk.match(text);
+        if (quickResponse) {
+            appendAssistantMessage(quickResponse);
+            return;
+        }
+    }
+
+    setGeneratingState(true);
+    showThinkingBubble();
+
+    if (worker) {
+        worker.postMessage({ type: 'generate', prompt: fullPrompt });
+    }
 }
 
 // Replace or update setupEventListeners() in app.js
@@ -784,6 +830,64 @@ function isMobileDevice() {
 function isTVDevice() {
     const ua = navigator.userAgent;
     return /SmartTV|SMART-TV|Tizen|WebOS|Web0S|HbbTV|BRAVIA|NetCast|Roku|AFT[A-Z]|CrKey|AppleTV|Android TV|googletv/i.test(ua);
+}
+
+// Add at the top of app.js with other state variables
+let attachedFiles = [];
+
+// Add this inside setupEventListeners() or call it on DOMContentLoaded
+function setupFileAttachment() {
+    const attachButton = document.getElementById('attach-button');
+    const fileInput = document.getElementById('file-input');
+
+    if (attachButton && fileInput) {
+        attachButton.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            handleFilesSelected(e.target.files);
+            fileInput.value = ''; // Reset input so same file can be re-selected if needed
+        });
+    }
+}
+
+function handleFilesSelected(files) {
+    Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            attachedFiles.push({
+                name: file.name,
+                content: e.target.result // Read as plaintext string
+            });
+            renderAttachmentPreviews();
+        };
+        // Read file as text (renders plaintext for code, documents, and raw text representation for images)
+        reader.readAsText(file);
+    });
+}
+
+function renderAttachmentPreviews() {
+    const previewContainer = document.getElementById('attachment-preview');
+    if (!previewContainer) return;
+
+    previewContainer.innerHTML = '';
+    attachedFiles.forEach((file, index) => {
+        const chip = document.createElement('div');
+        chip.className = 'attachment-chip';
+        chip.innerHTML = `
+            <span>📄 ${escapeHtml(file.name)}</span>
+            <button type="button" onclick="window.removeAttachment(${index})">&times;</button>
+        `;
+        previewContainer.appendChild(chip);
+    });
+}
+
+window.removeAttachment = function (index) {
+    attachedFiles.splice(index, 1);
+    renderAttachmentPreviews();
+};
+
+function escapeHtml(text) {
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    return text.replace(/[&<>"']/g, m => map[m]);
 }
 
 function getLightweightWelcomeMessage(showTools = true) {

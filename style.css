@@ -230,6 +230,71 @@ a:hover {
     font-weight: 500;
 }
 
+/* Add to style.css */
+.input-area {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    background-color: var(--surface-color);
+    border-top: 1px solid var(--border-color);
+    gap: 10px;
+}
+
+#attach-button {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    font-size: 1.3rem;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, border-color 0.2s;
+    flex-shrink: 0;
+}
+
+#attach-button:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    border-color: var(--primary-color);
+}
+
+.attachment-preview {
+    padding: 8px 20px 0 20px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.attachment-chip {
+    background: #252525;
+    border: 1px solid var(--border-color);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-color);
+}
+
+.attachment-chip button {
+    background: none;
+    border: none;
+    color: #ff5555;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 1rem;
+    padding: 0;
+    line-height: 1;
+}
+
+.attachment-chip button:hover {
+    color: #ff7777;
+}
+
 /* Add or replace in style.css */
 .chat-container,
 #chat-messages {
