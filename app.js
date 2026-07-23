@@ -102,6 +102,15 @@ worker.onmessage = (e) => {
             renderModelPanel();
             break;
         }
+
+        case 'warm-start': {
+            // Worker is attempting to resume the last successfully loaded model
+            const preset = e.data.preset;
+            const meta = document.querySelector('.status-meta');
+            if (meta) meta.innerText = `Resuming: ${preset.label}…`;
+            if (statusText) statusText.textContent = `RESUMING ${preset.label.toUpperCase()}…`;
+            break;
+        }
         case 'downloading': {
             const now = Date.now();
             if (now - lastUpdate < 100) return;
@@ -767,13 +776,20 @@ if (window.innerWidth <= 768) document.getElementById('sidebar').classList.add('
 
 // Start loading the model immediately
 setIdleState(false);
+const _savedLastPresetId = localStorage.getItem('james-last-preset-id');
 worker.postMessage({
     type: 'init',
     // Key must match the one written in the 'done' handler: 'james-last-preset-id' (lowercase)
-    lastPresetId: localStorage.getItem('james-last-preset-id') || null,
+    lastPresetId: _savedLastPresetId || null,
 });
 pythonWorker.postMessage({ type: 'init' });
-document.getElementById('statusText').textContent = 'INITIALIZING...';
+
+// Show a helpful initial status — if we know the last model, say so
+if (_savedLastPresetId) {
+    document.getElementById('statusText').textContent = 'RESUMING LAST MODEL…';
+} else {
+    document.getElementById('statusText').textContent = 'INITIALIZING...';
+}
 
 // ─── Event Listeners ─────────────────────────────────────────────────────────
 

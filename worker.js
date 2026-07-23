@@ -519,6 +519,8 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
         const last = MODEL_PRESETS.find(p => p.id === lastPresetId);
         if (last) {
             console.log(`🔄 Warm start: ${last.label}`);
+            // Notify the UI so it can show "Resuming: [Model Name]..."
+            self.postMessage({ status: 'warm-start', preset: last });
             try {
                 chatbot = await initializeModel(last.backend, last.dtype, last.model);
                 console.log(`✅ Warm start succeeded: ${last.label}`);
