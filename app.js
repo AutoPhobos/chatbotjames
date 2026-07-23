@@ -115,6 +115,15 @@ function flushStreamQueue(targetId) {
     streamQueues.delete(targetId);
 }
 
+// ─── Window Memory Helper ───────────────────────────────────────────────────
+const MAX_HISTORY = 10;
+
+function getMessagesWindow(messages) {
+    if (!messages || messages.length <= MAX_HISTORY) return messages;
+    // Keep the first message (welcome/system context) and the most recent (MAX_HISTORY - 1)
+    return [messages[0], ...messages.slice(-(MAX_HISTORY - 1))];
+}
+
 worker.onmessage = (e) => {
     const { status, message, loaded, total, file, targetId } = e.data;
     const statusText = document.getElementById('statusText');
@@ -299,9 +308,12 @@ async function handleToolCalls(message, targetId, originChatId) {
         updateLiveBubble(`🔧 Used tool: ${toolNames} — thinking…`, targetId);
     }
 
+    // Apply the sliding memory window constraint before hitting inference again
+    const messagesForModel = getMessagesWindow(activeMessages);
+
     worker.postMessage({
         type: 'query',
-        messages: activeMessages,
+        messages: messagesForModel,
         targetId,        // reuse the original bubble so it gets replaced by the answer
         chatId: originChatId
     });
@@ -648,20 +660,14 @@ function sendMessage() {
         return;
     }
 
-    // 2. Regex tool routing — DISABLED: all messages now go to the LLM.
-    //    Model-driven tool calls (```tool:run``` blocks) are still fully active:
-    //    the model outputs a tool call, the tool executes, and the result is fed
-    //    back to the model as the next input (see handleToolCalls in app.js).
-    // const route = toolRouter.match(text);
-    // if (route) {
-    //     executeDirectTool(route.tool, route.params);
-    //     return;
-    // }
-
     setIdleState(false);
+
+    // Apply the sliding memory window constraint before hitting inference
+    const messagesForModel = getMessagesWindow(chatHistory);
+
     worker.postMessage({
         type: 'query',
-        messages: chatHistory,
+        messages: messagesForModel,
         targetId: Date.now(),
         chatId: currentChatId
     });
@@ -953,13 +959,13 @@ window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
 
-    if (!localStorage.getItem('JAMES-pwa-dismissed')) {
-        installBanner.classList.remove('hidden');
+    if (!localStorage.getItem('james-pwa-dismissed')) {
+        installBanner?.classList.remove('hidden');
     }
 });
 
 installBtn?.addEventListener('click', async () => {
-    installBanner.classList.add('hidden');
+    installBanner?.classList.add('hidden');
     if (deferredPrompt) {
         deferredPrompt.prompt();
         await deferredPrompt.userChoice;
@@ -968,8 +974,8 @@ installBtn?.addEventListener('click', async () => {
 });
 
 dismissBtn?.addEventListener('click', () => {
-    installBanner.classList.add('hidden');
-    localStorage.setItem('JAMES-pwa-dismissed', 'true');
+    installBanner?.classList.add('hidden');
+    localStorage.setItem('james-pwa-dismissed', 'true');
 });
 
 // ─── Model Selection Panel ────────────────────────────────────────────────────
@@ -1096,51 +1102,6 @@ function renderModelPanel() {
         });
     });
 }
-
-// ═════ PWA INSTALL LOGIC ═════
-
-// Listen for the browser's install prompt event
-window.addEventListener('beforeinstallprompt', (e) => {
-    // Prevent the default mini-infobar from appearing on mobile
-    e.preventDefault();
-
-    // Stash the event so it can be triggered later
-    deferredPrompt = e;
-
-    // Check if the user previously dismissed the banner
-    const isDismissed = localStorage.getItem('james-pwa-dismissed');
-
-    if (!isDismissed) {
-        // Show our custom banner
-        installBanner.classList.remove('hidden');
-    }
-});
-
-// Handle the Install button click
-installBtn.addEventListener('click', async () => {
-    // Hide the banner immediately
-    installBanner.classList.add('hidden');
-
-    if (deferredPrompt) {
-        // Show the native browser install prompt
-        deferredPrompt.prompt();
-
-        // Wait for the user to respond to the prompt
-        const { outcome } = await deferredPrompt.userChoice;
-        console.log(`User response to the install prompt: ${outcome}`);
-
-        // We've used the prompt, throw it away
-        deferredPrompt = null;
-    }
-});
-
-// Handle the Dismiss (✕) button click
-dismissBtn.addEventListener('click', () => {
-    installBanner.classList.add('hidden');
-
-    // Save to localStorage so we don't annoy the user on next reload
-    localStorage.setItem('james-pwa-dismissed', 'true');
-});
 
 function selectPreset(id) {
     _selectedPresetId = id;
