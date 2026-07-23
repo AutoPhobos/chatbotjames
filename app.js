@@ -6,7 +6,7 @@ const _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
 function _playTone({ freq = 440, type = 'sine', gainPeak = 0.18, duration = 0.12, rampUp = 0.01, rampDown = 0.10 } = {}) {
     try {
-        const osc  = _audioCtx.createOscillator();
+        const osc = _audioCtx.createOscillator();
         const gain = _audioCtx.createGain();
         osc.connect(gain);
         gain.connect(_audioCtx.destination);
@@ -221,14 +221,14 @@ worker.onmessage = (e) => {
         case 'error': {
             const errorText = typeof message === 'string' ? message : JSON.stringify(message);
             console.error('James Error payload:', e.data);
-            
+
             if (errorText.includes('Instance reference no longer exists') || errorText.includes('failed to call OrtRun')) {
                 appendErrorToChat("WebGPU Context Lost (GPU crashed or ran out of memory). Reloading the page in 3 seconds to recover...");
                 setTimeout(() => window.location.reload(), 3000);
             } else {
                 appendErrorToChat(errorText);
             }
-            
+
             const metaErr = document.querySelector('.status-meta');
             if (metaErr) metaErr.innerText = `Error initializing or generating: ${errorText}`;
             if (statusText) statusText.textContent = 'ERROR';
@@ -276,7 +276,7 @@ async function handleToolCalls(message, targetId, originChatId) {
     // Persist the tool-call exchange (assistant tool call + user result) into the
     // correct chat history so context is intact on reload.
     const assistantToolTurn = { role: 'assistant', content: message };
-    const toolResultTurn    = { role: 'user',      content: toolResultText };
+    const toolResultTurn = { role: 'user', content: toolResultText };
 
     if (originChatId === currentChatId) {
         chatHistory.push(assistantToolTurn, toolResultTurn);
@@ -375,8 +375,10 @@ async function executeTool(toolName, params) {
         if (!params || !params.code) throw new Error('Python tool requires a code parameter');
         return new Promise((resolve, reject) => {
             const execId = crypto.randomUUID();
+            let timeoutId;
             const handler = (e) => {
                 if (e.data.execId === execId) {
+                    clearTimeout(timeoutId);
                     pythonWorker.removeEventListener('message', handler);
                     e.data.status === 'done'
                         ? resolve(e.data.output)
@@ -385,7 +387,7 @@ async function executeTool(toolName, params) {
             };
             pythonWorker.addEventListener('message', handler);
             pythonWorker.postMessage({ type: 'run', code: params.code, execId });
-            setTimeout(() => {
+            timeoutId = setTimeout(() => {
                 pythonWorker.removeEventListener('message', handler);
                 reject(new Error('Python execution timed out'));
             }, 30000);
@@ -394,8 +396,10 @@ async function executeTool(toolName, params) {
 
     return new Promise((resolve, reject) => {
         const execId = crypto.randomUUID();
+        let timeoutId;
         const handler = (e) => {
             if (e.data.execId === execId) {
+                clearTimeout(timeoutId);
                 toolsWorker.removeEventListener('message', handler);
                 if (e.data.status === 'done') resolve(e.data.result);
                 else if (e.data.status === 'error') reject(new Error(e.data.error));
@@ -403,7 +407,7 @@ async function executeTool(toolName, params) {
         };
         toolsWorker.addEventListener('message', handler);
         toolsWorker.postMessage({ execId, tool: toolName, params });
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
             toolsWorker.removeEventListener('message', handler);
             reject(new Error('Tool execution timeout'));
         }, 30000);
@@ -458,7 +462,7 @@ function appendUserMessage(text) {
     const chatLog = document.getElementById('chatLog');
     const messageWrap = document.createElement('div');
     messageWrap.className = 'message-wrap user-msg';
-    
+
     const messageContent = document.createElement('div');
     messageContent.className = 'message-content';
     messageContent.textContent = text;
@@ -479,7 +483,7 @@ function appendUserMessage(text) {
     chatLog.scrollTop = chatLog.scrollHeight;
 }
 
-window.editUserMessage = function(text) {
+window.editUserMessage = function (text) {
     if (_isGeneratingUI) return;
     const idx = chatHistory.findLastIndex(m => m.role === 'user' && m.content === text);
     if (idx !== -1) {
@@ -776,16 +780,16 @@ function renderChatLog() {
     chatHistory.forEach(msg => {
         const messageWrap = document.createElement('div');
         messageWrap.className = `message-wrap ${msg.role === 'user' ? 'user-msg' : 'assistant-msg'}`;
-        
+
         const messageContent = document.createElement('div');
         messageContent.className = 'message-content';
-        
+
         if (msg.role === 'assistant') {
             messageContent.innerHTML = formatAssistantMessage(msg.content);
             messageWrap.appendChild(messageContent);
         } else {
             messageContent.textContent = msg.content;
-            
+
             const editBtn = document.createElement('button');
             editBtn.className = 'edit-msg-btn';
             editBtn.innerHTML = '✏️';
@@ -798,7 +802,7 @@ function renderChatLog() {
             container.appendChild(messageContent);
             messageWrap.appendChild(container);
         }
-        
+
         chatLog.appendChild(messageWrap);
     });
     chatLog.scrollTop = chatLog.scrollHeight;
@@ -906,8 +910,8 @@ sendBtn.addEventListener('click', () => {
         sendMessage();
     }
 });
-cmdInput.addEventListener('keypress', (e) => { 
-    if (e.key === 'Enter' && !_isGeneratingUI) sendMessage(); 
+cmdInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && !_isGeneratingUI) sendMessage();
 });
 
 document.getElementById('newChatBtn').addEventListener('click', startNewChat);
