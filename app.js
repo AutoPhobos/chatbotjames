@@ -246,6 +246,72 @@ worker.onmessage = (e) => {
     }
 };
 
+// Replace initWorker() in app.js
+function initWorker() {
+    if (worker) {
+        worker.terminate();
+    }
+
+    worker = new Worker('worker.js', { type: 'module' });
+
+    worker.onmessage = (event) => {
+        const { status, output, error } = event.data;
+
+        if (status === 'complete') {
+            appendAssistantMessage(output);
+            removeThinkingBubble();
+            setGeneratingState(false);
+        } else if (status === 'error') {
+            appendErrorMessage(error || 'An error occurred during generation.');
+            removeThinkingBubble();
+            setGeneratingState(false);
+        } else if (status === 'chunk') {
+            updateStreamingMessage(output);
+            scrollToBottom();
+        }
+    };
+}
+
+// Replace handleStopGeneration() in app.js
+function handleStopGeneration() {
+    if (!isGenerating) return;
+
+    if (worker) {
+        worker.terminate();
+    }
+
+    removeThinkingBubble();
+    setGeneratingState(false);
+    initWorker();
+}
+
+// Add these helper functions to app.js
+function scrollToBottom() {
+    const chatContainer = document.getElementById('chat-messages') || document.getElementById('chat-container');
+    if (chatContainer) {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+}
+
+function showThinkingBubble() {
+    removeThinkingBubble();
+
+    const chatContainer = document.getElementById('chat-messages') || document.getElementById('chat-container');
+    if (!chatContainer) return;
+
+    const thinkingEl = document.createElement('div');
+    thinkingEl.id = 'thinking-bubble';
+    thinkingEl.className = 'message assistant-message thinking';
+    thinkingEl.innerHTML = `
+        <div class="message-content">
+            <span class="dot-pulse"></span> JAMES is thinking...
+        </div>
+    `;
+
+    chatContainer.appendChild(thinkingEl);
+    scrollToBottom();
+}
+
 async function handleToolCalls(message, targetId, originChatId) {
     const toolCalls = parseToolCalls(message);
 
@@ -693,8 +759,8 @@ function isTVDevice() {
 }
 
 function getLightweightWelcomeMessage(showTools = true) {
-    const toolsBlock = showTools 
-        ? `\n───────────────\n🧰 **Tools available**\n───────────────\n🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia · 🔍 search\n🔑 uuid · 🔐 password · 🎨 palette · ⏳ timer · 📋 clipboard\n───────────────\n` 
+    const toolsBlock = showTools
+        ? `\n───────────────\n🧰 **Tools available**\n───────────────\n🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia · 🔍 search\n🔑 uuid · 🔐 password · 🎨 palette · ⏳ timer · 📋 clipboard\n───────────────\n`
         : '';
 
     return {
@@ -708,7 +774,7 @@ ${toolsBlock}
 }
 
 function getFullWelcomeMessage(showTools = true) {
-    const toolsBlock = showTools 
+    const toolsBlock = showTools
         ? `───────────────
 
 🧰 **Tools available**
@@ -717,7 +783,7 @@ function getFullWelcomeMessage(showTools = true) {
 🔑 uuid · 🔐 password · 🎨 palette · ⏳ timer · 📋 clipboard
 ───────────────
 
-` 
+`
         : '';
 
     return {
@@ -731,8 +797,8 @@ ${toolsBlock}💬 Type a message below to begin.`
 }
 
 function getTVWelcomeMessage(showTools = true) {
-    const toolsBlock = showTools 
-        ? `\n───────────────\n🧰 **Tools available**\n───────────────\n🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia · 🔍 search\n🔑 uuid · 🔐 password · 🎨 palette · ⏳ timer · 📋 clipboard\n───────────────\n` 
+    const toolsBlock = showTools
+        ? `\n───────────────\n🧰 **Tools available**\n───────────────\n🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia · 🔍 search\n🔑 uuid · 🔐 password · 🎨 palette · ⏳ timer · 📋 clipboard\n───────────────\n`
         : '';
 
     return {

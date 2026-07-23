@@ -230,6 +230,31 @@ a:hover {
     font-weight: 500;
 }
 
+/* Add or replace in style.css */
+.chat-container,
+#chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    gap: 12px;
+}
+
+#thinking-bubble {
+    position: sticky;
+    bottom: 16px;
+    align-self: flex-start;
+    background: var(--surface-color, #1e1e1e);
+    border: 1px solid var(--border-color, #333);
+    padding: 10px 16px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 10;
+    margin-top: auto;
+}
+
 .delete-chat-btn {
     background: none;
     border: none;
