@@ -1097,6 +1097,51 @@ function renderModelPanel() {
     });
 }
 
+// ═════ PWA INSTALL LOGIC ═════
+
+// Listen for the browser's install prompt event
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevent the default mini-infobar from appearing on mobile
+    e.preventDefault();
+
+    // Stash the event so it can be triggered later
+    deferredPrompt = e;
+
+    // Check if the user previously dismissed the banner
+    const isDismissed = localStorage.getItem('james-pwa-dismissed');
+
+    if (!isDismissed) {
+        // Show our custom banner
+        installBanner.classList.remove('hidden');
+    }
+});
+
+// Handle the Install button click
+installBtn.addEventListener('click', async () => {
+    // Hide the banner immediately
+    installBanner.classList.add('hidden');
+
+    if (deferredPrompt) {
+        // Show the native browser install prompt
+        deferredPrompt.prompt();
+
+        // Wait for the user to respond to the prompt
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User response to the install prompt: ${outcome}`);
+
+        // We've used the prompt, throw it away
+        deferredPrompt = null;
+    }
+});
+
+// Handle the Dismiss (✕) button click
+dismissBtn.addEventListener('click', () => {
+    installBanner.classList.add('hidden');
+
+    // Save to localStorage so we don't annoy the user on next reload
+    localStorage.setItem('james-pwa-dismissed', 'true');
+});
+
 function selectPreset(id) {
     _selectedPresetId = id;
     document.querySelectorAll('.preset-card').forEach(el => {

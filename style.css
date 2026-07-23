@@ -1,3 +1,96 @@
+/* ═════ INSTALL BANNER ═════ */
+.install-banner {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(22, 22, 26, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--primary-purple);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), 0 0 15px rgba(139, 92, 246, 0.15);
+    padding: 14px 20px;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    z-index: 1000;
+    transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    width: max-content;
+    max-width: 90vw;
+}
+
+/* Hidden state for smooth animations */
+.install-banner.hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-50%) translateY(30px);
+}
+
+.install-banner span {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.install-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#installBtn {
+    background: var(--primary-purple);
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+}
+
+#installBtn:hover {
+    background: var(--primary-purple-hover);
+    transform: scale(1.05);
+}
+
+#dismissInstallBtn {
+    background: transparent;
+    color: var(--text-muted);
+    border: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: color 0.2s, background 0.2s;
+    font-size: 1.1rem;
+}
+
+#dismissInstallBtn:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    .install-banner {
+        flex-direction: column;
+        text-align: center;
+        gap: 12px;
+        padding: 16px;
+    }
+
+    .install-actions {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
 :root {
     /* Color Palette */
     --bg-main: #0e0e11;
