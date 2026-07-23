@@ -3,10 +3,10 @@ import { toolRouter } from './tool-router.js';
 
 // ─── Sound Engine (Web Audio API, no external files) ─────────────────────────
 const _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-// UI References
+
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
-    setupFileAttachment(); // Call the new setup function
+    setupFileAttachment();
 });
 
 function _playTone({ freq = 440, type = 'sine', gainPeak = 0.18, duration = 0.12, rampUp = 0.01, rampDown = 0.10 } = {}) {
@@ -25,13 +25,11 @@ function _playTone({ freq = 440, type = 'sine', gainPeak = 0.18, duration = 0.12
     } catch (e) { /* silently ignore if AudioContext not ready */ }
 }
 
-// Soft blip when user sends a message
 function playSendSound() {
     if (_audioCtx.state === 'suspended') _audioCtx.resume();
     _playTone({ freq: 880, type: 'sine', gainPeak: 0.10, duration: 0.10, rampUp: 0.005, rampDown: 0.09 });
 }
 
-// Pleasant two-note chime when JAMES finishes responding
 function playDoneSound() {
     if (_audioCtx.state === 'suspended') _audioCtx.resume();
     _playTone({ freq: 523.25, type: 'sine', gainPeak: 0.10, duration: 0.18, rampUp: 0.01 }); // C5
@@ -40,15 +38,14 @@ function playDoneSound() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Initialize Workers
-const worker = new Worker('worker.js', { type: 'module' });
+let worker = new Worker('worker.js', { type: 'module' });
 const toolsWorker = new Worker('tools-worker.js', { type: 'module' });
 const pythonWorker = new Worker('python-worker.js');
 const pythonCallbacks = new Map();
 
 // UI References
-// UI References
-const cmdInput = document.getElementById('userInput'); // Changed from 'cmdInput'
-const sendBtn = document.getElementById('sendButton'); // Changed from 'sendBtn'
+const cmdInput = document.getElementById('userInput');
+const sendBtn = document.getElementById('sendButton');
 
 /**
  * Modern UI Toggle
@@ -56,9 +53,7 @@ const sendBtn = document.getElementById('sendButton'); // Changed from 'sendBtn'
  */
 let _isGeneratingUI = false;
 function setIdleState(isIdle) {
-
     try {
-
         if (isIdle) {
             cmdInput.disabled = false;
             sendBtn.innerHTML = '➔';
@@ -72,26 +67,27 @@ function setIdleState(isIdle) {
             cmdInput.disabled = true;
             sendBtn.innerHTML = '⏹';
             sendBtn.classList.add('stop-btn');
-            sendBtn.disabled = false; // Always keep enabled so we can stop
+            sendBtn.disabled = false;
             _isGeneratingUI = true;
 
             cmdInput.classList.add('loading-state');
             cmdInput.placeholder = "JAMES is busy...";
         }
     }
-    catch (err) { console.log(err) }
+    catch (err) { console.log(err); }
 }
 
-// Global Message Handler
+// Global State & Message Handlers
 let lastUpdate = 0;
-let _gpuInfo = null;          // cached from worker 'model-info'
-let _presets = [];            // cached from worker 'model-info'
-let _activePresetId = null;   // the currently running preset
-let _selectedPresetId = null; // user's pending selection in the panel
-let _deviceRamGB = 4;         // from navigator.deviceMemory via worker
+let _gpuInfo = null;
+let _presets = [];
+let _activePresetId = null;
+let _selectedPresetId = null;
+let _deviceRamGB = 4;
+let attachedFiles = [];
 
 // ─── Word-by-word Streaming Animation ────────────────────────────────────────
-const streamQueues = new Map(); // targetId → { pending, displayed, running }
+const streamQueues = new Map();
 
 function queueStreamText(targetId, fullText) {
     if (!streamQueues.has(targetId)) {
@@ -111,7 +107,6 @@ function drainStreamQueue(targetId) {
     }
     state.running = true;
 
-    // Advance to the end of the next word
     const from = state.displayed.length;
     const nextSpace = state.pending.indexOf(' ', from + 1);
     state.displayed = state.pending.slice(0, nextSpace === -1 ? state.pending.length : nextSpace + 1);
@@ -131,15 +126,14 @@ const MAX_HISTORY = 10;
 
 function getMessagesWindow(messages) {
     if (!messages || messages.length <= MAX_HISTORY) return messages;
-    // Keep the first message (welcome/system context) and the most recent (MAX_HISTORY - 1)
     return [messages[0], ...messages.slice(-(MAX_HISTORY - 1))];
 }
 
+// Unified Worker Message Handler
 worker.onmessage = (e) => {
     const { status, message, loaded, total, file, targetId } = e.data;
     const statusText = document.getElementById('statusText');
 
-    // 1. Force the status text to update properly for every state
     if (status === 'done' || status === 'complete' || status === 'error' || status === 'aborted') {
         setIdleState(true);
         updateStatusLight('idle');
@@ -159,7 +153,6 @@ worker.onmessage = (e) => {
             break;
 
         case 'model-info': {
-            // Worker detected GPU and compiled preset list — render the panel
             _gpuInfo = e.data.gpuInfo;
             _presets = e.data.presets;
             _deviceRamGB = e.data.ramGB ?? 4;
@@ -168,13 +161,13 @@ worker.onmessage = (e) => {
         }
 
         case 'warm-start': {
-            // Worker is attempting to resume the last successfully loaded model
             const preset = e.data.preset;
             const meta = document.querySelector('.status-meta');
             if (meta) meta.innerText = `Resuming: ${preset.label}…`;
             if (statusText) statusText.textContent = `RESUMING ${preset.label.toUpperCase()}…`;
             break;
         }
+
         case 'downloading': {
             const now = Date.now();
             if (now - lastUpdate < 100) return;
@@ -193,6 +186,7 @@ worker.onmessage = (e) => {
             if (statusText) statusText.textContent = `DOWNLOADING (${Math.round(percent)}%)...`;
             break;
         }
+
         case 'done': {
             const metaDone = document.querySelector('.status-meta');
             const backend = e.data.backend === 'webgpu' ? 'WebGPU' : 'WASM (CPU)';
@@ -203,14 +197,12 @@ worker.onmessage = (e) => {
             if (fillDone) fillDone.style.width = "100%";
             if (statusText) statusText.textContent = 'READY';
 
-            // Find which preset is now running and mark it
             const runningPreset = _presets.find(
                 p => p.backend === e.data.backend && p.dtype === e.data.dtype && p.model === e.data.model
             );
             if (runningPreset) {
                 _activePresetId = runningPreset.id;
                 _selectedPresetId = runningPreset.id;
-                // ✔ Persist for warm-start on next page load
                 localStorage.setItem('james-last-preset-id', runningPreset.id);
                 refreshPresetCards();
                 const lbl = document.getElementById('activeModelLabel');
@@ -220,8 +212,8 @@ worker.onmessage = (e) => {
             }
             break;
         }
+
         case 'streaming':
-            // Only stream to the UI if we are still on the chat that requested it
             if (e.data.chatId === currentChatId) {
                 queueStreamText(targetId, message);
             }
@@ -257,41 +249,69 @@ worker.onmessage = (e) => {
     }
 };
 
-// Replace initWorker() in app.js
 function initWorker() {
     if (worker) {
         worker.terminate();
     }
-
     worker = new Worker('worker.js', { type: 'module' });
-
-    worker.onmessage = (event) => {
-        const { status, output, error } = event.data;
-
-        if (status === 'complete') {
-            appendAssistantMessage(output);
-            removeThinkingBubble();
-            setGeneratingState(false);
-        } else if (status === 'error') {
-            appendErrorMessage(error || 'An error occurred during generation.');
-            removeThinkingBubble();
-            setGeneratingState(false);
-        } else if (status === 'chunk') {
-            updateStreamingMessage(output);
-            scrollToBottom();
-        }
-    };
 }
 
-async function handleUserSubmit() {
-    const inputField = document.getElementById('userInput'); // Changed from 'user-input'
-    if (!inputField) return;
+// ─── File Attachment & Plaintext View ───────────────────────────────────────
 
-    const text = inputField.value.trim();
-    if (!text && attachedFiles.length === 0) return;
-    if (isGenerating) return;
+function setupFileAttachment() {
+    const attachButton = document.getElementById('attachButton') || document.getElementById('attach-button');
+    const fileInput = document.getElementById('fileInput') || document.getElementById('file-input');
 
-    // Build full prompt incorporating attached files as plaintext
+    if (attachButton && fileInput) {
+        attachButton.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            handleFilesSelected(e.target.files);
+            fileInput.value = '';
+        });
+    }
+}
+
+function handleFilesSelected(files) {
+    Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            attachedFiles.push({
+                name: file.name,
+                content: e.target.result // Read as plaintext string
+            });
+            renderAttachmentPreviews();
+        };
+        reader.readAsText(file);
+    });
+}
+
+function renderAttachmentPreviews() {
+    const previewContainer = document.getElementById('attachment-preview');
+    if (!previewContainer) return;
+
+    previewContainer.innerHTML = '';
+    attachedFiles.forEach((file, index) => {
+        const chip = document.createElement('div');
+        chip.className = 'attachment-chip';
+        chip.innerHTML = `
+            <span>📄 ${escapeHTML(file.name)}</span>
+            <button type="button" onclick="window.removeAttachment(${index})">&times;</button>
+        `;
+        previewContainer.appendChild(chip);
+    });
+}
+
+window.removeAttachment = function (index) {
+    attachedFiles.splice(index, 1);
+    renderAttachmentPreviews();
+};
+
+// ─── Message Sending & Archiving ────────────────────────────────────────────
+
+function sendMessage() {
+    const text = cmdInput.value.trim();
+    if ((!text && attachedFiles.length === 0) || _isGeneratingUI) return;
+
     let fullPrompt = text;
     if (attachedFiles.length > 0) {
         let fileContext = "\n\n[Attached Files Content]:\n";
@@ -301,108 +321,111 @@ async function handleUserSubmit() {
         fullPrompt = (text ? text + "\n" : "Please analyze the attached file(s):") + fileContext;
     }
 
-    // Display message in chat UI
     const displayMessage = text + (attachedFiles.length > 0 ? ` [Attached: ${attachedFiles.map(f => f.name).join(', ')}]` : '');
+
+    // Properly archive user message including file context
+    chatHistory.push({ role: 'user', content: displayMessage });
     appendUserMessage(displayMessage);
 
-    // Reset inputs & attachments
-    inputField.value = '';
+    cmdInput.value = '';
     const filesToSend = [...attachedFiles];
     attachedFiles = [];
     renderAttachmentPreviews();
+    persistCurrentChat();
 
-    // Check smalltalk only if no files are attached
+    playSendSound();
+    sendBtn.classList.add('sending');
+    sendBtn.addEventListener('animationend', () => sendBtn.classList.remove('sending'), { once: true });
+
+    if (currentChatId) {
+        const chat = allChats.find(c => c.id === currentChatId);
+        if (chat && chat.name === 'New Chat') {
+            chat.name = text.substring(0, 30) + (text.length > 30 ? '...' : '');
+            localStorage.setItem('chatbot-chats', JSON.stringify(allChats));
+            updateChatList();
+            updateChatListActive(currentChatId);
+        }
+    }
+
     if (filesToSend.length === 0) {
-        const quickResponse = smallTalk.match(text);
-        if (quickResponse) {
-            appendAssistantMessage(quickResponse);
+        const canned = smallTalk.match(text);
+        if (canned) {
+            simulateCannedResponse(canned);
             return;
         }
     }
 
-    setGeneratingState(true);
-    showThinkingBubble();
+    setIdleState(false);
+    const messagesForModel = getMessagesWindow(chatHistory);
 
-    if (worker) {
-        worker.postMessage({ type: 'generate', prompt: fullPrompt });
-    }
+    worker.postMessage({
+        type: 'query',
+        messages: messagesForModel,
+        targetId: Date.now(),
+        chatId: currentChatId
+    });
 }
 
-// Replace or update setupEventListeners() in app.js
 function setupEventListeners() {
-    const sendButton = document.getElementById('send-button');
-    const inputField = document.getElementById('user-input');
-    const stopButton = document.getElementById('stop-button');
+    const sendButton = document.getElementById('sendButton') || document.getElementById('send-button');
+    const inputField = document.getElementById('userInput') || document.getElementById('user-input');
+    const stopButton = document.getElementById('stopButton') || document.getElementById('stop-button');
 
     if (sendButton && inputField) {
-        sendButton.addEventListener('click', () => handleUserSubmit());
+        sendButton.addEventListener('click', () => {
+            if (_isGeneratingUI) {
+                handleStopGeneration();
+            } else {
+                sendMessage();
+            }
+        });
         inputField.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                handleUserSubmit();
+                if (!_isGeneratingUI) sendMessage();
             }
         });
     }
 
     if (stopButton) {
-        // Explicitly bind the click event to handleStopGeneration
         stopButton.addEventListener('click', handleStopGeneration);
-    } else {
-        console.warn('Stop button element (#stop-button) not found in the DOM.');
     }
 }
 
-// Replace handleStopGeneration() in app.js
 function handleStopGeneration() {
-    if (!isGenerating) return;
+    if (!_isGeneratingUI) return;
 
     if (worker) {
-        worker.terminate();
+        worker.postMessage({ type: 'abort' });
     }
 
-    removeThinkingBubble();
-    setGeneratingState(false);
+    setIdleState(true);
+    updateStatusLight('idle');
+    const statusText = document.getElementById('statusText');
+    if (statusText) statusText.textContent = 'READY';
+
+    streamQueues.forEach((_, targetId) => flushStreamQueue(targetId));
     initWorker();
 }
 
-// Add these helper functions to app.js
 function scrollToBottom() {
-    const chatContainer = document.getElementById('chat-messages') || document.getElementById('chat-container');
+    const chatContainer = document.getElementById('chatLog') || document.getElementById('chat-messages');
     if (chatContainer) {
         chatContainer.scrollTop = chatContainer.scrollHeight;
     }
 }
 
-function showThinkingBubble() {
-    removeThinkingBubble();
-
-    const chatContainer = document.getElementById('chat-messages') || document.getElementById('chat-container');
-    if (!chatContainer) return;
-
-    const thinkingEl = document.createElement('div');
-    thinkingEl.id = 'thinking-bubble';
-    thinkingEl.className = 'message assistant-message thinking';
-    thinkingEl.innerHTML = `
-        <div class="message-content">
-            <span class="dot-pulse"></span> JAMES is thinking...
-        </div>
-    `;
-
-    chatContainer.appendChild(thinkingEl);
-    scrollToBottom();
-}
+// ─── Tool Execution Handler ─────────────────────────────────────────────────
 
 async function handleToolCalls(message, targetId, originChatId) {
     const toolCalls = parseToolCalls(message);
 
     if (toolCalls.length === 0) {
-        // If the user is still on the chat that initiated this request, update live.
         if (originChatId === currentChatId) {
             updateLiveBubble(message, targetId);
             chatHistory.push({ role: 'assistant', content: message });
             persistCurrentChat();
         } else {
-            // Background update: user switched chats while this was generating.
             const bgChat = allChats.find(c => c.id === originChatId);
             if (bgChat) {
                 bgChat.messages.push({ role: 'assistant', content: message });
@@ -428,8 +451,6 @@ async function handleToolCalls(message, targetId, originChatId) {
             : `[${r.tool} result]:${JSON.stringify(r.result)}`
     ).join('\n');
 
-    // Persist the tool-call exchange (assistant tool call + user result) into the
-    // correct chat history so context is intact on reload.
     const assistantToolTurn = { role: 'assistant', content: message };
     const toolResultTurn = { role: 'user', content: toolResultText };
 
@@ -439,28 +460,23 @@ async function handleToolCalls(message, targetId, originChatId) {
         const bgChat = allChats.find(c => c.id === originChatId);
         if (bgChat) bgChat.messages.push(assistantToolTurn, toolResultTurn);
     }
-    // Persist to localStorage so the history survives a reload.
     localStorage.setItem('chatbot-chats', JSON.stringify(allChats));
 
-    // We must pass the correct chat array down. If the user switched chats, we use the background chat's array.
     const activeMessages = originChatId === currentChatId
         ? chatHistory
         : (allChats.find(c => c.id === originChatId)?.messages || []);
 
-    // Update the original bubble so it doesn't stay as a frozen "..." forever.
-    // We reuse the same targetId so the final answer overwrites this placeholder.
     if (originChatId === currentChatId) {
         const toolNames = toolCalls.map(c => c.tool).join(', ');
         updateLiveBubble(`🔧 Used tool: ${toolNames} — thinking…`, targetId);
     }
 
-    // Apply the sliding memory window constraint before hitting inference again
     const messagesForModel = getMessagesWindow(activeMessages);
 
     worker.postMessage({
         type: 'query',
         messages: messagesForModel,
-        targetId,        // reuse the original bubble so it gets replaced by the answer
+        targetId,
         chatId: originChatId
     });
 }
@@ -478,9 +494,6 @@ function parseToolCalls(text) {
                 for (let i = 1; i < lines.length; i++) {
                     const line = lines[i].trim();
                     if (!line) continue;
-
-                    // Each line is one param: "key: value"
-                    // Do NOT split on commas first — values can contain commas (e.g. "location: New York, NY")
                     const colonIdx = line.indexOf(':');
                     if (colonIdx !== -1) {
                         const key = line.substring(0, colonIdx).trim();
@@ -505,21 +518,18 @@ function parseToolCalls(text) {
 async function executeTool(toolName, params) {
     if (toolName === 'search_web') {
         try {
-            const results = await import('./tools-search.js').then(m => m.performWebSearch(params.query || params.q));
-            return results;
+            return await import('./tools-search.js').then(m => m.performWebSearch(params.query || params.q));
         } catch (error) {
             throw new Error('Web search failed: ' + error.message);
         }
     }
     if (toolName === 'location') {
         try {
-            const location = await import('./tools-bridge.js').then(m => m.getLocation());
-            return location;
+            return await import('./tools-bridge.js').then(m => m.getLocation());
         } catch (error) {
             throw new Error('Location access failed: ' + error.message);
         }
     }
-
     if (toolName === 'clipboard') {
         try {
             const content = await import('./tools-bridge.js').then(m => m.readClipboard());
@@ -528,7 +538,6 @@ async function executeTool(toolName, params) {
             throw new Error('Clipboard access failed: ' + error.message);
         }
     }
-
     if (toolName === 'python') {
         if (!params || !params.code) throw new Error('Python tool requires a code parameter');
         return new Promise((resolve, reject) => {
@@ -571,9 +580,6 @@ async function executeTool(toolName, params) {
         }, 30000);
     });
 }
-
-// toolsWorker messages are handled per-call via addEventListener inside executeTool.
-// Timer messages are handled by the listener set up in tools-bridge.js setupToolsBridge.
 
 pythonWorker.onmessage = (e) => {
     const { status, output, error, execId } = e.data;
@@ -618,6 +624,7 @@ function formatAssistantMessage(text) {
 
 function appendUserMessage(text) {
     const chatLog = document.getElementById('chatLog');
+    if (!chatLog) return;
     const messageWrap = document.createElement('div');
     messageWrap.className = 'message-wrap user-msg';
 
@@ -655,6 +662,7 @@ window.editUserMessage = function (text) {
 
 function updateLiveBubble(text, targetId) {
     const chatLog = document.getElementById('chatLog');
+    if (!chatLog) return;
     let bubble = document.getElementById(`bubble-${targetId}`);
 
     if (!bubble) {
@@ -677,6 +685,7 @@ function updateLiveBubble(text, targetId) {
 
 function appendErrorToChat(errorMessage) {
     const chatLog = document.getElementById('chatLog');
+    if (!chatLog) return;
     const messageWrap = document.createElement('div');
     messageWrap.className = 'message-wrap assistant-msg';
     const messageContent = document.createElement('div');
@@ -713,112 +722,6 @@ async function simulateCannedResponse(canned, targetId = null) {
     if (statusText) statusText.textContent = 'READY';
 }
 
-async function executeDirectTool(toolName, params) {
-    const targetId = Date.now();
-    const statusText = document.getElementById('statusText');
-
-    setIdleState(false);
-    updateStatusLight('thinking');
-    if (statusText) statusText.textContent = 'USING TOOL...';
-    updateLiveBubble('...', targetId);
-
-    try {
-        const result = await executeTool(toolName, params);
-
-        let cannedText = '';
-        if (toolName === 'weather') {
-            cannedText = `The weather in ${result.location} is ${result.condition.toLowerCase()} with a temperature of ${result.temperature}.`;
-        } else if (toolName === 'currency') {
-            cannedText = `${result.amount} ${result.from} is equal to ${result.converted} ${result.to}. (Rate: ${result.rate})`;
-        } else if (toolName === 'time') {
-            cannedText = `The current time in ${result.timezone} is ${result.time}.`;
-        } else if (toolName === 'websearch') {
-            cannedText = `I couldn't find a direct answer. [Click here to search DuckDuckGo for "${result.query}"](${result.url})`;
-        } else if (toolName === 'wikipedia') {
-            if (result.type === 'fallback') {
-                cannedText = `No Wikipedia article found. [Click here to search DuckDuckGo for "${result.query}"](${result.url})`;
-            } else {
-                cannedText = `Here is a summary for "${result.title}" from Wikipedia:\n\n${result.summary}\n\n[Read more on Wikipedia](${result.url})`;
-            }
-        } else if (toolName === 'uuid') {
-            cannedText = `Here are your generated UUIDs:\n\n${result.uuids.join('\n')}`;
-        } else if (toolName === 'password') {
-            cannedText = `Here is your generated password:\n\n${result.passwords.join('\n')}`;
-        } else if (toolName === 'timer') {
-            cannedText = `⏱️ Timer started for **${result.seconds} seconds**. Watch the countdown widget above.`;
-        } else if (toolName === 'python') {
-            cannedText = result
-                ? `Python output:\n\n\`\`\`\n${result}\n\`\`\``
-                : `Python executed successfully with no output.`;
-        } else if (toolName === 'date') {
-            if (result.iso) cannedText = `The current date/time is ${result.local}.`;
-            else if (result.days !== undefined) cannedText = `The difference is ${result.days} days, ${result.hours} hours, and ${result.minutes} minutes.`;
-            else if (result.formatted) cannedText = `The date is ${result.day}, ${result.formatted}.`;
-            else cannedText = `Date tool result:\n${JSON.stringify(result, null, 2)}`;
-        } else if (toolName === 'location') {
-            cannedText = `Your current location is Latitude: ${result.latitude}, Longitude: ${result.longitude} (Accuracy: ${result.accuracy}).`;
-        } else if (toolName === 'clipboard') {
-            cannedText = `Your clipboard contains:\n\n${result.content}`;
-        } else {
-            cannedText = `Tool ${toolName} completed:\n\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\``;
-        }
-
-        // Bypass the LLM entirely! Stream the formatted response.
-        simulateCannedResponse(cannedText, targetId);
-    } catch (err) {
-        const msg = `⚠️ Tool error (${toolName}): ${err.message}`;
-        updateLiveBubble(msg, targetId);
-        chatHistory.push({ role: 'assistant', content: msg });
-        persistCurrentChat();
-        setIdleState(true);
-        updateStatusLight('idle');
-        if (statusText) statusText.textContent = 'READY';
-    }
-}
-
-function sendMessage() {
-    const text = cmdInput.value.trim();
-    if (!text || _isGeneratingUI) return;
-
-    chatHistory.push({ role: 'user', content: text });
-    appendUserMessage(text);
-    cmdInput.value = '';
-
-    // Sound + visual ripple on send
-    playSendSound();
-    sendBtn.classList.add('sending');
-    sendBtn.addEventListener('animationend', () => sendBtn.classList.remove('sending'), { once: true });
-
-    if (currentChatId) {
-        const chat = allChats.find(c => c.id === currentChatId);
-        if (chat && chat.name === 'New Chat') {
-            chat.name = text.substring(0, 30) + (text.length > 30 ? '...' : '');
-            localStorage.setItem('chatbot-chats', JSON.stringify(allChats));
-            updateChatList();
-            updateChatListActive(currentChatId);
-        }
-    }
-
-    // 1. Small talk — instant canned response, no LLM
-    const canned = smallTalk.match(text);
-    if (canned) {
-        simulateCannedResponse(canned);
-        return;
-    }
-
-    setIdleState(false);
-
-    // Apply the sliding memory window constraint before hitting inference
-    const messagesForModel = getMessagesWindow(chatHistory);
-
-    worker.postMessage({
-        type: 'query',
-        messages: messagesForModel,
-        targetId: Date.now(),
-        chatId: currentChatId
-    });
-}
-
 // ─── Chat History Management ────────────────────────────────────────────────
 
 let chatHistory = [];
@@ -838,64 +741,6 @@ function isTVDevice() {
     return /SmartTV|SMART-TV|Tizen|WebOS|Web0S|HbbTV|BRAVIA|NetCast|Roku|AFT[A-Z]|CrKey|AppleTV|Android TV|googletv/i.test(ua);
 }
 
-// Add at the top of app.js with other state variables
-let attachedFiles = [];
-
-// Add this inside setupEventListeners() or call it on DOMContentLoaded
-function setupFileAttachment() {
-    const attachButton = document.getElementById('attachButton'); // Changed from 'attach-button'
-    const fileInput = document.getElementById('fileInput');       // Changed from 'file-input'
-
-    if (attachButton && fileInput) {
-        attachButton.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', (e) => {
-            handleFilesSelected(e.target.files);
-            fileInput.value = '';
-        });
-    }
-}
-
-function handleFilesSelected(files) {
-    Array.from(files).forEach(file => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            attachedFiles.push({
-                name: file.name,
-                content: e.target.result // Read as plaintext string
-            });
-            renderAttachmentPreviews();
-        };
-        // Read file as text (renders plaintext for code, documents, and raw text representation for images)
-        reader.readAsText(file);
-    });
-}
-
-function renderAttachmentPreviews() {
-    const previewContainer = document.getElementById('attachment-preview');
-    if (!previewContainer) return;
-
-    previewContainer.innerHTML = '';
-    attachedFiles.forEach((file, index) => {
-        const chip = document.createElement('div');
-        chip.className = 'attachment-chip';
-        chip.innerHTML = `
-            <span>📄 ${escapeHtml(file.name)}</span>
-            <button type="button" onclick="window.removeAttachment(${index})">&times;</button>
-        `;
-        previewContainer.appendChild(chip);
-    });
-}
-
-window.removeAttachment = function (index) {
-    attachedFiles.splice(index, 1);
-    renderAttachmentPreviews();
-};
-
-function escapeHtml(text) {
-    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-    return text.replace(/[&<>"']/g, m => map[m]);
-}
-
 function getLightweightWelcomeMessage(showTools = true) {
     const toolsBlock = showTools
         ? `\n───────────────\n🧰 **Tools available**\n───────────────\n🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia · 🔍 search\n🔑 uuid · 🔐 password · 🎨 palette · ⏳ timer · 📋 clipboard\n───────────────\n`
@@ -903,34 +748,18 @@ function getLightweightWelcomeMessage(showTools = true) {
 
     return {
         role: 'assistant',
-        content: `✨ **JAMES — Your local, private AI assistant.**
-🛡️ Runs entirely in this browser — nothing leaves your device.
-📱 Running in **lightweight mode** — tool use may be limited on this device.
-${toolsBlock}
-💬 Type a message below to begin.`
+        content: `✨ **JAMES — Your local, private AI assistant.**\n🛡️ Runs entirely in this browser — nothing leaves your device.\n📱 Running in **lightweight mode** — tool use may be limited on this device.\n${toolsBlock}\n💬 Type a message below to begin.`
     };
 }
 
 function getFullWelcomeMessage(showTools = true) {
     const toolsBlock = showTools
-        ? `───────────────
-
-🧰 **Tools available**
-───────────────
-🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia · 🔍 search
-🔑 uuid · 🔐 password · 🎨 palette · ⏳ timer · 📋 clipboard
-───────────────
-
-`
+        ? `───────────────\n\n🧰 **Tools available**\n───────────────\n🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia · 🔍 search\n🔑 uuid · 🔐 password · 🎨 palette · ⏳ timer · 📋 clipboard\n───────────────\n\n`
         : '';
 
     return {
         role: 'assistant',
-        content: `✨ **JAMES — Your local, private AI assistant.**
-🛡️ Runs entirely in this browser — nothing leaves your device.
-🔄 Every session starts fresh.
-
-${toolsBlock}💬 Type a message below to begin.`
+        content: `✨ **JAMES — Your local, private AI assistant.**\n🛡️ Runs entirely in this browser — nothing leaves your device.\n🔄 Every session starts fresh.\n\n${toolsBlock}💬 Type a message below to begin.`
     };
 }
 
@@ -941,11 +770,7 @@ function getTVWelcomeMessage(showTools = true) {
 
     return {
         role: 'assistant',
-        content: `✨ **JAMES — Your local, private AI assistant.**
-🛡️ Runs entirely in this browser — nothing leaves your device.
-📺 Running in **TV mode** — lightweight model loaded for this device.
-${toolsBlock}
-💬 Use a keyboard or remote to type a message below.`
+        content: `✨ **JAMES — Your local, private AI assistant.**\n🛡️ Runs entirely in this browser — nothing leaves your device.\n📺 Running in **TV mode** — lightweight model loaded for this device.\n${toolsBlock}\n💬 Use a keyboard or remote to type a message below.`
     };
 }
 
@@ -993,11 +818,12 @@ function startNewChat() {
     updateChatList();
     renderChatLog();
     updateChatListActive(currentChatId);
-    cmdInput.focus();
+    if (cmdInput) cmdInput.focus();
 }
 
 function renderChatLog() {
     const chatLog = document.getElementById('chatLog');
+    if (!chatLog) return;
     chatLog.innerHTML = '';
     chatHistory.forEach(msg => {
         const messageWrap = document.createElement('div');
@@ -1032,6 +858,7 @@ function renderChatLog() {
 
 function updateChatList() {
     const chatListEl = document.getElementById('chatList');
+    if (!chatListEl) return;
     chatListEl.innerHTML = '';
     allChats.forEach(chat => {
         const chatItem = document.createElement('div');
@@ -1040,7 +867,7 @@ function updateChatList() {
 
         const chatText = document.createElement('span');
         chatText.textContent = chat.name;
-        chatText.style.pointerEvents = 'none'; // Ensure clicks bubble to the item
+        chatText.style.pointerEvents = 'none';
 
         chatItem.onclick = () => {
             loadChatHistory(chat.id);
@@ -1099,68 +926,43 @@ if (allChats.length > 0) {
     startNewChat();
 }
 
-// Apply device-specific body classes
 if (isTVDevice()) {
     document.body.classList.add('tv-mode');
-    document.getElementById('sidebar').classList.add('collapsed');
+    document.getElementById('sidebar')?.classList.add('collapsed');
 }
-if (window.innerWidth <= 768) document.getElementById('sidebar').classList.add('collapsed');
+if (window.innerWidth <= 768) document.getElementById('sidebar')?.classList.add('collapsed');
 
-// Start loading the model immediately
 setIdleState(false);
 const _savedLastPresetId = localStorage.getItem('james-last-preset-id');
 worker.postMessage({
     type: 'init',
-    // Key must match the one written in the 'done' handler: 'james-last-preset-id' (lowercase)
     lastPresetId: _savedLastPresetId || null,
 });
 pythonWorker.postMessage({ type: 'init' });
 
-// Show a helpful initial status — if we know the last model, say so
-if (_savedLastPresetId) {
-    document.getElementById('statusText').textContent = 'RESUMING LAST MODEL…';
-} else {
-    document.getElementById('statusText').textContent = 'INITIALIZING...';
+const statusTextEl = document.getElementById('statusText');
+if (statusTextEl) {
+    statusTextEl.textContent = _savedLastPresetId ? 'RESUMING LAST MODEL…' : 'INITIALIZING...';
 }
 
-// ─── Event Listeners ─────────────────────────────────────────────────────────
+// ─── Sidebar & Panel Controls ───────────────────────────────────────────────
 
-sendBtn.addEventListener('click', () => {
-    if (_isGeneratingUI) {
-        // Send abort to worker
-        worker.postMessage({ type: 'abort' });
-
-        // Immediately reset UI state and indicators
-        setIdleState(true);
-        updateStatusLight('idle');
-        const statusText = document.getElementById('statusText');
-        if (statusText) statusText.textContent = 'READY';
-
-        // Flush active streaming queues so partial text remains visible
-        streamQueues.forEach((_, targetId) => flushStreamQueue(targetId));
-    } else {
-        sendMessage();
-    }
-});
-cmdInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && !_isGeneratingUI) sendMessage();
-});
-
-document.getElementById('newChatBtn').addEventListener('click', startNewChat);
+const newChatBtn = document.getElementById('newChatBtn');
+if (newChatBtn) newChatBtn.addEventListener('click', startNewChat);
 
 function closeSidebar() {
-    document.getElementById('sidebar').classList.add('collapsed');
-    document.getElementById('sidebarOverlay').classList.remove('visible');
+    document.getElementById('sidebar')?.classList.add('collapsed');
+    document.getElementById('sidebarOverlay')?.classList.remove('visible');
 }
 
-document.getElementById('sidebarToggle').addEventListener('click', () => {
+document.getElementById('sidebarToggle')?.addEventListener('click', () => {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebarOverlay');
-    const nowCollapsed = sidebar.classList.toggle('collapsed');
-    overlay.classList.toggle('visible', !nowCollapsed);
+    const nowCollapsed = sidebar?.classList.toggle('collapsed');
+    overlay?.classList.toggle('visible', !nowCollapsed);
 });
 
-document.getElementById('sidebarOverlay').addEventListener('click', closeSidebar);
+document.getElementById('sidebarOverlay')?.addEventListener('click', closeSidebar);
 
 import('./tools-bridge.js').then(module => {
     module.setupToolsBridge({
@@ -1168,7 +970,7 @@ import('./tools-bridge.js').then(module => {
         DOM: { log: document.getElementById('chatLog'), cmd: cmdInput },
         submit: sendMessage
     });
-});
+}).catch(() => { });
 
 // ─── PWA Installation ────────────────────────────────────────────────────────
 
@@ -1213,22 +1015,20 @@ const modelPanelClose = document.getElementById('modelPanelClose');
 const applyModelBtn = document.getElementById('applyModelBtn');
 
 function openModelPanel() {
-    modelPanel.classList.add('open');
-    modelPanelOverlay.classList.add('visible');
+    modelPanel?.classList.add('open');
+    modelPanelOverlay?.classList.add('visible');
 }
 
 function closeModelPanel() {
-    modelPanel.classList.remove('open');
-    modelPanelOverlay.classList.remove('visible');
+    modelPanel?.classList.remove('open');
+    modelPanelOverlay?.classList.remove('visible');
 }
 
 modelPanelBtn?.addEventListener('click', openModelPanel);
 modelPanelClose?.addEventListener('click', closeModelPanel);
 modelPanelOverlay?.addEventListener('click', closeModelPanel);
 
-/** Render (or re-render) the GPU status card and preset list. */
 function renderModelPanel() {
-    // ── GPU status card (informational only) ─────────────────────────────────
     const card = document.getElementById('gpuStatusCard');
     const icon = document.getElementById('gpuStatusIcon');
     const title = document.getElementById('gpuStatusTitle');
@@ -1240,33 +1040,32 @@ function renderModelPanel() {
 
         if (hasGpu) {
             card.className = 'gpu-status-card gpu-ok';
-            icon.textContent = '🚀';
-            title.textContent = 'GPU Acceleration Available';
-            badge.textContent = 'WebGPU';
+            if (icon) icon.textContent = '🚀';
+            if (title) title.textContent = 'GPU Acceleration Available';
+            if (badge) badge.textContent = 'WebGPU';
         } else if (!navigator.gpu) {
             card.className = 'gpu-status-card gpu-none';
-            icon.textContent = '❌';
-            title.textContent = 'WebGPU Not Supported';
-            badge.textContent = 'NO GPU';
+            if (icon) icon.textContent = '❌';
+            if (title) title.textContent = 'WebGPU Not Supported';
+            if (badge) badge.textContent = 'NO GPU';
         } else if (isFallback) {
             card.className = 'gpu-status-card gpu-warn';
-            icon.textContent = '⚠️';
-            title.textContent = 'Software Adapter Only';
-            badge.textContent = 'SW ONLY';
+            if (icon) icon.textContent = '⚠️';
+            if (title) title.textContent = 'Software Adapter Only';
+            if (badge) badge.textContent = 'SW ONLY';
         } else {
             card.className = 'gpu-status-card gpu-warn';
-            icon.textContent = '⚠️';
-            title.textContent = 'Integrated GPU — CPU Fallback';
-            badge.textContent = 'CPU';
+            if (icon) icon.textContent = '⚠️';
+            if (title) title.textContent = 'Integrated GPU — CPU Fallback';
+            if (badge) badge.textContent = 'CPU';
         }
 
         const vendorStr = vendor ? `Vendor: ${vendor}` : 'Vendor: hidden by browser';
         const bufStr = maxStorageMB ? ` · Buffer: ${maxStorageMB.toFixed(0)} MB` : '';
         const ramStr = `Device RAM: ~${_deviceRamGB} GB`;
-        detail.textContent = `${reason}\n${vendorStr}${bufStr} · ${ramStr}`;
+        if (detail) detail.textContent = `${reason}\n${vendorStr}${bufStr} · ${ramStr}`;
     }
 
-    // ── Preset cards (grouped by category, all always enabled) ───────────────
     const list = document.getElementById('modelPresetList');
     if (!list || !_presets.length) return;
     list.innerHTML = '';
@@ -1281,7 +1080,6 @@ function renderModelPanel() {
         const presets = _presets.filter(group.filter);
         if (!presets.length) return;
 
-        // Section divider
         const divider = document.createElement('div');
         divider.className = 'preset-group-title';
         divider.textContent = group.title;
@@ -1322,7 +1120,6 @@ function renderModelPanel() {
                 <span class="preset-pill ${pillClass}">${pillText}</span>
                 <div class="preset-check"></div>`;
 
-            // All presets are always clickable — user knows what they're doing
             el.addEventListener('click', () => selectPreset(preset.id));
             list.appendChild(el);
         });
@@ -1355,7 +1152,8 @@ applyModelBtn?.addEventListener('click', () => {
     if (meta) meta.innerText = 'Loading selected model…';
 
     setIdleState(false);
-    document.getElementById('statusText').textContent = 'LOADING MODEL…';
+    const statusTextEl = document.getElementById('statusText');
+    if (statusTextEl) statusTextEl.textContent = 'LOADING MODEL…';
 
     worker.postMessage({ type: 'init', forcePresetId: _selectedPresetId });
 });
