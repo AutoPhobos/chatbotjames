@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>JAMES - Advanced Local AI Chatbot & Edge Agent</title>
     
-    <!-- SEO & Metadata -->
     <meta name="description" content="JAMES is an advanced local AI chatbot and edge agent running 100% privately in your browser via WebGPU and WebAssembly. Zero server transmission.">
     <meta name="keywords" content="local AI, browser LLM, WebGPU chatbot, edge agent, Transformers.js, private AI, SmolLM2, Qwen">
     <meta name="author" content="JAMES AI Team">
@@ -56,55 +55,99 @@
         }
     </script>
     <style>
-        body { background-color: #090d16; color: #f1f5f9; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: #090d16; color: #f1f5f9; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; overflow: hidden; }
+        
         .glass-panel { background: rgba(19, 28, 46, 0.88); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); }
-        .message-enter { animation: fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(12px); }
-        @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
+        
+        /* Message animations */
+        .message-enter { animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(16px) scale(0.98); }
+        @keyframes fadeInUp { to { opacity: 1; transform: translateY(0) scale(1); } }
+
+        /* Floating background ambient glow orbs */
+        @keyframes floatSlow {
+            0%, 100% { transform: translateY(0px) scale(1); }
+            50% { transform: translateY(-20px) scale(1.05); }
+        }
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.15; }
+            50% { opacity: 0.35; }
+        }
+        .ambient-orb-1 { animation: floatSlow 8s ease-in-out infinite, pulseGlow 4s ease-in-out infinite; }
+        .ambient-orb-2 { animation: floatSlow 10s ease-in-out infinite reverse, pulseGlow 5s ease-in-out infinite reverse; }
+
+        /* Modal transitions */
+        .modal-backdrop { background: rgba(9, 13, 22, 0.85); backdrop-filter: blur(8px); transition: opacity 0.3s ease; }
+        .modal-content { animation: modalPop 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes modalPop {
+            0% { opacity: 0; transform: scale(0.92) translateY(10px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        /* Shimmer loading bar animation */
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        .shimmer-bg {
+            background: linear-gradient(90deg, rgba(56, 189, 248, 0.2) 0%, rgba(129, 140, 248, 0.6) 50%, rgba(56, 189, 248, 0.2) 100%);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite linear;
+        }
+
+        /* Tool block styling */
+        .tool-block { background: #13112c; border-left: 4px solid #a855f7; margin-top: 10px; padding: 12px 16px; border-radius: 0 10px 10px 0; font-family: monospace; font-size: 0.9em; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3); animation: slideInTool 0.3s ease-out; }
+        @keyframes slideInTool { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+
+        .tool-result { background: #0c1a17; border-left: 4px solid #10b981; margin-top: 8px; padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: 0.85em; color: #34d399; }
+        
         .markdown-body pre { background: #050811 !important; padding: 1rem; border-radius: 0.75rem; overflow-x: auto; border: 1px solid #1e293b; }
         .markdown-body code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.875em; color: #38bdf8; }
+        
         ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #475569; }
-        .tool-block { background: #13112c; border-left: 4px solid #a855f7; margin-top: 10px; padding: 12px 16px; border-radius: 0 10px 10px 0; font-family: monospace; font-size: 0.9em; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3); }
-        .tool-result { background: #0c1a17; border-left: 4px solid #10b981; margin-top: 8px; padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: 0.85em; color: #34d399; }
-        .modal-backdrop { background: rgba(9, 13, 22, 0.85); backdrop-filter: blur(8px); }
-        /* Touch target enhancements for responsiveness */
-        button, select, textarea { min-height: 40px; }
+
+        button, select, textarea { min-height: 40px; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+        button:active { transform: scale(0.96); }
+
         @media (max-width: 768px) {
-            aside.mobile-drawer { transform: translateX(-100%); transition: transform 0.3s ease-in-out; }
+            aside.mobile-drawer { transform: translateX(-100%); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
             aside.mobile-drawer.open { transform: translateX(0); }
         }
     </style>
 </head>
-<body class="h-[100dvh] flex overflow-hidden selection:bg-sky-500/30">
+<body class="h-[100dvh] flex overflow-hidden selection:bg-sky-500/30 relative">
+
+    <div class="absolute -top-32 -left-32 w-96 h-96 bg-sky-600/20 rounded-full blur-[120px] pointer-events-none ambient-orb-1 z-0"></div>
+    <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-purple-600/20 rounded-full blur-[120px] pointer-events-none ambient-orb-2 z-0"></div>
 
     <!-- Mobile Sidebar Backdrop -->
-    <div id="sidebar-backdrop" onclick="toggleSidebarMobile()" class="fixed inset-0 bg-black/60 z-30 hidden md:hidden transition-opacity"></div>
+    <div id="sidebar-backdrop" onclick="toggleSidebarMobile()" class="fixed inset-0 bg-black/60 z-30 hidden md:hidden transition-opacity duration-300"></div>
 
     <aside class="w-80 glass-panel border-r border-borderSubtle flex flex-col h-full z-40 fixed md:static mobile-drawer inset-y-0 left-0 shadow-2xl md:shadow-none" id="sidebar">
         <div class="p-5 border-b border-borderSubtle flex justify-between items-center bg-gradient-to-r from-sky-900/20 to-purple-900/20">
             <div>
                 <h1 class="text-xl font-extrabold bg-gradient-to-r from-sky-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent flex items-center gap-2">
-                    <i class="fas fa-microchip text-sky-400"></i> JAMES AI
+                    <i class="fas fa-microchip text-sky-400 animate-pulse"></i> JAMES AI
                 </h1>
                 <p class="text-[11px] text-slate-400 mt-0.5">Advanced Browser Edge Agent</p>
             </div>
-            <button onclick="toggleSidebarMobile()" class="md:hidden text-slate-400 hover:text-white p-2">
+            <button onclick="toggleSidebarMobile()" class="md:hidden text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800/50">
                 <i class="fas fa-times text-lg"></i>
             </button>
         </div>
         
         <div class="p-4 flex-1 overflow-y-auto space-y-4">
-            <button onclick="openSettingsModal()" class="w-full bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-medium py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer">
-                <i class="fas fa-gear"></i> Model Settings & Status
+            <button onclick="openSettingsModal()" class="w-full bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-medium py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg hover:shadow-sky-500/25 transition-all cursor-pointer group">
+                <i class="fas fa-gear group-hover:rotate-90 transition-transform duration-300"></i> Model Settings & Status
             </button>
 
             <!-- Hardware Spec Card -->
-            <div id="device-info" class="bg-slate-900/60 rounded-xl p-3.5 text-xs text-slate-400 space-y-2 border border-slate-800 shadow-lg">
+            <div id="device-info" class="bg-slate-900/60 rounded-xl p-3.5 text-xs text-slate-400 space-y-2 border border-slate-800 shadow-lg hover:border-slate-700 transition-colors">
                 <div class="font-semibold text-slate-200 border-b border-slate-800 pb-1.5 flex items-center justify-between">
                     <span>Hardware Profile</span>
-                    <span id="badge-backend" class="px-2 py-0.5 rounded-full text-[10px] bg-sky-950 text-sky-400 font-mono">Detecting...</span>
+                    <span id="badge-backend" class="px-2 py-0.5 rounded-full text-[10px] bg-sky-950 text-sky-400 font-mono animate-pulse">Detecting...</span>
                 </div>
                 <div class="flex justify-between items-center"><span>System RAM:</span> <span id="info-ram" class="text-slate-200 font-mono">--</span></div>
                 <div class="flex justify-between items-center"><span>GPU Acceleration:</span> <span id="info-gpu" class="text-slate-200 font-mono">Checking...</span></div>
@@ -122,13 +165,13 @@
             </div>
 
             <!-- Download Progress Tracker -->
-            <div id="download-container" class="hidden flex-col gap-2.5 bg-slate-900/80 p-4 rounded-xl border border-sky-500/30 shadow-xl">
+            <div id="download-container" class="hidden flex-col gap-2.5 bg-slate-900/80 p-4 rounded-xl border border-sky-500/30 shadow-xl transition-all duration-300">
                 <div class="flex justify-between text-xs text-slate-200">
                     <span id="download-status-text" class="font-medium text-sky-400">Downloading weights...</span>
                     <span id="download-percentage" class="font-mono font-bold">0%</span>
                 </div>
-                <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden shadow-inner">
-                    <div id="download-bar" class="bg-gradient-to-r from-sky-500 to-indigo-500 h-2 rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
+                <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden shadow-inner p-0.5">
+                    <div id="download-bar" class="shimmer-bg h-full rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
                 </div>
                 <div class="text-[10px] text-slate-400 flex justify-between font-mono" id="download-bytes">
                     <span>0 MB</span>
@@ -137,9 +180,9 @@
             </div>
 
             <!-- Tools Active Status -->
-            <div class="bg-purple-950/20 border border-purple-900/40 rounded-xl p-3 text-[11px] text-purple-300">
+            <div class="bg-purple-950/20 border border-purple-900/40 rounded-xl p-3 text-[11px] text-purple-300 hover:border-purple-700/50 transition-colors">
                 <div class="font-semibold flex items-center gap-1.5 mb-1">
-                    <i class="fas fa-wand-magic-sparkles text-purple-400"></i> Active Edge Tools
+                    <i class="fas fa-wand-magic-sparkles text-purple-400 animate-spin" style="animation-duration: 6s;"></i> Active Edge Tools
                 </div>
                 <p class="text-purple-300/80 leading-relaxed">JAMES can call live tools: Weather, Wikipedia, Currency Conversion, World Time, and Calculator.</p>
             </div>
@@ -147,39 +190,41 @@
         
         <div class="p-4 border-t border-borderSubtle text-xs text-slate-500 flex justify-between items-center bg-slate-950/30">
             <span class="flex items-center gap-1"><i class="fas fa-shield-alt text-emerald-400"></i> 100% Client-Side</span>
-            <button onclick="clearChat()" class="hover:text-red-400 transition-colors flex items-center gap-1 p-2"><i class="fas fa-trash-alt"></i> Clear Chat</button>
+            <button onclick="clearChat()" class="hover:text-red-400 transition-colors flex items-center gap-1 p-2 rounded-lg hover:bg-slate-900"><i class="fas fa-trash-alt"></i> Clear Chat</button>
         </div>
     </aside>
 
-    <main class="flex-1 flex flex-col relative h-full bg-slate-950/40 w-full overflow-hidden">
-        <header class="h-14 border-b border-borderSubtle glass-panel px-4 flex items-center justify-between z-10 shrink-0">
+    <main class="flex-1 flex flex-col relative h-full bg-slate-950/40 w-full overflow-hidden z-10">
+        <header class="h-14 border-b border-borderSubtle glass-panel px-4 flex items-center justify-between shrink-0">
             <div class="flex items-center gap-3">
-                <button onclick="toggleSidebarMobile()" class="text-slate-300 hover:text-white p-2.5 md:hidden">
+                <button onclick="toggleSidebarMobile()" class="text-slate-300 hover:text-white p-2.5 md:hidden rounded-xl hover:bg-slate-800/50">
                     <i class="fas fa-bars text-lg"></i>
                 </button>
-                <span class="font-bold text-sm sm:text-base bg-gradient-to-r from-sky-400 to-purple-400 bg-clip-text text-transparent">JAMES AI Assistant</span>
+                <span class="font-bold text-sm sm:text-base bg-gradient-to-r from-sky-400 to-purple-400 bg-clip-text text-transparent flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping inline-block"></span> JAMES AI Assistant
+                </span>
             </div>
-            <button onclick="openSettingsModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3.5 py-2 rounded-xl text-xs flex items-center gap-2 border border-slate-700 transition-colors cursor-pointer">
+            <button onclick="openSettingsModal()" class="bg-slate-800/80 hover:bg-slate-700 text-slate-200 px-3.5 py-2 rounded-xl text-xs flex items-center gap-2 border border-slate-700 transition-all hover:scale-105 cursor-pointer shadow-lg">
                 <i class="fas fa-gear text-sky-400"></i> <span id="header-model-label">Settings</span>
             </button>
         </header>
 
         <div id="chat-container" class="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6 pb-40 scroll-smooth">
             <div class="flex justify-center mt-4">
-                <div class="bg-sky-950/30 text-sky-300 px-4 py-2.5 rounded-2xl text-xs sm:text-sm border border-sky-800/40 flex items-center shadow-lg gap-2.5 backdrop-blur-md text-center max-w-lg">
+                <div class="bg-sky-950/30 text-sky-300 px-4 py-2.5 rounded-2xl text-xs sm:text-sm border border-sky-800/40 flex items-center shadow-xl gap-2.5 backdrop-blur-md text-center max-w-lg message-enter">
                     <i class="fas fa-lock text-sky-400 shrink-0"></i> Zero Server Transmission. Private LLM execution inside your browser via WebGPU & WASM.
                 </div>
             </div>
         </div>
 
-        <div class="absolute bottom-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-t from-[#090d16] via-[#090d16]/95 to-transparent z-10">
+        <div class="absolute bottom-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-t from-[#090d16] via-[#090d16]/95 to-transparent z-20">
             <div class="max-w-4xl mx-auto relative group">
                 <textarea id="message-input" rows="1" class="w-full bg-slate-900/90 border border-slate-700/80 rounded-2xl pl-4 sm:pl-5 pr-28 py-3.5 sm:py-4 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent resize-none shadow-2xl transition-all disabled:opacity-40 disabled:cursor-not-allowed placeholder:text-slate-500" placeholder="Ask JAMES anything or run tools... (Loading model)" disabled></textarea>
                 <div class="absolute right-3 bottom-2.5 sm:bottom-3 flex items-center gap-1.5">
-                    <button id="stop-btn" onclick="stopGeneration()" class="hidden p-2.5 bg-red-600/80 hover:bg-red-600 text-white rounded-xl transition-colors shadow-lg h-10 w-10 items-center justify-center cursor-pointer" title="Stop Generation">
+                    <button id="stop-btn" onclick="stopGeneration()" class="hidden p-2.5 bg-red-600/80 hover:bg-red-600 text-white rounded-xl transition-all shadow-lg h-10 w-10 items-center justify-center cursor-pointer hover:scale-105" title="Stop Generation">
                         <i class="fas fa-stop text-sm"></i>
                     </button>
-                    <button id="send-btn" class="p-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl transition-colors disabled:opacity-40 disabled:bg-slate-800 shadow-lg flex items-center justify-center h-10 w-10 disabled:cursor-not-allowed cursor-pointer" disabled>
+                    <button id="send-btn" class="p-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl transition-all disabled:opacity-40 disabled:bg-slate-800 shadow-lg flex items-center justify-center h-10 w-10 disabled:cursor-not-allowed cursor-pointer hover:scale-105 hover:shadow-sky-500/25" disabled>
                         <i class="fas fa-paper-plane text-sm"></i>
                     </button>
                 </div>
@@ -191,7 +236,7 @@
     </main>
 
     <div id="settings-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
-        <div class="bg-[#131c2e] border border-slate-700/80 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+        <div class="bg-[#131c2e] border border-slate-700/80 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col modal-content">
             <div class="p-5 border-b border-slate-700/60 flex justify-between items-center bg-slate-900/40">
                 <h3 class="font-bold text-base text-white flex items-center gap-2">
                     <i class="fas fa-gear text-sky-400"></i> Model Settings
@@ -222,14 +267,13 @@
             </div>
             <div class="p-4 border-t border-slate-700/60 bg-slate-900/50 flex justify-between items-center">
                 <span id="modal-status-msg" class="text-xs text-slate-400">No model loaded yet</span>
-                <button onclick="applyModelSettings()" class="bg-sky-600 hover:bg-sky-500 text-white font-medium px-5 py-2.5 rounded-xl text-xs shadow-lg transition-all cursor-pointer">
+                <button onclick="applyModelSettings()" class="bg-sky-600 hover:bg-sky-500 text-white font-medium px-5 py-2.5 rounded-xl text-xs shadow-lg hover:shadow-sky-500/25 transition-all cursor-pointer hover:scale-105">
                     Apply & Reload
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Worker script embedded cleanly in blob script -->
     <script id="worker-script" type="javascript/worker">
         import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0';
 
@@ -846,7 +890,7 @@ CRITICAL RULES:
             messages = [];
             chatContainer.innerHTML = `
                 <div class="flex justify-center mt-4">
-                    <div class="bg-sky-950/30 text-sky-300 px-4 py-2.5 rounded-2xl text-xs sm:text-sm border border-sky-800/40 flex items-center shadow-lg gap-2.5 backdrop-blur-md text-center max-w-lg">
+                    <div class="bg-sky-950/30 text-sky-300 px-4 py-2.5 rounded-2xl text-xs sm:text-sm border border-sky-800/40 flex items-center shadow-lg gap-2.5 backdrop-blur-md text-center max-w-lg message-enter">
                         <i class="fas fa-lock text-sky-400 shrink-0"></i> Zero Server Transmission. Private LLM execution inside your browser via WebGPU & WASM.
                     </div>
                 </div>
