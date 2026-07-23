@@ -212,7 +212,14 @@ worker.onmessage = (e) => {
         case 'error': {
             const errorText = typeof message === 'string' ? message : JSON.stringify(message);
             console.error('James Error payload:', e.data);
-            appendErrorToChat(errorText);
+            
+            if (errorText.includes('Instance reference no longer exists') || errorText.includes('failed to call OrtRun')) {
+                appendErrorToChat("WebGPU Context Lost (GPU crashed or ran out of memory). Reloading the page in 3 seconds to recover...");
+                setTimeout(() => window.location.reload(), 3000);
+            } else {
+                appendErrorToChat(errorText);
+            }
+            
             const metaErr = document.querySelector('.status-meta');
             if (metaErr) metaErr.innerText = `Error initializing or generating: ${errorText}`;
             if (statusText) statusText.textContent = 'ERROR';
