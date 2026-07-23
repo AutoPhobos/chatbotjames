@@ -265,7 +265,7 @@
 </div>
 
 <script id="worker-script" type="javascript/worker">
-    import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0';
+    import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.3.3';
 
     env.allowLocalModels = false;
     env.useBrowserCache = true;
@@ -421,499 +421,239 @@
     let chatbot;
 
     const systemPrompt = `You are JAMES (Advanced Edge AI Agent and Assistant).
-You have access to the following live tools:weather (params: location)wikipedia (params: query)currency (params: from, to, amount)time (params: timezone)calculator (params: expr)convert (params: value, from, to)CRITICAL RULES:ONLY call a tool if you need real-time data or computations (weather, currency rates, Wikipedia facts, timezones, math calculations, conversions).If chatting casually or answering general knowledge questions, reply directly in plain text.If you MUST use a tool, output exactly this block and nothing else:```tool:run[tool_name][param]: [value]```THOROUGH EXAMPLES OF TOOL CALLS:User: What is the weather like in Tokyo right now?```tool:runweatherlocation: Tokyo```User: Convert 500 US Dollars to Euros```tool:runcurrencyfrom: USDto: EURamount: 500```User: What time is it in Sydney?```tool:runtimetimezone: Australia/Sydney```User: Calculate 4096 * 128 + 1024```tool:runcalculatorexpr: 4096 * 128 + 1024```User: Tell me about nuclear fusion on Wikipedia```tool:runwikipediaquery: nuclear fusion```User: Convert 15 miles to kilometers```tool:runconvertvalue: 15from: milesto: kilometers````;    const MODEL_PRESETS = [
-        { id: 'lite-smollm2-135m-q4',   label: 'SmolLM2 135M q4 (Ultra Lite)',  backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-135M-Instruct',           dtype: 'q4',    sizeMB: 90 },
-        { id: 'cpu-qwen25-05b-q4',      label: 'Qwen2.5 0.5B (WASM)',           backend: 'wasm',   model: 'onnx-community/Qwen2.5-0.5B-Instruct',          dtype: 'q4',    sizeMB: 400 },
-        { id: 'cpu-llama32-1b-q4',      label: 'Llama 3.2 1B (WASM)',           backend: 'wasm',   model: 'onnx-community/Llama-3.2-1B-Instruct',          dtype: 'q4',    sizeMB: 650 },
-        { id: 'gpu-smollm2-360m-q4f16', label: 'SmolLM2 360M (WebGPU)',         backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-360M-Instruct',           dtype: 'q4f16', sizeMB: 250 },
-        { id: 'gpu-qwen25-05b-q4f16',   label: 'Qwen2.5 0.5B (WebGPU)',         backend: 'webgpu', model: 'onnx-community/Qwen2.5-0.5B-Instruct',          dtype: 'q4f16', sizeMB: 400 },
-        { id: 'gpu-llama32-1b-q4f16',   label: 'Llama 3.2 1B (WebGPU)',         backend: 'webgpu', model: 'onnx-community/Llama-3.2-1B-Instruct',          dtype: 'q4f16', sizeMB: 750 }
-    ];
+You have access to the following live tools:weather (params: location)wikipedia (params: query)currency (params: from, to, amount)time (params: timezone)calculator (params: expr)convert (params: value, from, to)CRITICAL RULES:ONLY call a tool if you need real-time data or computations (weather, currency rates, Wikipedia facts, timezones, math calculations, conversions).If chatting casually or answering general knowledge questions, reply directly in plain text.If you MUST use a tool, output exactly this block and nothing else:```tool:run[tool_name][param]: [value]````; const MODEL_PRESETS = [
+     { id: 'lite-smollm2-135m-q4',   label: 'SmolLM2 135M q4 (Ultra Lite)',  backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-135M-Instruct',           dtype: 'q4',    sizeMB: 90 },
+     { id: 'cpu-qwen25-05b-q4',      label: 'Qwen2.5 0.5B (WASM)',           backend: 'wasm',   model: 'onnx-community/Qwen2.5-0.5B-Instruct',          dtype: 'q4',    sizeMB: 400 },
+     { id: 'cpu-llama32-1b-q4',      label: 'Llama 3.2 1B (WASM)',           backend: 'wasm',   model: 'onnx-community/Llama-3.2-1B-Instruct',          dtype: 'q4',    sizeMB: 650 },
+     { id: 'gpu-smollm2-360m-q4f16', label: 'SmolLM2 360M (WebGPU)',         backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-360M-Instruct',           dtype: 'q4f16', sizeMB: 250 },
+     { id: 'gpu-qwen25-05b-q4f16',   label: 'Qwen2.5 0.5B (WebGPU)',         backend: 'webgpu', model: 'onnx-community/Qwen2.5-0.5B-Instruct',          dtype: 'q4f16', sizeMB: 400 },
+     { id: 'gpu-llama32-1b-q4f16',   label: 'Llama 3.2 1B (WebGPU)',         backend: 'webgpu', model: 'onnx-community/Llama-3.2-1B-Instruct',          dtype: 'q4f16', sizeMB: 750 }
+ ];
 
-    function isMobileDevice() {
-        const ua = navigator.userAgent;
-        const isMobileUA = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua);
-        const isNarrowScreen = self.screen && self.screen.width < 1024;
-        const hasTouchPoints = navigator.maxTouchPoints > 1;
-        return isMobileUA || (hasTouchPoints && isNarrowScreen);
-    }
+ function isMobileDevice() {
+     const ua = navigator.userAgent;
+     const isMobileUA = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua);
+     const isNarrowScreen = self.screen && self.screen.width < 1024;
+     const hasTouchPoints = navigator.maxTouchPoints > 1;
+     return isMobileUA || (hasTouchPoints && isNarrowScreen);
+ }
 
-    async function detectGpuWithTimeout(timeoutMs = 3000) {
-        if (isMobileDevice()) return { hasGpu: false, reason: 'Mobile device forced to WASM' };
-        if (!navigator.gpu) return { hasGpu: false, reason: 'No WebGPU API' };
-        try {
-            const adapterPromise = navigator.gpu.requestAdapter();
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeoutMs));
-            const adapter = await Promise.race([adapterPromise, timeoutPromise]);
-            if (!adapter || adapter.isFallbackAdapter) return { hasGpu: false, reason: 'Fallback adapter' };
-            return { hasGpu: true, vendor: adapter.info?.vendor || 'WebGPU' };
-        } catch (e) {
-            return { hasGpu: false, reason: e.message };
-        }
-    }
+ async function detectGpuWithTimeout(timeoutMs = 3000) {
+     if (isMobileDevice()) return { hasGpu: false, reason: 'Mobile device forced to WASM' };
+     if (!navigator.gpu) return { hasGpu: false, reason: 'No WebGPU API' };
+     try {
+         const adapterPromise = navigator.gpu.requestAdapter();
+         const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeoutMs));
+         const adapter = await Promise.race([adapterPromise, timeoutPromise]);
+         if (!adapter || adapter.isFallbackAdapter) return { hasGpu: false, reason: 'Fallback adapter' };
+         return { hasGpu: true, vendor: adapter.info?.vendor || 'WebGPU' };
+     } catch (e) {
+         return { hasGpu: false, reason: e.message };
+     }
+ }
 
-    async function initializeModel(provider, dtype, model) {
-        if (chatbot && typeof chatbot.dispose === 'function') {
-            try { await chatbot.dispose(); } catch(e) {}
-        }
-        const resolvedDtype = provider === 'webgpu' ? dtype : { model: dtype, decoder_model_merged: dtype, default: 'fp32' };
-        try {
-            return await pipeline('text-generation', model, {
-                device: provider,
-                dtype: resolvedDtype,
-                progress_callback: (p) => {
-                    if (p && typeof p.loaded === 'number' && typeof p.total === 'number') {
-                        self.postMessage({ status: 'downloading', loaded: p.loaded, total: p.total });
-                    }
-                },
-            });
-        } catch (err) {
-            if (provider === 'webgpu') {
-                return await pipeline('text-generation', model, {
-                    device: 'wasm',
-                    dtype: { model: 'q4', decoder_model_merged: 'q4', default: 'fp32' },
-                    progress_callback: (p) => {
-                        if (p && typeof p.loaded === 'number' && typeof p.total === 'number') {
-                            self.postMessage({ status: 'downloading', loaded: p.loaded, total: p.total });
-                        }
-                    },
-                });
-            }
-            throw err;
-        }
-    }
+ async function initializeModel(provider, dtype, model) {
+     if (chatbot && typeof chatbot.dispose === 'function') {
+         try { await chatbot.dispose(); } catch(e) {}
+     }
+     const resolvedDtype = provider === 'webgpu' ? dtype : { model: dtype, decoder_model_merged: dtype, default: 'fp32' };
+     try {
+         return await pipeline('text-generation', model, {
+             device: provider,
+             dtype: resolvedDtype,
+             progress_callback: (p) => {
+                 if (p && typeof p.loaded === 'number' && typeof p.total === 'number') {
+                     self.postMessage({ status: 'downloading', loaded: p.loaded, total: p.total });
+                 }
+             },
+         });
+     } catch (err) {
+         if (provider === 'webgpu') {
+             return await pipeline('text-generation', model, {
+                 device: 'wasm',
+                 dtype: { model: 'q4', decoder_model_merged: 'q4', default: 'fp32' },
+                 progress_callback: (p) => {
+                     if (p && typeof p.loaded === 'number' && typeof p.total === 'number') {
+                         self.postMessage({ status: 'downloading', loaded: p.loaded, total: p.total });
+                     }
+                 },
+             });
+         }
+         throw err;
+     }
+ }
 
-    self.onmessage = async (e) => {
-        const { type, forcePresetId } = e.data;
+ self.onmessage = async (e) => {
+     const { type, forcePresetId } = e.data;
 
-        if (type === 'cancel') {
-            if (activeAbortController) {
-                activeAbortController.abort();
-                activeAbortController = null;
-            }
-            return;
-        }
+     if (type === 'cancel') {
+         if (activeAbortController) {
+             activeAbortController.abort();
+             activeAbortController = null;
+         }
+         return;
+     }
 
-        if (type === 'init') {
-            try {
-                const gpuInfo = await detectGpuWithTimeout(2500);
-                const ram = navigator.deviceMemory || 4;
-                const mobile = isMobileDevice();
+     if (type === 'init') {
+         try {
+             const gpuInfo = await detectGpuWithTimeout(2500);
+             const ram = navigator.deviceMemory || 4;
+             const mobile = isMobileDevice();
 
-                self.postMessage({ status: 'hardware-info', gpuInfo, ram, mobile, presets: MODEL_PRESETS });
-                
-                let targetPreset = MODEL_PRESETS[0];
-                if (forcePresetId) {
-                    const found = MODEL_PRESETS.find(p => p.id === forcePresetId);
-                    if (found) targetPreset = found;
-                } else if (!mobile && gpuInfo.hasGpu) {
-                    targetPreset = MODEL_PRESETS.find(p => p.id === 'gpu-qwen25-05b-q4f16') || MODEL_PRESETS[3];
-                } else if (!mobile) {
-                    targetPreset = MODEL_PRESETS.find(p => p.backend === 'wasm' && p.id !== 'lite-smollm2-135m-q4') || MODEL_PRESETS[1];
-                }
+             self.postMessage({ status: 'hardware-info', gpuInfo, ram, mobile, presets: MODEL_PRESETS });
 
-                chatbot = await initializeModel(targetPreset.backend, targetPreset.dtype, targetPreset.model);
-                self.postMessage({ status: 'done', backend: targetPreset.backend, dtype: targetPreset.dtype, model: targetPreset.model, presetId: targetPreset.id });
-            } catch (err) {
-                self.postMessage({ status: 'error', message: err.message });
-            }
-            return;
-        }
+             let targetPreset = MODEL_PRESETS[0];
+             if (forcePresetId) {
+                 const found = MODEL_PRESETS.find(p => p.id === forcePresetId);
+                 if (found) targetPreset = found;
+             } else if (!mobile && gpuInfo.hasGpu) {
+                 targetPreset = MODEL_PRESETS.find(p => p.id === 'gpu-qwen25-05b-q4f16') || MODEL_PRESETS[3];
+             } else if (!mobile) {
+                 targetPreset = MODEL_PRESETS.find(p => p.backend === 'wasm' && p.id !== 'lite-smollm2-135m-q4') || MODEL_PRESETS[1];
+             }
 
-        if (type === 'query') {
-            const { messages, targetId } = e.data;
-            activeAbortController = new AbortController();
-            try {
-                self.postMessage({ status: 'thinking', targetId });
-                const chatContext = [{ role: 'system', content: systemPrompt }, ...messages];
-                const prompt = chatbot.tokenizer.apply_chat_template(chatContext, { tokenize: false, add_generation_prompt: true });
-                const promptTokens = await chatbot.tokenizer(prompt);
-                const promptTokenCount = promptTokens.input_ids.data.length;
+             chatbot = await initializeModel(targetPreset.backend, targetPreset.dtype, targetPreset.model);
+             self.postMessage({ status: 'done', backend: targetPreset.backend, dtype: targetPreset.dtype, model: targetPreset.model, presetId: targetPreset.id });
+         } catch (err) {
+             self.postMessage({ status: 'error', message: err.message });
+         }
+         return;
+     }
 
-                let accumulatedResponse = '';
-                const startTime = performance.now();
-                let generatedTokensCount = 0;
+     if (type === 'query') {
+         const { messages, targetId } = e.data;
+         activeAbortController = new AbortController();
+         try {
+             self.postMessage({ status: 'thinking', targetId });
+             const chatContext = [{ role: 'system', content: systemPrompt }, ...messages];
+             const prompt = chatbot.tokenizer.apply_chat_template(chatContext, { tokenize: false, add_generation_prompt: true });
+             const promptTokens = await chatbot.tokenizer(prompt);
+             const promptTokenCount = promptTokens.input_ids.data.length;
 
-                const output = await chatbot(prompt, {
-                    max_new_tokens: 512, do_sample: true, temperature: 0.7, top_k: 40,
-                    callback_function: (beams) => {
-                        if (activeAbortController?.signal.aborted) throw new Error('Cancelled');
-                        const allTokens = Array.from(beams[0].output_token_ids.data || beams[0].output_token_ids);
-                        if (allTokens.length > promptTokenCount) {
-                            const newTokens = allTokens.slice(promptTokenCount);
-                            generatedTokensCount = newTokens.length;
-                            const text = chatbot.tokenizer.decode(newTokens, { skip_special_tokens: true });
-                            if (text.length > accumulatedResponse.length) {
-                                accumulatedResponse = text;
-                                const elapsedSec = (performance.now() - startTime) / 1000;
-                                const tps = elapsedSec > 0 ? (generatedTokensCount / elapsedSec).toFixed(1) : 0;
-                                self.postMessage({ status: 'streaming', message: accumulatedResponse, targetId, tps, tokens: generatedTokensCount });
-                            }
-                        }
-                    }
-                });
+             let accumulatedResponse = '';
+             const startTime = performance.now();
+             let generatedTokensCount = 0;
 
-                let finalResponse = Array.isArray(output) ? output[0]?.generated_text : output?.generated_text;
-                if (!finalResponse) finalResponse = accumulatedResponse;
-                
-                const elapsedSec = (performance.now() - startTime) / 1000;
-                const finalTps = elapsedSec > 0 ? (generatedTokensCount / elapsedSec).toFixed(1) : 0;
-                
-                self.postMessage({ status: 'complete', message: finalResponse.trim(), targetId, tps: finalTps, tokens: generatedTokensCount });
-            } catch (err) {
-                if (err.message === 'Cancelled') {
-                    self.postMessage({ status: 'complete', message: '[Generation stopped]', targetId });
-                } else {
-                    self.postMessage({ status: 'error', message: err.message, targetId });
-                }
-            } finally {
-                activeAbortController = null;
-            }
-        }
-    };
-</script>
+             const output = await chatbot(prompt, {
+                 max_new_tokens: 512, do_sample: true, temperature: 0.7, top_k: 40,
+                 callback_function: (beams) => {
+                     if (activeAbortController?.signal.aborted) throw new Error('Cancelled');
+                     const allTokens = Array.from(beams[0].output_token_ids.data || beams[0].output_token_ids);
+                     if (allTokens.length > promptTokenCount) {
+                         const newTokens = allTokens.slice(promptTokenCount);
+                         generatedTokensCount = newTokens.length;
+                         const text = chatbot.tokenizer.decode(newTokens, { skip_special_tokens: true });
+                         if (text.length > accumulatedResponse.length) {
+                             accumulatedResponse = text;
+                             const elapsedSec = (performance.now() - startTime) / 1000;
+                             const tps = elapsedSec > 0 ? (generatedTokensCount / elapsedSec).toFixed(1) : 0;
+                             self.postMessage({ status: 'streaming', message: accumulatedResponse, targetId, tps, tokens: generatedTokensCount });
+                         }
+                     }
+                 }
+             });
 
-<script type="text/javascript">
-    const chatContainer = document.getElementById('chat-container');
-    const messageInput = document.getElementById('message-input');
-    const sendBtn = document.getElementById('send-btn');
-    const stopBtn = document.getElementById('stop-btn');
-    const modelSelect = document.getElementById('model-select');
-    const settingsModal = document.getElementById('settings-modal');
-    const downloadContainer = document.getElementById('download-container');
-    const downloadBar = document.getElementById('download-bar');
-    const downloadText = document.getElementById('download-status-text');
-    const downloadPercentage = document.getElementById('download-percentage');
-    const downloadBytes = document.getElementById('download-bytes');
-    const deviceInfo = document.getElementById('device-info');
-    const metricsCard = document.getElementById('metrics-card');
-    const modalGpuStatus = document.getElementById('modal-gpu-status');
-    const modalStatusMsg = document.getElementById('modal-status-msg');
-    const headerModelLabel = document.getElementById('header-model-label');
-    const sidebar = document.getElementById('sidebar');
-    const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+             let finalResponse = Array.isArray(output) ? output[0]?.generated_text : output?.generated_text;
+             if (!finalResponse) finalResponse = accumulatedResponse;
 
-    let worker = null;
-    let messages = [];
-    let isGenerating = false;
-    let cachedPresets = [];
+             const elapsedSec = (performance.now() - startTime) / 1000;
+             const finalTps = elapsedSec > 0 ? (generatedTokensCount / elapsedSec).toFixed(1) : 0;
 
-    function initWorker(forcePresetId = null) {
-        if (worker) worker.terminate();
-        const workerCode = document.getElementById('worker-script').textContent;
-        const blob = new Blob([workerCode], { type: 'application/javascript' });
-        worker = new Worker(URL.createObjectURL(blob), { type: 'module' });
-        worker.onmessage = handleWorkerMessage;
-        worker.postMessage({ type: 'init', forcePresetId });
-    }
+             self.postMessage({ status: 'complete', message: finalResponse.trim(), targetId, tps: finalTps, tokens: generatedTokensCount });
+         } catch (err) {
+             if (err.message === 'Cancelled') {
+                 self.postMessage({ status: 'complete', message: '[Generation stopped]', targetId });
+             } else {
+                 self.postMessage({ status: 'error', message: err.message, targetId });
+             }
+         } finally {
+             activeAbortController = null;
+         }
+     }
+ };
+     formatted = formatted.replace(/\n/g, '<br>');
+     return formatted;
+ }
 
-    function formatBytes(bytes) {
-        if (!+bytes) return '0 Bytes';
-        const k = 1024, sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
-    }
+ function appendSystemMessage(txt, type = 'info') {
+     const div = document.createElement('div');
+     div.className = `flex justify-center message-enter`;
+     div.innerHTML = `<div class="bg-slate-900/80 text-slate-300 px-4 py-2 rounded-xl text-xs border border-slate-800 shadow flex items-center gap-2"><i class="fas fa-info-circle text-sky-400"></i> ${txt}</div>`;
+     chatContainer.appendChild(div);
+     chatContainer.scrollTop = chatContainer.scrollHeight;
+ }
 
-    function handleWorkerMessage(e) {
-        const data = e.data;
-        switch (data.status) {
-            case 'hardware-info':
-                cachedPresets = data.presets;
-                populateModelSelect(data.presets);
-                document.getElementById('info-ram').textContent = `${data.ram} GB`;
-                document.getElementById('info-gpu').textContent = data.gpuInfo.hasGpu ? 'WebGPU Enabled' : 'CPU / WASM';
-                document.getElementById('badge-backend').textContent = data.gpuInfo.hasGpu ? 'WebGPU' : 'WASM';
-                
-                if (data.gpuInfo.hasGpu) {
-                    modalGpuStatus.innerHTML = `
-                        <div class="text-emerald-400 text-xl"><i class="fas fa-circle-check"></i></div>
-                        <div>
-                            <div class="font-semibold text-slate-200 text-sm">WebGPU Accelerated</div>
-                            <div class="text-xs text-slate-400">${data.gpuInfo.vendor || 'GPU Adapter detected successfully'}</div>
-                        </div>
-                    `;
-                } else {
-                    modalGpuStatus.innerHTML = `
-                        <div class="text-sky-400 text-xl"><i class="fas fa-microchip"></i></div>
-                        <div>
-                            <div class="font-semibold text-slate-200 text-sm">WASM SIMD Engine</div>
-                            <div class="text-xs text-slate-400">${data.gpuInfo.reason || 'Running safely on CPU WebAssembly'}</div>
-                        </div>
-                    `;
-                }
-                break;
-            case 'downloading':
-                downloadContainer.classList.remove('hidden');
-                if (data.total > 0) {
-                    const percent = ((data.loaded / data.total) * 100).toFixed(1);
-                    downloadBar.style.width = `${percent}%`;
-                    downloadPercentage.textContent = `${percent}%`;
-                    downloadBytes.innerHTML = `<span>${formatBytes(data.loaded)}</span><span>${formatBytes(data.total)}</span>`;
-                    downloadText.textContent = 'Downloading Model Weights...';
-                }
-                break;
-            case 'done':
-                downloadContainer.classList.add('hidden');
-                metricsCard.classList.remove('hidden');
-                messageInput.disabled = false;
-                sendBtn.disabled = false;
-                messageInput.placeholder = "Ask JAMES anything or run tools...";
-                modalStatusMsg.textContent = `Active: ${data.model} (${data.backend.toUpperCase()})`;
-                headerModelLabel.textContent = data.backend.toUpperCase();
-                
-                if (data.presetId) {
-                    modelSelect.value = data.presetId;
-                }
-                appendSystemMessage(`Model loaded successfully: ${data.model} (${data.backend.toUpperCase()})`);
-                break;
-            case 'thinking':
-                createMessageBubble('ai', '', data.targetId);
-                updateMessageBubble(data.targetId, '<i class="fas fa-circle-notch fa-spin text-sky-400"></i> JAMES is thinking...');
-                toggleGeneratingState(true);
-                break;
-            case 'streaming':
-            case 'complete':
-                updateMessageBubble(data.targetId, parseTextAndTools(data.message));
-                if (data.tps) {
-                    document.getElementById('metric-tps').textContent = `${data.tps} tok/s`;
-                    document.getElementById('metric-tokens').textContent = data.tokens || 0;
-                }
-                chatContainer.scrollTop = chatContainer.scrollHeight;
-                if (data.status === 'complete') {
-                    toggleGeneratingState(false);
-                    messages.push({ role: 'assistant', content: data.message });
-                    checkForToolExecution(data.message, data.targetId);
-                }
-                break;
-            case 'error':
-                toggleGeneratingState(false);
-                downloadContainer.classList.add('hidden');
-                modalStatusMsg.textContent = `Error: ${data.message}`;
-                if (data.targetId) {
-                    updateMessageBubble(data.targetId, `<span class="text-red-400"><i class="fas fa-triangle-exclamation"></i> Error: ${data.message}</span>`);
-                } else {
-                    appendSystemMessage(`Engine Error: ${data.message}`, 'error');
-                }
-                break;
-        }
-    }
+ function createMessageBubble(role, htmlContent, id) {
+     const div = document.createElement('div');
+     div.id = id;
+     div.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'} message-enter`;
 
-    function toggleGeneratingState(active) {
-        isGenerating = active;
-        if (active) {
-            stopBtn.classList.remove('hidden');
-            stopBtn.classList.add('flex');
-            sendBtn.disabled = true;
-        } else {
-            stopBtn.classList.add('hidden');
-            stopBtn.classList.remove('flex');
-            sendBtn.disabled = false;
-            messageInput.disabled = false;
-            messageInput.focus();
-        }
-    }
+     const inner = document.createElement('div');
+     inner.className = `max-w-[90%] sm:max-w-[85%] md:max-w-[75%] rounded-2xl px-4 sm:px-5 py-3.5 text-sm md:text-base shadow-xl ${
+         role === 'user' 
+             ? 'bg-sky-600 text-white rounded-br-sm' 
+             : 'glass-panel text-slate-100 rounded-bl-sm border border-slate-700/60'
+     }`;
 
-    function stopGeneration() {
-        if (worker) worker.postMessage({ type: 'cancel' });
-        toggleGeneratingState(false);
-    }
+     inner.innerHTML = `<div class="content leading-relaxed">${htmlContent}</div>`;
+     div.appendChild(inner);
+     chatContainer.appendChild(div);
+     chatContainer.scrollTop = chatContainer.scrollHeight;
+ }
 
-    function populateModelSelect(presets) {
-        modelSelect.innerHTML = '';
-        presets.forEach(p => {
-            const opt = document.createElement('option');
-            opt.value = p.id;
-            opt.textContent = `${p.label} [~${p.sizeMB}MB]`;
-            modelSelect.appendChild(opt);
-        });
-    }
+ function updateMessageBubble(id, htmlContent) {
+     const el = document.getElementById(id);
+     if (el) {
+         const contentDiv = el.querySelector('.content');
+         if (contentDiv) contentDiv.innerHTML = htmlContent;
+     }
+ }
 
-    function openSettingsModal() {
-        settingsModal.classList.remove('hidden');
-    }
+ function clearChat() {
+     messages = [];
+     chatContainer.innerHTML = `
+         <div class="flex justify-center mt-4">
+             <div class="bg-sky-950/30 text-sky-300 px-4 py-2.5 rounded-2xl text-xs sm:text-sm border border-sky-800/40 flex items-center shadow-lg gap-2.5 backdrop-blur-md text-center max-w-lg message-enter">
+                 <i class="fas fa-lock text-sky-400 shrink-0"></i> Zero Server Transmission. Private LLM execution inside your browser via WebGPU & WASM.
+             </div>
+         </div>
+     `;
+ }
 
-    function closeSettingsModal() {
-        settingsModal.classList.add('hidden');
-    }
+ function toggleSidebarMobile() {
+     sidebar.classList.toggle('open');
+     sidebarBackdrop.classList.toggle('hidden');
+ }
 
-    function applyModelSettings() {
-        const selectedPresetId = modelSelect.value;
-        if (!selectedPresetId) return;
-        closeSettingsModal();
-        modalStatusMsg.textContent = 'Switching preset & reloading...';
-        appendSystemMessage(`Switching model preset...`);
-        messageInput.disabled = true;
-        sendBtn.disabled = true;
-        initWorker(selectedPresetId);
-    }
+ async function handleSend() {
+     const text = messageInput.value.trim();
+     if (!text || isGenerating) return;
 
-    async function executeTool(toolName, params) {
-        try {
-            if (toolName === 'weather') {
-                const loc = params.location || 'London';
-                return `Live Weather for ${loc}: Partly Cloudy, 22°C, Humidity: 65%, Wind: 12 km/h.`;
-            } else if (toolName === 'wikipedia') {
-                const q = params.query || 'Artificial Intelligence';
-                const res = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&format=json&origin=*`);
-                const json = await res.json();
-                if (json.query?.search?.[0]) {
-                    const snippet = json.query.search[0].snippet.replace(/<\/?[^>]+(>|$)/g, "");
-                    return `Wikipedia (${json.query.search[0].title}): ${snippet}`;
-                }
-                return `No Wikipedia results found for "${q}".`;
-            } else if (toolName === 'calculator') {
-                const expr = params.expr || '0';
-                const sanitized = expr.replace(/[^0-9+\-*/().%\s]/g, '');
-                const result = Function(`'use strict'; return (${sanitized})`)();
-                return `Calculation result: ${result}`;
-            } else if (toolName === 'time') {
-                const tz = params.timezone || 'UTC';
-                const now = new Date().toLocaleString("en-US", { timeZone: tz });
-                return `Current time in ${tz}: ${now}`;
-            } else if (toolName === 'currency') {
-                const from = (params.from || 'USD').toUpperCase();
-                const to = (params.to || 'EUR').toUpperCase();
-                const amount = parseFloat(params.amount || 1);
-                const rates = { USD: 1, EUR: 0.92, GBP: 0.79, JPY: 155.0, CAD: 1.36 };
-                const rateFrom = rates[from] || 1;
-                const rateTo = rates[to] || 1;
-                const converted = ((amount / rateFrom) * rateTo).toFixed(2);
-                return `${amount} ${from} = ${converted} ${to} (Live Edge Rate)`;
-            } else if (toolName === 'convert') {
-                const val = parseFloat(params.value || 1);
-                const from = (params.from || '').toLowerCase();
-                const to = (params.to || '').toLowerCase();
-                let res = val;
-                if (from === 'miles' && to === 'kilometers') res = val * 1.60934;
-                else if (from === 'kilometers' && to === 'miles') res = val / 1.60934;
-                return `Conversion result: ${val} ${from} = ${res.toFixed(2)} ${to}`;
-            }
-        } catch (err) {
-            return `Tool execution error: ${err.message}`;
-        }
-        return `Tool ${toolName} executed successfully.`;
-    }
+     messageInput.value = '';
+     messageInput.style.height = 'auto';
 
-    async function checkForToolExecution(text, targetId) {
-        const match = text.match(/```tool:run\s*\n([\s\S]*?)```/);
-        if (match && match[1]) {
-            const lines = match[1].trim().split('\n');
-            const toolName = lines[0].trim();
-            const params = {};
-            for (let i = 1; i < lines.length; i++) {
-                const parts = lines[i].split(':');
-                if (parts.length >= 2) {
-                    params[parts[0].trim()] = parts.slice(1).join(':').trim();
-                }
-            }
+     const userMsgId = 'msg-' + Date.now();
+     createMessageBubble('user', text.replace(/\n/g, '<br>'), userMsgId);
+     messages.push({ role: 'user', content: text });
 
-            const el = document.getElementById(targetId);
-            if (el) {
-                const contentDiv = el.querySelector('.content');
-                if (contentDiv) {
-                    contentDiv.insertAdjacentHTML('beforeend', `<div class="tool-result"><i class="fas fa-spinner fa-spin mr-1"></i> Executing ${toolName}...</div>`);
-                }
-            }
+     const aiMsgId = 'msg-' + (Date.now() + 1);
 
-            const toolOutput = await executeTool(toolName, params);
-            if (el) {
-                const contentDiv = el.querySelector('.content');
-                if (contentDiv) {
-                    contentDiv.insertAdjacentHTML('beforeend', `<div class="tool-result"><i class="fas fa-check text-emerald-400 mr-1"></i> ${toolOutput}</div>`);
-                }
-            }
+     worker.postMessage({ type: 'query', messages, targetId: aiMsgId });
+ }
 
-            messages.push({ role: 'assistant', content: `Tool result for ${toolName}: ${toolOutput}` });
-        }
-    }
+ messageInput.addEventListener('input', function() {
+     this.style.height = 'auto';
+     this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+ });
 
-    function parseTextAndTools(text) {
-        let formatted = text.replace(/```tool:run([\s\S]*?)```/g, '<div class="tool-block"><div class="text-purple-400 font-bold mb-1"><i class="fas fa-wand-magic-sparkles"></i> Tool Execution</div>$1</div>');
-        formatted = formatted.replace(/```([a-z]*)\n([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>');
-        formatted = formatted.replace(/\n/g, '<br>');
-        return formatted;
-    }
+ messageInput.addEventListener('keydown', (e) => {
+     if (e.key === 'Enter' & !e.shiftKey) {
+         e.preventDefault();
+         handleSend();
+     }
+ });
 
-    function appendSystemMessage(txt, type = 'info') {
-        const div = document.createElement('div');
-        div.className = `flex justify-center message-enter`;
-        div.innerHTML = `<div class="bg-slate-900/80 text-slate-300 px-4 py-2 rounded-xl text-xs border border-slate-800 shadow flex items-center gap-2"><i class="fas fa-info-circle text-sky-400"></i> ${txt}</div>`;
-        chatContainer.appendChild(div);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
+ sendBtn.addEventListener('click', handleSend);
 
-    function createMessageBubble(role, htmlContent, id) {
-        const div = document.createElement('div');
-        div.id = id;
-        div.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'} message-enter`;
-        
-        const inner = document.createElement('div');
-        inner.className = `max-w-[90%] sm:max-w-[85%] md:max-w-[75%] rounded-2xl px-4 sm:px-5 py-3.5 text-sm md:text-base shadow-xl ${
-            role === 'user' 
-                ? 'bg-sky-600 text-white rounded-br-sm' 
-                : 'glass-panel text-slate-100 rounded-bl-sm border border-slate-700/60'
-        }`;
-        
-        inner.innerHTML = `<div class="content leading-relaxed">${htmlContent}</div>`;
-        div.appendChild(inner);
-        chatContainer.appendChild(div);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
-
-    function updateMessageBubble(id, htmlContent) {
-        const el = document.getElementById(id);
-        if (el) {
-            const contentDiv = el.querySelector('.content');
-            if (contentDiv) contentDiv.innerHTML = htmlContent;
-        }
-    }
-
-    function clearChat() {
-        messages = [];
-        chatContainer.innerHTML = `
-            <div class="flex justify-center mt-4">
-                <div class="bg-sky-950/30 text-sky-300 px-4 py-2.5 rounded-2xl text-xs sm:text-sm border border-sky-800/40 flex items-center shadow-lg gap-2.5 backdrop-blur-md text-center max-w-lg message-enter">
-                    <i class="fas fa-lock text-sky-400 shrink-0"></i> Zero Server Transmission. Private LLM execution inside your browser via WebGPU & WASM.
-                </div>
-            </div>
-        `;
-    }
-
-    function toggleSidebarMobile() {
-        sidebar.classList.toggle('open');
-        sidebarBackdrop.classList.toggle('hidden');
-    }
-
-    async function handleSend() {
-        const text = messageInput.value.trim();
-        if (!text || isGenerating) return;
-
-        messageInput.value = '';
-        messageInput.style.height = 'auto';
-        
-        const userMsgId = 'msg-' + Date.now();
-        createMessageBubble('user', text.replace(/\n/g, '<br>'), userMsgId);
-        messages.push({ role: 'user', content: text });
-
-        const aiMsgId = 'msg-' + (Date.now() + 1);
-
-        worker.postMessage({ type: 'query', messages, targetId: aiMsgId });
-    }
-
-    messageInput.addEventListener('input', function() {
-        this.style.height = 'auto';
-        this.style.height = Math.min(this.scrollHeight, 150) + 'px';
-    });
-
-    messageInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' & !e.shiftKey) {
-            e.preventDefault();
-            handleSend();
-        }
-    });
-
-    sendBtn.addEventListener('click', handleSend);
-
-    // Start initialization on load
-    initWorker();
-</script>
+ // Start initialization on load
+ initWorker();
