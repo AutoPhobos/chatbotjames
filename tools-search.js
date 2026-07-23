@@ -6,6 +6,32 @@ const CORS_PROXIES = [
     'https://corsproxy.io/?url='
 ];
 
+/**
+ * JAMES — Search Tool Handler
+ */
+export async function executeSearch(query) {
+    try {
+        // If using an external API or fetch wrapper
+        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        if (!response.ok) {
+            throw new Error(`Search API returned status ${response.status}`);
+        }
+        const data = await response.json();
+        return {
+            success: true,
+            results: data.results || []
+        };
+    } catch (error) {
+        // Return a clean programmatic error structure, NOT conversational text
+        console.warn('Search tool execution failed:', error);
+        return {
+            success: false,
+            error: 'Search operation could not be completed at this time.',
+            results: []
+        };
+    }
+}
+
 async function fetchWithProxy(url) {
     let lastError;
     for (const proxy of CORS_PROXIES) {
@@ -13,7 +39,7 @@ async function fetchWithProxy(url) {
             const targetUrl = proxy.includes('allorigins') ? encodeURIComponent(url) : encodeURIComponent(url);
             const res = await fetch(proxy + targetUrl);
             if (!res.ok) throw new Error(`Proxy error: ${res.status}`);
-            
+
             if (proxy.includes('allorigins')) {
                 const data = await res.json();
                 if (!data.contents) throw new Error('No contents from allorigins');
@@ -38,7 +64,7 @@ export async function performWebSearch(query) {
         const html = await fetchWithProxy(`https://www.google.com/search?q=${encodeURIComponent(query)}`);
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
-        
+
         // If CAPTCHA is hit, there are no search results.
         if (doc.body.textContent.includes('systems have detected unusual traffic')) {
             throw new Error('Google Captcha blocked the proxy');
@@ -53,7 +79,7 @@ export async function performWebSearch(query) {
         for (const node of nodes) {
             const titleEl = node.querySelector('h3') || node.querySelector('.BNeawe.vvjwJb');
             const linkEl = node.querySelector('a');
-            
+
             // Find the snippet text
             let snippetText = '';
             const snippetEls = node.querySelectorAll('.VwiC3b, .BNeawe.s3v9rd');
@@ -63,7 +89,7 @@ export async function performWebSearch(query) {
                 // Fallback text extraction
                 snippetText = node.textContent.replace(titleEl?.textContent || '', '').trim().substring(0, 200);
             }
-            
+
             if (titleEl && linkEl && linkEl.getAttribute('href')) {
                 let url = linkEl.getAttribute('href');
                 if (url.startsWith('/url?q=')) {
@@ -71,7 +97,7 @@ export async function performWebSearch(query) {
                 } else if (!url.startsWith('http')) {
                     continue; // Skip relative internal google links
                 }
-                
+
                 results.push({
                     engine: 'Google',
                     title: titleEl.textContent.trim(),
@@ -81,7 +107,7 @@ export async function performWebSearch(query) {
                 if (results.length >= maxResults) break;
             }
         }
-        
+
         if (results.length > 0) return results;
     } catch (e) {
         console.warn('Google search failed, falling back to DuckDuckGo', e);
@@ -92,20 +118,20 @@ export async function performWebSearch(query) {
         const html = await fetchWithProxy(`https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`);
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
-        
+
         const resultNodes = doc.querySelectorAll('tr');
         for (let i = 0; i < resultNodes.length; i++) {
             const row = resultNodes[i];
             const titleEl = row.querySelector('.result-title');
-            
+
             if (titleEl && titleEl.href) {
                 let snippet = '';
                 if (i + 1 < resultNodes.length) {
-                    const nextRow = resultNodes[i+1];
+                    const nextRow = resultNodes[i + 1];
                     const snippetEl = nextRow.querySelector('.result-snippet');
                     if (snippetEl) snippet = snippetEl.textContent.trim();
                 }
-                
+
                 results.push({
                     engine: 'DuckDuckGo',
                     title: titleEl.textContent.trim(),
@@ -115,7 +141,7 @@ export async function performWebSearch(query) {
                 if (results.length >= maxResults) break;
             }
         }
-        
+
         if (results.length > 0) return results;
     } catch (e) {
         console.warn('DuckDuckGo search failed, falling back to Bing', e);
@@ -126,12 +152,12 @@ export async function performWebSearch(query) {
         const html = await fetchWithProxy(`https://www.bing.com/search?q=${encodeURIComponent(query)}`);
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
-        
+
         const nodes = doc.querySelectorAll('.b_algo');
         for (const node of nodes) {
             const titleEl = node.querySelector('h2 a');
             const snippetEl = node.querySelector('.b_caption p') || node.querySelector('.b_algoSlug');
-            
+
             if (titleEl && titleEl.href) {
                 results.push({
                     engine: 'Bing',
@@ -142,7 +168,7 @@ export async function performWebSearch(query) {
                 if (results.length >= maxResults) break;
             }
         }
-        
+
         if (results.length > 0) return results;
     } catch (e) {
         console.warn('Bing search failed', e);

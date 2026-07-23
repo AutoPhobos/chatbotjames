@@ -2,6 +2,20 @@
 // Handles browser APIs that workers can't access directly.
 // Import this in your main thread and call setupToolsBridge(neuralLink)
 
+import { executeSearch } from './tools-search.js';
+
+export async function handleToolCall(toolName, args) {
+    switch (toolName) {
+        case 'web_search':
+            return await executeSearch(args.query);
+        default:
+            return {
+                success: false,
+                error: `Unknown tool: ${toolName}`
+            };
+    }
+}
+
 export function setupToolsBridge(neuralLink) {
 
     // ── File drop / upload handler ─────────────────────────────────────────
@@ -55,7 +69,7 @@ async function handleFileUpload(file, neuralLink) {
     const text = await file.text();
     const prompt = `I've uploaded a file called "${file.name}". Here's its content:\n\n${text.slice(0, 8000)}${text.length > 8000 ? '\n\n[...truncated]' : ''}`;
 
-    import('./app.js').then(m => m.log(`📎 File uploaded: ${file.name} (${(file.size/1024).toFixed(1)}KB)`, 'sys'));
+    import('./app.js').then(m => m.log(`📎 File uploaded: ${file.name} (${(file.size / 1024).toFixed(1)}KB)`, 'sys'));
 
     // Inject as a user message
     neuralLink.DOM.cmd.value = prompt;
