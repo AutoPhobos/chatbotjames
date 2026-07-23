@@ -62,10 +62,10 @@ async function getWeather(params) {
     const c = w.current;
 
     const codes = {
-        0:'Clear sky',1:'Mainly clear',2:'Partly cloudy',3:'Overcast',
-        45:'Foggy',48:'Icy fog',51:'Light drizzle',53:'Drizzle',55:'Heavy drizzle',
-        61:'Light rain',63:'Rain',65:'Heavy rain',71:'Light snow',73:'Snow',75:'Heavy snow',
-        80:'Rain showers',81:'Heavy showers',82:'Violent showers',95:'Thunderstorm'
+        0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
+        45: 'Foggy', 48: 'Icy fog', 51: 'Light drizzle', 53: 'Drizzle', 55: 'Heavy drizzle',
+        61: 'Light rain', 63: 'Rain', 65: 'Heavy rain', 71: 'Light snow', 73: 'Snow', 75: 'Heavy snow',
+        80: 'Rain showers', 81: 'Heavy showers', 82: 'Violent showers', 95: 'Thunderstorm'
     };
 
     return {
@@ -163,16 +163,16 @@ function generateUUID(params) {
 
 // ── Password generator ────────────────────────────────────────────────────
 function generatePassword(params) {
-    const length   = Math.min(parseInt(params?.length ?? 16), 128);
-    const count    = Math.min(parseInt(params?.count ?? 1), 10);
-    const upper    = params?.uppercase !== false;
+    const length = Math.min(parseInt(params?.length ?? 16), 128);
+    const count = Math.min(parseInt(params?.count ?? 1), 10);
+    const upper = params?.uppercase !== false;
     // Accept both 'digits' (new handler) and 'numbers' (legacy) for compat
-    const digits   = (params?.digits ?? params?.numbers) !== false;
-    const symbols  = params?.symbols !== false;
+    const digits = (params?.digits ?? params?.numbers) !== false;
+    const symbols = params?.symbols !== false;
 
     let chars = 'abcdefghijklmnopqrstuvwxyz';
-    if (upper)   chars += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    if (digits)  chars += '0123456789';
+    if (upper) chars += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    if (digits) chars += '0123456789';
     if (symbols) chars += '!@#$%^&*()_+-=[]{}|;:,.<>?';
 
     const passwords = [];
@@ -197,28 +197,28 @@ function generatePalette(params) {
         const full = clean.length === 3
             ? clean.split('').map(c => c + c).join('')
             : clean.padEnd(6, '0');
-        let r = parseInt(full.slice(0,2),16)/255;
-        let g = parseInt(full.slice(2,4),16)/255;
-        let b = parseInt(full.slice(4,6),16)/255;
-        const max = Math.max(r,g,b), min = Math.min(r,g,b);
-        let h = 0, s = 0, l = (max+min)/2;
+        let r = parseInt(full.slice(0, 2), 16) / 255;
+        let g = parseInt(full.slice(2, 4), 16) / 255;
+        let b = parseInt(full.slice(4, 6), 16) / 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        let h = 0, s = 0, l = (max + min) / 2;
         if (max !== min) {
             const d = max - min;
-            s = l > 0.5 ? d/(2-max-min) : d/(max+min);
-            switch(max) {
-                case r: h = ((g-b)/d + (g<b?6:0))/6; break;
-                case g: h = ((b-r)/d + 2)/6; break;
-                case b: h = ((r-g)/d + 4)/6; break;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch (max) {
+                case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+                case g: h = ((b - r) / d + 2) / 6; break;
+                case b: h = ((r - g) / d + 4) / 6; break;
             }
         }
-        return [Math.round(h*360), Math.round(s*100), Math.round(l*100)];
+        return [Math.round(h * 360), Math.round(s * 100), Math.round(l * 100)];
     }
 
     function hslToHex(h, s, l) {
         s /= 100; l /= 100;
-        const a = s * Math.min(l, 1-l);
-        const f = n => { const k=(n+h/30)%12; return Math.round(255*(l-a*Math.max(-1,Math.min(k-3,9-k,1)))); };
-        return '#' + [f(0),f(8),f(4)].map(v=>v.toString(16).padStart(2,'0')).join('');
+        const a = s * Math.min(l, 1 - l);
+        const f = n => { const k = (n + h / 30) % 12; return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))); };
+        return '#' + [f(0), f(8), f(4)].map(v => v.toString(16).padStart(2, '0')).join('');
     }
 
     const [h, s, l] = hexToHsl(base);
@@ -226,15 +226,15 @@ function generatePalette(params) {
     const n = Math.max(1, parseInt(count));
 
     if (scheme === 'analogous') {
-        for (let i = 0; i < n; i++) colors.push(hslToHex((h + i*30) % 360, s, l));
+        for (let i = 0; i < n; i++) colors.push(hslToHex((h + i * 30) % 360, s, l));
     } else if (scheme === 'monochromatic') {
         const step = n > 1 ? 60 / (n - 1) : 0;
         for (let i = 0; i < n; i++) colors.push(hslToHex(h, s, Math.max(10, Math.min(90, l - 30 + i * step))));
     } else if (scheme === 'triadic') {
-        colors.push(hslToHex(h,s,l), hslToHex((h+120)%360,s,l), hslToHex((h+240)%360,s,l));
+        colors.push(hslToHex(h, s, l), hslToHex((h + 120) % 360, s, l), hslToHex((h + 240) % 360, s, l));
     } else {
         for (let i = 0; i < n; i++) {
-            colors.push(i % 2 === 0 ? hslToHex(h, s, Math.max(20, l - 10 + i*5)) : hslToHex((h+180)%360, s, l));
+            colors.push(i % 2 === 0 ? hslToHex(h, s, Math.max(20, l - 10 + i * 5)) : hslToHex((h + 180) % 360, s, l));
         }
     }
 
@@ -283,9 +283,9 @@ function dateTool(params) {
         return {
             input: date,
             iso: d.toISOString(),
-            unix: Math.floor(d.getTime()/1000),
+            unix: Math.floor(d.getTime() / 1000),
             day: d.toLocaleDateString('en-US', { weekday: 'long' }),
-            formatted: d.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' })
+            formatted: d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
         };
     }
 
@@ -389,11 +389,11 @@ const UNIT_TO_BASE = {
 
 // Unit type groups — used to detect mismatched conversions
 const UNIT_TYPES = {
-    length:  ['mm','cm','m','km','inch','in','inches','foot','feet','ft','yard','yards','yd','mile','miles','mi'],
-    weight:  ['mg','g','kg','oz','ounce','ounces','lb','lbs','pound','pounds','tonne','ton','tons'],
-    volume:  ['ml','l','liter','litre','liters','litres','gallon','gallons','gal','pint','pints','pt','cup','cups'],
-    speed:   ['km/h','kph','mph','mps','knot','knots'],
-    storage: ['b','byte','bytes','kb','kilobyte','kilobytes','mb','megabyte','megabytes','gb','gigabyte','gigabytes','tb','terabyte','terabytes'],
+    length: ['mm', 'cm', 'm', 'km', 'inch', 'in', 'inches', 'foot', 'feet', 'ft', 'yard', 'yards', 'yd', 'mile', 'miles', 'mi'],
+    weight: ['mg', 'g', 'kg', 'oz', 'ounce', 'ounces', 'lb', 'lbs', 'pound', 'pounds', 'tonne', 'ton', 'tons'],
+    volume: ['ml', 'l', 'liter', 'litre', 'liters', 'litres', 'gallon', 'gallons', 'gal', 'pint', 'pints', 'pt', 'cup', 'cups'],
+    speed: ['km/h', 'kph', 'mph', 'mps', 'knot', 'knots'],
+    storage: ['b', 'byte', 'bytes', 'kb', 'kilobyte', 'kilobytes', 'mb', 'megabyte', 'megabytes', 'gb', 'gigabyte', 'gigabytes', 'tb', 'terabyte', 'terabytes'],
 };
 
 function getUnitType(unit) {
@@ -407,23 +407,23 @@ function getUnitType(unit) {
 function convertUnits(params) {
     const { amount, from, to, fromType } = params;
     const fromKey = from.toLowerCase();
-    const toKey   = to.toLowerCase();
+    const toKey = to.toLowerCase();
 
     // ── Temperature (special: not ratio-based) ──────────────────────────
     const tempNames = { celsius: 'C', c: 'C', fahrenheit: 'F', f: 'F', kelvin: 'K', k: 'K' };
     const fromTemp = tempNames[fromKey];
-    const toTemp   = tempNames[toKey];
+    const toTemp = tempNames[toKey];
 
     if (fromTemp || toTemp) {
         if (!fromTemp || !toTemp) throw new Error(`Mixed temperature/non-temperature units`);
         let celsius;
         if (fromTemp === 'C') celsius = amount;
-        else if (fromTemp === 'F') celsius = (amount - 32) * 5/9;
+        else if (fromTemp === 'F') celsius = (amount - 32) * 5 / 9;
         else celsius = amount - 273.15; // K
 
         let result;
         if (toTemp === 'C') result = celsius;
-        else if (toTemp === 'F') result = celsius * 9/5 + 32;
+        else if (toTemp === 'F') result = celsius * 9 / 5 + 32;
         else result = celsius + 273.15; // K
 
         return {
@@ -435,12 +435,12 @@ function convertUnits(params) {
 
     // ── Ratio-based units ─────────────────────────────────────────────────
     const fromFactor = UNIT_TO_BASE[fromKey];
-    const toFactor   = UNIT_TO_BASE[toKey];
+    const toFactor = UNIT_TO_BASE[toKey];
     if (!fromFactor) throw new Error(`Unknown unit: ${from}`);
-    if (!toFactor)   throw new Error(`Unknown unit: ${to}`);
+    if (!toFactor) throw new Error(`Unknown unit: ${to}`);
 
     const fromTypeResolved = fromType ?? getUnitType(fromKey);
-    const toTypeResolved   = getUnitType(toKey);
+    const toTypeResolved = getUnitType(toKey);
     if (fromTypeResolved && toTypeResolved && fromTypeResolved !== toTypeResolved) {
         throw new Error(`Incompatible units: "${from}" (${fromTypeResolved}) ≠ "${to}" (${toTypeResolved})`);
     }
@@ -459,23 +459,23 @@ function countdownTool(params) {
 
     // Attempt to resolve well-known named dates for the current year
     const namedDates = {
-        'christmas':      `${new Date().getFullYear()}-12-25`,
-        'new year':       `${new Date().getFullYear() + 1}-01-01`,
-        "new year's":     `${new Date().getFullYear() + 1}-01-01`,
+        'christmas': `${new Date().getFullYear()}-12-25`,
+        'new year': `${new Date().getFullYear() + 1}-01-01`,
+        "new year's": `${new Date().getFullYear() + 1}-01-01`,
         "new year's day": `${new Date().getFullYear() + 1}-01-01`,
-        'halloween':      `${new Date().getFullYear()}-10-31`,
-        'valentine':      `${new Date().getFullYear()}-02-14`,
-        "valentine's day":`${new Date().getFullYear()}-02-14`,
-        'thanksgiving':   (() => {
+        'halloween': `${new Date().getFullYear()}-10-31`,
+        'valentine': `${new Date().getFullYear()}-02-14`,
+        "valentine's day": `${new Date().getFullYear()}-02-14`,
+        'thanksgiving': (() => {
             // 4th Thursday of November
             const y = new Date().getFullYear();
             const nov1 = new Date(y, 10, 1);
             const thu = (11 - nov1.getDay()) % 7;
-            return new Date(y, 10, 1 + thu + 21).toISOString().slice(0,10);
+            return new Date(y, 10, 1 + thu + 21).toISOString().slice(0, 10);
         })(),
         'independence day': `${new Date().getFullYear()}-07-04`,
-        'july 4':           `${new Date().getFullYear()}-07-04`,
-        "new year's eve":   `${new Date().getFullYear()}-12-31`,
+        'july 4': `${new Date().getFullYear()}-07-04`,
+        "new year's eve": `${new Date().getFullYear()}-12-31`,
     };
 
     const key = target.toLowerCase().trim();
@@ -490,16 +490,16 @@ function countdownTool(params) {
         targetDate.setFullYear(targetDate.getFullYear() + 1);
     }
 
-    const diffMs   = targetDate - now;
-    const isPast   = diffMs < 0;
-    const absDiff  = Math.abs(diffMs);
-    const days     = Math.floor(absDiff / 86400000);
-    const hours    = Math.floor((absDiff % 86400000) / 3600000);
-    const minutes  = Math.floor((absDiff % 3600000) / 60000);
+    const diffMs = targetDate - now;
+    const isPast = diffMs < 0;
+    const absDiff = Math.abs(diffMs);
+    const days = Math.floor(absDiff / 86400000);
+    const hours = Math.floor((absDiff % 86400000) / 3600000);
+    const minutes = Math.floor((absDiff % 3600000) / 60000);
 
     return {
         target,
-        date: targetDate.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' }),
+        date: targetDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
         days,
         hours,
         minutes,
@@ -543,59 +543,59 @@ function colorTool(params) {
 
     function hexToRgb(h) {
         const clean = h.replace(/^#/, '').padEnd(6, '0');
-        const full  = clean.length === 3
+        const full = clean.length === 3
             ? clean.split('').map(c => c + c).join('')
             : clean;
         return {
-            r: parseInt(full.slice(0,2), 16),
-            g: parseInt(full.slice(2,4), 16),
-            b: parseInt(full.slice(4,6), 16)
+            r: parseInt(full.slice(0, 2), 16),
+            g: parseInt(full.slice(2, 4), 16),
+            b: parseInt(full.slice(4, 6), 16)
         };
     }
 
     function rgbToHex(r, g, b) {
-        return '#' + [r,g,b].map(v => Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');
+        return '#' + [r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
     }
 
     function rgbToHsl(r, g, b) {
         r /= 255; g /= 255; b /= 255;
-        const max = Math.max(r,g,b), min = Math.min(r,g,b);
-        let h = 0, s = 0, l = (max+min)/2;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        let h = 0, s = 0, l = (max + min) / 2;
         if (max !== min) {
             const d = max - min;
-            s = l > 0.5 ? d/(2-max-min) : d/(max+min);
-            switch(max) {
-                case r: h = ((g-b)/d + (g<b?6:0))/6; break;
-                case g: h = ((b-r)/d + 2)/6; break;
-                case b: h = ((r-g)/d + 4)/6; break;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch (max) {
+                case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+                case g: h = ((b - r) / d + 2) / 6; break;
+                case b: h = ((r - g) / d + 4) / 6; break;
             }
         }
-        return { h: Math.round(h*360), s: Math.round(s*100), l: Math.round(l*100) };
+        return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
     }
 
     function rgbToHsv(r, g, b) {
         r /= 255; g /= 255; b /= 255;
-        const max = Math.max(r,g,b), min = Math.min(r,g,b), d = max - min;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
         let h = 0;
         if (d !== 0) {
-            switch(max) {
-                case r: h = ((g-b)/d % 6) * 60; break;
-                case g: h = ((b-r)/d + 2) * 60; break;
-                case b: h = ((r-g)/d + 4) * 60; break;
+            switch (max) {
+                case r: h = ((g - b) / d % 6) * 60; break;
+                case g: h = ((b - r) / d + 2) * 60; break;
+                case b: h = ((r - g) / d + 4) * 60; break;
             }
         }
-        return { h: Math.round(h < 0 ? h+360 : h), s: Math.round(max ? (d/max)*100 : 0), v: Math.round(max*100) };
+        return { h: Math.round(h < 0 ? h + 360 : h), s: Math.round(max ? (d / max) * 100 : 0), v: Math.round(max * 100) };
     }
 
     function rgbToCmyk(r, g, b) {
         r /= 255; g /= 255; b /= 255;
-        const k = 1 - Math.max(r,g,b);
-        if (k === 1) return { c:0, m:0, y:0, k:100 };
+        const k = 1 - Math.max(r, g, b);
+        if (k === 1) return { c: 0, m: 0, y: 0, k: 100 };
         return {
-            c: Math.round(((1-r-k)/(1-k))*100),
-            m: Math.round(((1-g-k)/(1-k))*100),
-            y: Math.round(((1-b-k)/(1-k))*100),
-            k: Math.round(k*100)
+            c: Math.round(((1 - r - k) / (1 - k)) * 100),
+            m: Math.round(((1 - g - k) / (1 - k)) * 100),
+            y: Math.round(((1 - b - k) / (1 - k)) * 100),
+            k: Math.round(k * 100)
         };
     }
 
@@ -608,15 +608,15 @@ function colorTool(params) {
         throw new Error(`Unknown color mode: ${mode}`);
     }
 
-    const hsl  = rgbToHsl(rgb.r, rgb.g, rgb.b);
-    const hsv  = rgbToHsv(rgb.r, rgb.g, rgb.b);
+    const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+    const hsv = rgbToHsv(rgb.r, rgb.g, rgb.b);
     const cmyk = rgbToCmyk(rgb.r, rgb.g, rgb.b);
 
     return {
-        hex:  rgbToHex(rgb.r, rgb.g, rgb.b),
-        rgb:  `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`,
-        hsl:  `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`,
-        hsv:  `hsv(${hsv.h}, ${hsv.s}%, ${hsv.v}%)`,
+        hex: rgbToHex(rgb.r, rgb.g, rgb.b),
+        rgb: `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`,
+        hsl: `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`,
+        hsv: `hsv(${hsv.h}, ${hsv.s}%, ${hsv.v}%)`,
         cmyk: `cmyk(${cmyk.c}%, ${cmyk.m}%, ${cmyk.y}%, ${cmyk.k}%)`,
         values: { rgb, hsl, hsv, cmyk }
     };
@@ -638,9 +638,9 @@ async function hashTool(params) {
     const subtleAlgo = algoMap[algo];
     if (!subtleAlgo) throw new Error(`Unknown algorithm: ${algorithm}`);
 
-    const data   = new TextEncoder().encode(value);
+    const data = new TextEncoder().encode(value);
     const buffer = await crypto.subtle.digest(subtleAlgo, data);
-    const hex    = Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2,'0')).join('');
+    const hex = Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 
     return { algorithm: subtleAlgo, input: value, hash: hex };
 }
@@ -662,8 +662,8 @@ function randomTool(params) {
     }
 
     if (mode === 'dice') {
-        const n  = Math.min(parseInt(count), 100);
-        const s  = Math.min(parseInt(sides), 1000);
+        const n = Math.min(parseInt(count), 100);
+        const s = Math.min(parseInt(sides), 1000);
         const rolls = Array.from({ length: n }, () => Math.floor(Math.random() * s) + 1);
         const total = rolls.reduce((a, b) => a + b, 0);
         return { mode: 'dice', dice: `${n}d${s}`, rolls, total };
@@ -694,16 +694,16 @@ async function ipTool(params) {
     if (d.error) throw new Error(d.reason ?? `IP lookup error: ${d.error}`);
 
     return {
-        ip:           d.ip,
-        city:         d.city,
-        region:       d.region,
-        country:      d.country_name,
+        ip: d.ip,
+        city: d.city,
+        region: d.region,
+        country: d.country_name,
         country_code: d.country_code,
-        postal:       d.postal,
-        latitude:     d.latitude,
-        longitude:    d.longitude,
-        timezone:     d.timezone,
-        isp:          d.org,
+        postal: d.postal,
+        latitude: d.latitude,
+        longitude: d.longitude,
+        timezone: d.timezone,
+        isp: d.org,
     };
 }
 
@@ -715,32 +715,33 @@ self.onmessage = async (e) => {
         let result;
 
         switch (tool) {
-            case 'help':  result = helpTool(params); break;
+            case 'help': result = helpTool(params); break;
             // ── Original tools ──────────────────────────────────────────
-            case 'weather':     result = await getWeather(params);    break;
-            case 'websearch':   result = await getWebSearch(params);  break;
-            case 'wikipedia':   result = await getWikipedia(params);  break;
-            case 'currency':    result = await getCurrency(params);   break;
-            case 'time':        result = await getTime(params);       break;
-            case 'uuid':        result = generateUUID(params);        break;
-            case 'password':    result = generatePassword(params);    break;
-            case 'palette':     result = generatePalette(params);     break;
-            case 'date':        result = dateTool(params);            break;
-            case 'file':        result = readFile(params);            break;
-            case 'location':    result = getLocation(params);         break;
-            case 'clipboard':   result = readClipboard(params);       break;
-            case 'timer':       result = timerTool(params);           break;
-            case 'search':      result = await searchIndex(params);   break;
-            case 'index':       result = await indexDocument(params); break;
+            case 'weather': result = await getWeather(params); break;
+            case 'websearch': result = await getWebSearch(params); break;
+            case 'web_search': result = await getWebSearch(params); break;
+            case 'wikipedia': result = await getWikipedia(params); break;
+            case 'currency': result = await getCurrency(params); break;
+            case 'time': result = await getTime(params); break;
+            case 'uuid': result = generateUUID(params); break;
+            case 'password': result = generatePassword(params); break;
+            case 'palette': result = generatePalette(params); break;
+            case 'date': result = dateTool(params); break;
+            case 'file': result = readFile(params); break;
+            case 'location': result = getLocation(params); break;
+            case 'clipboard': result = readClipboard(params); break;
+            case 'timer': result = timerTool(params); break;
+            case 'search': result = await searchIndex(params); break;
+            case 'index': result = await indexDocument(params); break;
             // ── New tools ───────────────────────────────────────────────
-            case 'calculator':  result = calculatorTool(params);      break;
-            case 'convert':     result = convertUnits(params);        break;
-            case 'countdown':   result = countdownTool(params);       break;
-            case 'base64':      result = base64Tool(params);          break;
-            case 'color':       result = colorTool(params);           break;
-            case 'hash':        result = await hashTool(params);      break;
-            case 'random':      result = randomTool(params);          break;
-            case 'ip':          result = await ipTool(params);        break;
+            case 'calculator': result = calculatorTool(params); break;
+            case 'convert': result = convertUnits(params); break;
+            case 'countdown': result = countdownTool(params); break;
+            case 'base64': result = base64Tool(params); break;
+            case 'color': result = colorTool(params); break;
+            case 'hash': result = await hashTool(params); break;
+            case 'random': result = randomTool(params); break;
+            case 'ip': result = await ipTool(params); break;
             default: throw new Error(`Unknown tool: ${tool}`);
         }
 
