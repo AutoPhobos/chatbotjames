@@ -1,5 +1,6 @@
 import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0';
 
+// --- CONFIGURATION ---
 env.allowLocalModels = false;
 env.useBrowserCache = false;
 const DOWNLOAD_CACHE = 'JAMES-model-cache-v4';
@@ -170,7 +171,7 @@ async function customFetch(resource, init = {}) {
 
 let chatbot;
 
-const systemPrompt = `You are JAMES (just a machine engineered for speech), an advanced AI assistant and edge agent.
+const systemPrompt = `You are JAMES (just a machine engineered for speech), an advanced AI assistant and a friend.
 
 You have access to the following tools:
 - weather (params: location)
@@ -182,7 +183,7 @@ You have access to the following tools:
 
 CRITICAL RULES:
 1. ONLY call a tool if you absolutely need real-time or external data (weather, calculations, currency, time, facts).
-2. If the user is just chatting, reply directly in plain text.
+2. If the user is just chatting or being friendly, reply directly in plain text.
 3. If you MUST use a tool, output exactly this code block and nothing else:
 \`\`\`tool:run
 [tool_name]
@@ -232,23 +233,32 @@ async function initializeModel(provider, dtype, model) {
 }
 
 const MODEL_PRESETS = [
-    { id: 'gpu-qwen3-06b-q4f16',   label: 'Qwen3 0.6B (WebGPU)',        backend: 'webgpu', model: 'onnx-community/Qwen3-0.6B-ONNX',            dtype: 'q4f16', requires: 'gpu', sizeMB: 350 },
-    { id: 'gpu-qwen25-05b-q4f16',   label: 'Qwen2.5 0.5B (WebGPU)',      backend: 'webgpu', model: 'onnx-community/Qwen2.5-0.5B-Instruct',          dtype: 'q4f16', requires: 'gpu', sizeMB: 400 },
-    { id: 'gpu-smollm2-1.7b-q4f16', label: 'SmolLM2 1.7B (WebGPU)',      backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct',           dtype: 'q4f16', requires: 'gpu', sizeMB: 950 },
-    { id: 'gpu-gemma3-1b-q4f16',    label: 'Gemma 3 1B (WebGPU)',        backend: 'webgpu', model: 'onnx-community/gemma-3-1b-it',                  dtype: 'q4f16', requires: 'gpu', sizeMB: 600 },
-    { id: 'gpu-llama32-1b-q4f16',   label: 'Llama 3.2 1B (WebGPU)',      backend: 'webgpu', model: 'onnx-community/Llama-3.2-1B-Instruct',          dtype: 'q4f16', requires: 'gpu', sizeMB: 750 },
-    { id: 'gpu-qwen25-15b-q4f16',   label: 'Qwen2.5 1.5B (WebGPU)',      backend: 'webgpu', model: 'onnx-community/Qwen2.5-1.5B-Instruct',          dtype: 'q4f16', requires: 'gpu', sizeMB: 950 },
-    { id: 'gpu-deepseek-15b-q4f16', label: 'DeepSeek-R1 1.5B (WebGPU)',  backend: 'webgpu', model: 'onnx-community/DeepSeek-R1-Distill-Qwen-1.5B', dtype: 'q4f16', requires: 'gpu', sizeMB: 1000 },
-    { id: 'gpu-llama32-3b-q4f16',   label: 'Llama 3.2 3B (WebGPU)',      backend: 'webgpu', model: 'onnx-community/Llama-3.2-3B-Instruct',          dtype: 'q4f16', requires: 'gpu', sizeMB: 2100 },
-    { id: 'gpu-phi35-mini-q4f16',   label: 'Phi-3.5-mini 3.8B (WebGPU)', backend: 'webgpu', model: 'onnx-community/Phi-3.5-mini-instruct',          dtype: 'q4f16', requires: 'gpu', sizeMB: 2200 },
-    { id: 'cpu-llama32-1b-q4',     label: 'Llama 3.2 1B (WASM)',          backend: 'wasm',   model: 'onnx-community/Llama-3.2-1B-Instruct',          dtype: 'q4',    requires: 'cpu', sizeMB: 650 },
-    { id: 'cpu-tinyllama-q4',      label: 'TinyLlama 1.1B (WASM)',        backend: 'wasm',   model: 'Xenova/TinyLlama-1.1B-Chat-v1.0',               dtype: 'q4',    requires: 'cpu', sizeMB: 600 },
-    { id: 'cpu-qwen25-05b-q4',     label: 'Qwen2.5 0.5B (WASM)',          backend: 'wasm',   model: 'onnx-community/Qwen2.5-0.5B-Instruct',          dtype: 'q4',    requires: 'cpu', sizeMB: 400 },
-    { id: 'lite-smollm-135m-q8',   label: 'SmolLM2 135M q8 (Lite)',       backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-135M-Instruct',           dtype: 'q8',    requires: 'cpu', sizeMB: 150 },
-    { id: 'lite-smollm-135m-q4',   label: 'SmolLM2 135M q4 (Lite)',       backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-135M-Instruct',           dtype: 'q4',    requires: 'cpu', sizeMB: 90 }
+    { id: 'lite-smollm-135m-q4',   label: 'SmolLM2 135M q4 (Safe Mobile)', backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-135M-Instruct',           dtype: 'q4',    requires: 'cpu', sizeMB: 90 },
+    { id: 'lite-smollm-135m-q8',   label: 'SmolLM2 135M q8 (Lite)',         backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-135M-Instruct',           dtype: 'q8',    requires: 'cpu', sizeMB: 150 },
+    { id: 'gpu-qwen3-06b-q4f16',   label: 'Qwen3 0.6B (WebGPU)',          backend: 'webgpu', model: 'onnx-community/Qwen3-0.6B-ONNX',            dtype: 'q4f16', requires: 'gpu', sizeMB: 350 },
+    { id: 'gpu-qwen25-05b-q4f16',   label: 'Qwen2.5 0.5B (WebGPU)',        backend: 'webgpu', model: 'onnx-community/Qwen2.5-0.5B-Instruct',          dtype: 'q4f16', requires: 'gpu', sizeMB: 400 },
+    { id: 'gpu-smollm2-1.7b-q4f16', label: 'SmolLM2 1.7B (WebGPU)',        backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct',           dtype: 'q4f16', requires: 'gpu', sizeMB: 950 },
+    { id: 'gpu-gemma3-1b-q4f16',    label: 'Gemma 3 1B (WebGPU)',          backend: 'webgpu', model: 'onnx-community/gemma-3-1b-it',                  dtype: 'q4f16', requires: 'gpu', sizeMB: 600 },
+    { id: 'gpu-llama32-1b-q4f16',   label: 'Llama 3.2 1B (WebGPU)',        backend: 'webgpu', model: 'onnx-community/Llama-3.2-1B-Instruct',          dtype: 'q4f16', requires: 'gpu', sizeMB: 750 },
+    { id: 'gpu-qwen25-15b-q4f16',   label: 'Qwen2.5 1.5B (WebGPU)',        backend: 'webgpu', model: 'onnx-community/Qwen2.5-1.5B-Instruct',          dtype: 'q4f16', requires: 'gpu', sizeMB: 950 },
+    { id: 'gpu-deepseek-15b-q4f16', label: 'DeepSeek-R1 1.5B (WebGPU)',    backend: 'webgpu', model: 'onnx-community/DeepSeek-R1-Distill-Qwen-1.5B', dtype: 'q4f16', requires: 'gpu', sizeMB: 1000 },
+    { id: 'gpu-llama32-3b-q4f16',   label: 'Llama 3.2 3B (WebGPU)',        backend: 'webgpu', model: 'onnx-community/Llama-3.2-3B-Instruct',          dtype: 'q4f16', requires: 'gpu', sizeMB: 2100 },
+    { id: 'gpu-phi35-mini-q4f16',   label: 'Phi-3.5-mini 3.8B (WebGPU)',   backend: 'webgpu', model: 'onnx-community/Phi-3.5-mini-instruct',          dtype: 'q4f16', requires: 'gpu', sizeMB: 2200 },
+    { id: 'cpu-llama32-1b-q4',     label: 'Llama 3.2 1B (WASM)',            backend: 'wasm',   model: 'onnx-community/Llama-3.2-1B-Instruct',          dtype: 'q4',    requires: 'cpu', sizeMB: 650 },
+    { id: 'cpu-tinyllama-q4',      label: 'TinyLlama 1.1B (WASM)',          backend: 'wasm',   model: 'Xenova/TinyLlama-1.1B-Chat-v1.0',               dtype: 'q4',    requires: 'cpu', sizeMB: 600 },
+    { id: 'cpu-qwen25-05b-q4',     label: 'Qwen2.5 0.5B (WASM)',            backend: 'wasm',   model: 'onnx-community/Qwen2.5-0.5B-Instruct',          dtype: 'q4',    requires: 'cpu', sizeMB: 400 }
 ];
 
+function isMobileDevice() {
+    const ua = navigator.userAgent;
+    const isMobileUA = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua);
+    const isNarrowScreen = self.screen && self.screen.width < 1024;
+    const hasTouchPoints = navigator.maxTouchPoints > 1;
+    return isMobileUA || (hasTouchPoints && isNarrowScreen);
+}
+
 async function detectGpu() {
+    if (isMobileDevice()) return { hasGpu: false, reason: 'Mobile device forced to WASM lite mode for stability' };
     if (!navigator.gpu) return { hasGpu: false };
     try {
         const adapter = await navigator.gpu.requestAdapter();
@@ -274,14 +284,20 @@ self.onmessage = async (e) => {
         try {
             const gpuInfo = await detectGpu();
             const ram = navigator.deviceMemory || 4;
-            self.postMessage({ status: 'hardware-info', gpuInfo, ram, presets: MODEL_PRESETS });
+            const mobile = isMobileDevice();
 
-            let targetPreset = MODEL_PRESETS[0];
+            // Immediately notify UI of hardware capabilities & preset list
+            self.postMessage({ status: 'hardware-info', gpuInfo, ram, mobile, presets: MODEL_PRESETS });
+
+            let targetPreset = MODEL_PRESETS[0]; // Default to safe mobile lite model
+            
             if (forcePresetId) {
                 const found = MODEL_PRESETS.find(p => p.id === forcePresetId);
                 if (found) targetPreset = found;
-            } else if (!gpuInfo.hasGpu) {
-                targetPreset = MODEL_PRESETS.find(p => p.backend === 'wasm') || MODEL_PRESETS[0];
+            } else if (!mobile && gpuInfo.hasGpu) {
+                targetPreset = MODEL_PRESETS.find(p => p.id === 'gpu-qwen3-06b-q4f16') || MODEL_PRESETS[2];
+            } else if (!mobile) {
+                targetPreset = MODEL_PRESETS.find(p => p.backend === 'wasm' && !p.id.startsWith('lite-')) || MODEL_PRESETS[0];
             }
 
             chatbot = await initializeModel(targetPreset.backend, targetPreset.dtype, targetPreset.model);
