@@ -195,12 +195,24 @@ body {
 .user-msg .message-content { 
     background: var(--primary-purple); 
     color: #fff;
+    animation: slideInRight 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 .assistant-msg .message-content { 
     color: var(--text-primary); 
     background: var(--assistant-bubble); 
     border: 1px solid var(--border);
+    animation: slideInLeft 0.36s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes slideInRight {
+    from { opacity: 0; transform: translateX(20px) scale(0.96); }
+    to   { opacity: 1; transform: translateX(0)    scale(1); }
+}
+
+@keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-20px) scale(0.96); }
+    to   { opacity: 1; transform: translateX(0)     scale(1); }
 }
 
 /* --- REDESIGNED INPUT AREA --- */
@@ -290,6 +302,14 @@ body {
 }
 
 @keyframes pulse { 50% { opacity: 0.4; } }
+
+/* Send button ripple on click */
+@keyframes sendPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.6); }
+    70%  { box-shadow: 0 0 0 12px rgba(59, 130, 246, 0); }
+    100% { box-shadow: 0 0 0 0   rgba(59, 130, 246, 0); }
+}
+#sendBtn.sending { animation: sendPulse 0.5s ease-out; }
 
 .status-meta {
     font-size: 10px;

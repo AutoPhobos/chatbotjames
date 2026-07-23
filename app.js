@@ -1,5 +1,39 @@
 import { smallTalk } from './smalltalk.js';
 import { toolRouter } from './tool-router.js';
+
+// ─── Sound Engine (Web Audio API, no external files) ─────────────────────────
+const _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function _playTone({ freq = 440, type = 'sine', gainPeak = 0.18, duration = 0.12, rampUp = 0.01, rampDown = 0.10 } = {}) {
+    try {
+        const osc  = _audioCtx.createOscillator();
+        const gain = _audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(_audioCtx.destination);
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, _audioCtx.currentTime);
+        gain.gain.setValueAtTime(0, _audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(gainPeak, _audioCtx.currentTime + rampUp);
+        gain.gain.exponentialRampToValueAtTime(0.0001, _audioCtx.currentTime + duration);
+        osc.start(_audioCtx.currentTime);
+        osc.stop(_audioCtx.currentTime + duration + 0.02);
+    } catch (e) { /* silently ignore if AudioContext not ready */ }
+}
+
+// Soft blip when user sends a message
+function playSendSound() {
+    if (_audioCtx.state === 'suspended') _audioCtx.resume();
+    _playTone({ freq: 880, type: 'sine', gainPeak: 0.10, duration: 0.10, rampUp: 0.005, rampDown: 0.09 });
+}
+
+// Pleasant two-note chime when JAMES finishes responding
+function playDoneSound() {
+    if (_audioCtx.state === 'suspended') _audioCtx.resume();
+    _playTone({ freq: 523.25, type: 'sine', gainPeak: 0.10, duration: 0.18, rampUp: 0.01 }); // C5
+    setTimeout(() => _playTone({ freq: 783.99, type: 'sine', gainPeak: 0.08, duration: 0.22, rampUp: 0.01 }), 120); // G5
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Initialize Workers
 const worker = new Worker('worker.js', { type: 'module' });
 const toolsWorker = new Worker('tools-worker.js', { type: 'module' });
@@ -81,6 +115,7 @@ worker.onmessage = (e) => {
         setIdleState(true);
         updateStatusLight('idle');
         if (statusText) statusText.textContent = 'READY';
+        if (status !== 'error') playDoneSound();
     } else {
         setIdleState(false);
         updateStatusLight('thinking');
@@ -537,6 +572,11 @@ function sendMessage() {
     chatHistory.push({ role: 'user', content: text });
     appendUserMessage(text);
     cmdInput.value = '';
+
+    // Sound + visual ripple on send
+    playSendSound();
+    sendBtn.classList.add('sending');
+    sendBtn.addEventListener('animationend', () => sendBtn.classList.remove('sending'), { once: true });
 
     if (currentChatId) {
         const chat = allChats.find(c => c.id === currentChatId);
