@@ -8,13 +8,19 @@ const aiWorker = new Worker('worker.js');
 aiWorker.onmessage = function (e) {
   const { type, payload } = e.data;
   switch (type) {
+    case 'PROGRESS':
+      statusBadge.textContent = `Initializing Engine (${payload}%)...`;
+      statusBadge.className = 'badge loading';
+      break;
     case 'MODEL_READY':
       statusBadge.textContent = 'Engine Ready (WebGPU)';
       statusBadge.className = 'badge ready';
+      enableChat();
       break;
     case 'MODEL_READY_SIMULATED':
       statusBadge.textContent = 'Engine Ready (Simulated)';
       statusBadge.className = 'badge ready';
+      enableChat();
       break;
     case 'STREAM_START':
       appendMessage('assistant', '');
@@ -29,6 +35,12 @@ aiWorker.onmessage = function (e) {
       break;
   }
 };
+
+function enableChat() {
+  userInput.disabled = false;
+  userInput.placeholder = 'Message local JAMES instance...';
+  sendBtn.disabled = false;
+}
 
 aiWorker.postMessage({
   type: 'INIT_MODEL',
@@ -53,6 +65,7 @@ function updateLastMessage(text) {
 }
 
 async function handleSend() {
+  if (userInput.disabled) return;
   const text = userInput.value.trim();
   if (!text) return;
 
