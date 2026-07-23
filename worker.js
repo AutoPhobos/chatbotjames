@@ -317,26 +317,23 @@ function isTVDevice() {
 
 const MODEL_PRESETS = [
     // ── GPU · WebGPU ───────────────────────────────────────────────────────
-    // dtype 'q4f16' = 4-bit quantized weights with fp16 activations.
-    // This is the correct dtype for WebGPU — confirmed by official transformers.js docs.
-    // 'q4' also works but 'q4f16' is faster on Nvidia (uses native fp16 compute units).
-    { id: 'gpu-qwen25-05b-q4f16',   label: 'Qwen2.5 0.5B',      backend: 'webgpu', model: 'onnx-community/Qwen2.5-0.5B-Instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 400,  ram: '2 GB' },
-    { id: 'gpu-smollm-17b-q4f16',   label: 'SmolLM2 1.7B',      backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct',           dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 950,  ram: '3 GB' },
-    { id: 'gpu-llama32-1b-q4f16',   label: 'Llama 3.2 1B',      backend: 'webgpu', model: 'onnx-community/Llama-3.2-1B-Instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 750,  ram: '3 GB' },
-    { id: 'gpu-qwen25-15b-q4f16',   label: 'Qwen2.5 1.5B',      backend: 'webgpu', model: 'onnx-community/Qwen2.5-1.5B-Instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 950,  ram: '4 GB' },
-    { id: 'gpu-llama32-3b-q4f16',   label: 'Llama 3.2 3B',      backend: 'webgpu', model: 'onnx-community/Llama-3.2-3B-Instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 2100, ram: '6 GB' },
-    { id: 'gpu-gemma3-1b-q4f16',    label: 'Gemma 3 1B',        backend: 'webgpu', model: 'onnx-community/gemma-3-1b-it',                  dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 600,  ram: '3 GB' },
-    { id: 'gpu-deepseek-15b-q4f16', label: 'DeepSeek-R1 1.5B',  backend: 'webgpu', model: 'onnx-community/DeepSeek-R1-Distill-Qwen-1.5B', dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 1000, ram: '4 GB' },
-    { id: 'gpu-phi35-mini-q4f16',   label: 'Phi-3.5-mini 3.8B', backend: 'webgpu', model: 'onnx-community/Phi-3.5-mini-instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 2200, ram: '8 GB' },
+    { id: 'gpu-qwen25-05b-q4f16',   label: 'Qwen2.5 0.5B',      backend: 'webgpu', model: 'onnx-community/Qwen2.5-0.5B-Instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 400,  ram: '2 GB', params: 0.5 },
+    { id: 'gpu-smollm-17b-q4f16',   label: 'SmolLM2 1.7B',      backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct',           dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 950,  ram: '3 GB', params: 1.7 },
+    { id: 'gpu-llama32-1b-q4f16',   label: 'Llama 3.2 1B',      backend: 'webgpu', model: 'onnx-community/Llama-3.2-1B-Instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 750,  ram: '3 GB', params: 1.2 },
+    { id: 'gpu-qwen25-15b-q4f16',   label: 'Qwen2.5 1.5B',      backend: 'webgpu', model: 'onnx-community/Qwen2.5-1.5B-Instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 950,  ram: '4 GB', params: 1.5 },
+    { id: 'gpu-llama32-3b-q4f16',   label: 'Llama 3.2 3B',      backend: 'webgpu', model: 'onnx-community/Llama-3.2-3B-Instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: true,  sizeMB: 2100, ram: '6 GB', params: 3.2 },
+    { id: 'gpu-gemma3-1b-q4f16',    label: 'Gemma 3 1B',        backend: 'webgpu', model: 'onnx-community/gemma-3-1b-it',                  dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 600,  ram: '3 GB', params: 1.0 },
+    { id: 'gpu-deepseek-15b-q4f16', label: 'DeepSeek-R1 1.5B',  backend: 'webgpu', model: 'onnx-community/DeepSeek-R1-Distill-Qwen-1.5B', dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 1000, ram: '4 GB', params: 1.5 },
+    { id: 'gpu-phi35-mini-q4f16',   label: 'Phi-3.5-mini 3.8B', backend: 'webgpu', model: 'onnx-community/Phi-3.5-mini-instruct',          dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 2200, ram: '8 GB', params: 3.8 },
     // ── CPU · WASM ─────────────────────────────────────────────────────────
-    { id: 'cpu-llama32-1b-q4',   label: 'Llama 3.2 1B',         backend: 'wasm',   model: 'onnx-community/Llama-3.2-1B-Instruct',          dtype: 'q4', requires: 'cpu', autoSelect: true,  sizeMB: 650,  ram: '2 GB' },
-    { id: 'cpu-tinyllama-q4',    label: 'TinyLlama 1.1B',       backend: 'wasm',   model: 'Xenova/TinyLlama-1.1B-Chat-v1.0',               dtype: 'q4', requires: 'cpu', autoSelect: true,  sizeMB: 600,  ram: '2 GB' },
-    { id: 'cpu-tinyllama-q8',    label: 'TinyLlama 1.1B q8',    backend: 'wasm',   model: 'Xenova/TinyLlama-1.1B-Chat-v1.0',               dtype: 'q8', requires: 'cpu', autoSelect: true,  sizeMB: 1100, ram: '3 GB' },
-    { id: 'cpu-qwen25-05b-q4',   label: 'Qwen2.5 0.5B',         backend: 'wasm',   model: 'onnx-community/Qwen2.5-0.5B-Instruct',          dtype: 'q4', requires: 'cpu', autoSelect: true,  sizeMB: 400,  ram: '1 GB' },
-    { id: 'cpu-smollm-17b-q4',   label: 'SmolLM2 1.7B',         backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct',           dtype: 'q4', requires: 'cpu', autoSelect: false, sizeMB: 950,  ram: '3 GB' },
+    { id: 'cpu-llama32-1b-q4',   label: 'Llama 3.2 1B',         backend: 'wasm',   model: 'onnx-community/Llama-3.2-1B-Instruct',          dtype: 'q4', requires: 'cpu', autoSelect: true,  sizeMB: 650,  ram: '2 GB', params: 1.2 },
+    { id: 'cpu-tinyllama-q4',    label: 'TinyLlama 1.1B',       backend: 'wasm',   model: 'Xenova/TinyLlama-1.1B-Chat-v1.0',               dtype: 'q4', requires: 'cpu', autoSelect: true,  sizeMB: 600,  ram: '2 GB', params: 1.1 },
+    { id: 'cpu-tinyllama-q8',    label: 'TinyLlama 1.1B q8',    backend: 'wasm',   model: 'Xenova/TinyLlama-1.1B-Chat-v1.0',               dtype: 'q8', requires: 'cpu', autoSelect: true,  sizeMB: 1100, ram: '3 GB', params: 1.1 },
+    { id: 'cpu-qwen25-05b-q4',   label: 'Qwen2.5 0.5B',         backend: 'wasm',   model: 'onnx-community/Qwen2.5-0.5B-Instruct',          dtype: 'q4', requires: 'cpu', autoSelect: true,  sizeMB: 400,  ram: '1 GB', params: 0.5 },
+    { id: 'cpu-smollm-17b-q4',   label: 'SmolLM2 1.7B',         backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct',           dtype: 'q4', requires: 'cpu', autoSelect: false, sizeMB: 950,  ram: '3 GB', params: 1.7 },
     // ── Lite ───────────────────────────────────────────────────────────────
-    { id: 'lite-smollm-135m-q8', label: 'SmolLM2 135M q8',      backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-135M-Instruct',           dtype: 'q8', requires: 'cpu', autoSelect: true,  sizeMB: 150,  ram: '512 MB' },
-    { id: 'lite-smollm-135m-q4', label: 'SmolLM2 135M q4',      backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-135M-Instruct',           dtype: 'q4', requires: 'cpu', autoSelect: true,  sizeMB: 90,   ram: '256 MB' },
+    { id: 'lite-smollm-135m-q8', label: 'SmolLM2 135M q8',      backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-135M-Instruct',           dtype: 'q8', requires: 'cpu', autoSelect: true,  sizeMB: 150,  ram: '512 MB', params: 0.135 },
+    { id: 'lite-smollm-135m-q4', label: 'SmolLM2 135M q4',      backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-135M-Instruct',           dtype: 'q4', requires: 'cpu', autoSelect: true,  sizeMB: 90,   ram: '256 MB', params: 0.135 },
 ];
 
 // ── WASM Capability Detection ─────────────────────────────────────────────────
@@ -452,18 +449,19 @@ async function detectGpu() {
 function getDeviceRamGB() { return navigator.deviceMemory || 4; }
 
 function rankAutoPresets(gpuInfo, ramGB, isConstrained, wasmCaps = null) {
-    const { hasGpu, maxStorageMB } = gpuInfo;
+    const { hasGpu } = gpuInfo;
 
     if (isConstrained) {
         return MODEL_PRESETS
             .filter(p => p.id.startsWith('lite-'))
-            .sort((a, b) => (a.sizeMB || 0) - (b.sizeMB || 0));
+            .sort((a, b) => (b.params || 0) - (a.params || 0));
     }
 
-    const gpuBudgetMB = hasGpu
-        ? Math.min(maxStorageMB || 4096, ramGB * 1024 * 0.60)
-        : 0;
-    const cpuBudgetFactor = (wasmCaps && wasmCaps.memory64) ? 0.50 : 0.40;
+    // A conservative estimate for VRAM capacity based on system RAM.
+    // We NO LONGER clamp this to `maxStorageMB` because WebGPU splits large models
+    // into multiple buffers! `maxStorageMB` is just a single-buffer limit.
+    const gpuBudgetMB = hasGpu ? (ramGB * 1024 * 0.70) : 0;
+    const cpuBudgetFactor = (wasmCaps && wasmCaps.memory64) ? 0.60 : 0.40;
     const cpuBudgetMB = ramGB * 1024 * cpuBudgetFactor;
 
     const candidates = MODEL_PRESETS.filter(p => {
@@ -475,10 +473,13 @@ function rankAutoPresets(gpuInfo, ramGB, isConstrained, wasmCaps = null) {
     });
 
     candidates.sort((a, b) => {
+        // Prioritize GPU models over CPU
         const gpuA = a.requires === 'gpu' ? 1 : 0;
         const gpuB = b.requires === 'gpu' ? 1 : 0;
         if (gpuA !== gpuB) return gpuB - gpuA;
-        return (b.sizeMB || 0) - (a.sizeMB || 0);
+        
+        // Sort by parameter count (best models first)
+        return (b.params || 0) - (a.params || 0);
     });
 
     return candidates;
