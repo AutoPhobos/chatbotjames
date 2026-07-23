@@ -35,7 +35,7 @@
   <div id="app-container">
     <header class="terminal-header">
       <h1>JAMES</h1>
-      <span id="status-badge" class="badge loading">Initializing Engine...</span>
+      <span id="status-badge" class="badge loading">Initializing Engine (0%)...</span>
     </header>
     
     <main id="chat-stream" role="log">
@@ -43,8 +43,8 @@
     </main>
 
     <footer class="input-container">
-      <textarea id="user-input" placeholder="Message local JAMES instance..." rows="1"></textarea>
-      <button id="send-btn" aria-label="Send Message">Send</button>
+      <textarea id="user-input" placeholder="Loading engine, please wait..." rows="1" disabled></textarea>
+      <button id="send-btn" aria-label="Send Message" disabled>Send</button>
     </footer>
   </div>
 
