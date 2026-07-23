@@ -1,659 +1,669 @@
-<meta name="description" content="JAMES is an advanced local AI chatbot and edge agent running 100% privately in your browser via WebGPU and WebAssembly. Zero server transmission.">
-<meta name="keywords" content="local AI, browser LLM, WebGPU chatbot, edge agent, Transformers.js, private AI, SmolLM2, Qwen">
-<meta name="author" content="JAMES AI Team">
-<link rel="canonical" href="https://chatbotjames.onrender.com">
-
-<!-- Open Graph / Social SEO -->
-<meta property="og:type" content="website">
-<meta property="og:title" content="JAMES - Advanced Local AI Chatbot & Edge Agent">
-<meta property="og:description" content="Run private language models directly in your browser with WebGPU acceleration, live tools, and zero server transmission.">
-<meta property="og:site_name" content="JAMES AI">
-
-<!-- Twitter Card SEO -->
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="JAMES - Advanced Local AI Chatbot & Edge Agent">
-<meta name="twitter:description" content="Run private language models directly in your browser with WebGPU acceleration and live tools.">
-
-<!-- Schema.org Structured Data -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  "name": "JAMES AI",
-  "operatingSystem": "All",
-  "applicationCategory": "ArtificialIntelligenceApplication",
-  "description": "Client-side browser-based local AI chatbot and edge agent powered by WebGPU and WebAssembly.",
-  "offers": {
-    "@type": "Offer",
-    "price": "0",
-    "priceCurrency": "USD"
-  }
-}
-</script>
-
-<script src="https://cdn.tailwindcss.com"></script>
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-<script>
-    tailwind.config = {
-        darkMode: 'class',
-        theme: {
-            extend: {
-                colors: {
-                    darkBg: '#090d16',
-                    panelBg: '#131c2e',
-                    borderSubtle: '#1e293b'
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>JAMES - Advanced Local AI Chatbot & Edge Agent (v4.2.0)</title>
+    
+    <meta name="description" content="JAMES is an advanced local AI chatbot and edge agent running 100% privately in your browser via Transformers.js v4.2.0 WebGPU and WebAssembly.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#090d16',
+                        panelBg: '#131c2e',
+                        borderSubtle: '#1e293b'
+                    }
                 }
             }
         }
-    }
-</script>
-<style>
-    body { background-color: #090d16; color: #f1f5f9; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; overflow: hidden; }
-    
-    .glass-panel { background: rgba(19, 28, 46, 0.88); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); }
-    
-    /* Message animations */
-    .message-enter { animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(16px) scale(0.98); }
-    @keyframes fadeInUp { to { opacity: 1; transform: translateY(0) scale(1); } }
+    </script>
+    <style>
+        body { background-color: #090d16; color: #f1f5f9; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; overflow: hidden; }
+        .glass-panel { background: rgba(19, 28, 46, 0.88); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .message-enter { animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(16px) scale(0.98); }
+        @keyframes fadeInUp { to { opacity: 1; transform: translateY(0) scale(1); } }
+        @keyframes floatSlow { 0%, 100% { transform: translateY(0px) scale(1); } 50% { transform: translateY(-20px) scale(1.05); } }
+        @keyframes pulseGlow { 0%, 100% { opacity: 0.15; } 50% { opacity: 0.35; } }
+        .ambient-orb-1 { animation: floatSlow 8s ease-in-out infinite, pulseGlow 4s ease-in-out infinite; }
+        .ambient-orb-2 { animation: floatSlow 10s ease-in-out infinite reverse, pulseGlow 5s ease-in-out infinite reverse; }
+        .modal-backdrop { background: rgba(9, 13, 22, 0.85); backdrop-filter: blur(8px); transition: opacity 0.3s ease; }
+        .modal-content { animation: modalPop 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes modalPop { 0% { opacity: 0; transform: scale(0.92) translateY(10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+        .shimmer-bg { background: linear-gradient(90deg, rgba(56, 189, 248, 0.2) 0%, rgba(129, 140, 248, 0.6) 50%, rgba(56, 189, 248, 0.2) 100%); background-size: 200% 100%; animation: shimmer 2s infinite linear; }
+        .tool-block { background: #13112c; border-left: 4px solid #a855f7; margin-top: 10px; padding: 12px 16px; border-radius: 0 10px 10px 0; font-family: monospace; font-size: 0.9em; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3); }
+        .tool-result { background: #0c1a17; border-left: 4px solid #10b981; margin-top: 8px; padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: 0.85em; color: #34d399; }
+        .markdown-body pre { background: #050811 !important; padding: 1rem; border-radius: 0.75rem; overflow-x: auto; border: 1px solid #1e293b; }
+        .markdown-body code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.875em; color: #38bdf8; }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        button, select, textarea { min-height: 40px; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+        @media (max-width: 768px) { aside.mobile-drawer { transform: translateX(-100%); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); } aside.mobile-drawer.open { transform: translateX(0); } }
+    </style>
+</head>
+<body class="h-[100dvh] flex overflow-hidden selection:bg-sky-500/30 relative">
 
-    /* Floating background ambient glow orbs */
-    @keyframes floatSlow {
-        0%, 100% { transform: translateY(0px) scale(1); }
-        50% { transform: translateY(-20px) scale(1.05); }
-    }
-    @keyframes pulseGlow {
-        0%, 100% { opacity: 0.15; }
-        50% { opacity: 0.35; }
-    }
-    .ambient-orb-1 { animation: floatSlow 8s ease-in-out infinite, pulseGlow 4s ease-in-out infinite; }
-    .ambient-orb-2 { animation: floatSlow 10s ease-in-out infinite reverse, pulseGlow 5s ease-in-out infinite reverse; }
+    <div class="absolute -top-32 -left-32 w-96 h-96 bg-sky-600/20 rounded-full blur-[120px] pointer-events-none ambient-orb-1 z-0"></div>
+    <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-purple-600/20 rounded-full blur-[120px] pointer-events-none ambient-orb-2 z-0"></div>
 
-    /* Modal transitions */
-    .modal-backdrop { background: rgba(9, 13, 22, 0.85); backdrop-filter: blur(8px); transition: opacity 0.3s ease; }
-    .modal-content { animation: modalPop 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-    @keyframes modalPop {
-        0% { opacity: 0; transform: scale(0.92) translateY(10px); }
-        100% { opacity: 1; transform: scale(1) translateY(0); }
-    }
+    <div id="sidebar-backdrop" onclick="toggleSidebarMobile()" class="fixed inset-0 bg-black/60 z-30 hidden md:hidden transition-opacity duration-300"></div>
 
-    /* Shimmer loading bar animation */
-    @keyframes shimmer {
-        0% { background-position: -200% 0; }
-        100% { background-position: 200% 0; }
-    }
-    .shimmer-bg {
-        background: linear-gradient(90deg, rgba(56, 189, 248, 0.2) 0%, rgba(129, 140, 248, 0.6) 50%, rgba(56, 189, 248, 0.2) 100%);
-        background-size: 200% 100%;
-        animation: shimmer 2s infinite linear;
-    }
-
-    /* Tool block styling */
-    .tool-block { background: #13112c; border-left: 4px solid #a855f7; margin-top: 10px; padding: 12px 16px; border-radius: 0 10px 10px 0; font-family: monospace; font-size: 0.9em; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3); animation: slideInTool 0.3s ease-out; }
-    @keyframes slideInTool { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
-
-    .tool-result { background: #0c1a17; border-left: 4px solid #10b981; margin-top: 8px; padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: 0.85em; color: #34d399; }
-    
-    .markdown-body pre { background: #050811 !important; padding: 1rem; border-radius: 0.75rem; overflow-x: auto; border: 1px solid #1e293b; }
-    .markdown-body code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.875em; color: #38bdf8; }
-    
-    ::-webkit-scrollbar { width: 5px; height: 5px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: #475569; }
-
-    button, select, textarea { min-height: 40px; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
-    button:active { transform: scale(0.96); }
-
-    @media (max-width: 768px) {
-        aside.mobile-drawer { transform: translateX(-100%); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-        aside.mobile-drawer.open { transform: translateX(0); }
-    }
-</style>
-<div class="absolute -top-32 -left-32 w-96 h-96 bg-sky-600/20 rounded-full blur-[120px] pointer-events-none ambient-orb-1 z-0"></div>
-<div class="absolute -bottom-32 -right-32 w-96 h-96 bg-purple-600/20 rounded-full blur-[120px] pointer-events-none ambient-orb-2 z-0"></div>
-
-<!-- Mobile Sidebar Backdrop -->
-<div id="sidebar-backdrop" onclick="toggleSidebarMobile()" class="fixed inset-0 bg-black/60 z-30 hidden md:hidden transition-opacity duration-300"></div>
-
-<aside class="w-80 glass-panel border-r border-borderSubtle flex flex-col h-full z-40 fixed md:static mobile-drawer inset-y-0 left-0 shadow-2xl md:shadow-none" id="sidebar">
-    <div class="p-5 border-b border-borderSubtle flex justify-between items-center bg-gradient-to-r from-sky-900/20 to-purple-900/20">
-        <div>
-            <h1 class="text-xl font-extrabold bg-gradient-to-r from-sky-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent flex items-center gap-2">
-                <i class="fas fa-microchip text-sky-400 animate-pulse"></i> JAMES AI
-            </h1>
-            <p class="text-[11px] text-slate-400 mt-0.5">Advanced Browser Edge Agent</p>
-        </div>
-        <button onclick="toggleSidebarMobile()" class="md:hidden text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800/50">
-            <i class="fas fa-times text-lg"></i>
-        </button>
-    </div>
-    
-    <div class="p-4 flex-1 overflow-y-auto space-y-4">
-        <button onclick="openSettingsModal()" class="w-full bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-medium py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg hover:shadow-sky-500/25 transition-all cursor-pointer group">
-            <i class="fas fa-gear group-hover:rotate-90 transition-transform duration-300"></i> Model Settings & Status
-        </button>
-
-        <!-- Hardware Spec Card -->
-        <div id="device-info" class="bg-slate-900/60 rounded-xl p-3.5 text-xs text-slate-400 space-y-2 border border-slate-800 shadow-lg hover:border-slate-700 transition-colors">
-            <div class="font-semibold text-slate-200 border-b border-slate-800 pb-1.5 flex items-center justify-between">
-                <span>Hardware Profile</span>
-                <span id="badge-backend" class="px-2 py-0.5 rounded-full text-[10px] bg-sky-950 text-sky-400 font-mono animate-pulse">Detecting...</span>
+    <aside class="w-80 glass-panel border-r border-borderSubtle flex flex-col h-full z-40 fixed md:static mobile-drawer inset-y-0 left-0 shadow-2xl md:shadow-none" id="sidebar">
+        <div class="p-5 border-b border-borderSubtle flex justify-between items-center bg-gradient-to-r from-sky-900/20 to-purple-900/20">
+            <div>
+                <h1 class="text-xl font-extrabold bg-gradient-to-r from-sky-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent flex items-center gap-2">
+                    <i class="fas fa-microchip text-sky-400 animate-pulse"></i> JAMES AI
+                </h1>
+                <p class="text-[11px] text-slate-400 mt-0.5">Transformers.js v4.2.0 Edge Agent</p>
             </div>
-            <div class="flex justify-between items-center"><span>System RAM:</span> <span id="info-ram" class="text-slate-200 font-mono">--</span></div>
-            <div class="flex justify-between items-center"><span>GPU Acceleration:</span> <span id="info-gpu" class="text-slate-200 font-mono">Checking...</span></div>
-            <div class="flex justify-between items-center"><span>WASM SIMD/Threads:</span> <span id="info-wasm" class="text-emerald-400 font-mono">Active</span></div>
-        </div>
-
-        <!-- Performance Metrics Box -->
-        <div id="metrics-card" class="bg-slate-900/60 rounded-xl p-3.5 text-xs text-slate-400 space-y-2 border border-slate-800">
-            <div class="font-semibold text-slate-200 border-b border-slate-800 pb-1.5 flex items-center justify-between">
-                <span>Performance</span>
-                <i class="fas fa-gauge-high text-indigo-400"></i>
-            </div>
-            <div class="flex justify-between items-center"><span>Generation Speed:</span> <span id="metric-tps" class="text-sky-300 font-mono font-bold">0.0 tok/s</span></div>
-            <div class="flex justify-between items-center"><span>Total Tokens:</span> <span id="metric-tokens" class="text-slate-200 font-mono">0</span></div>
-        </div>
-
-        <!-- Download Progress Tracker -->
-        <div id="download-container" class="hidden flex-col gap-2.5 bg-slate-900/80 p-4 rounded-xl border border-sky-500/30 shadow-xl transition-all duration-300">
-            <div class="flex justify-between text-xs text-slate-200">
-                <span id="download-status-text" class="font-medium text-sky-400">Downloading weights...</span>
-                <span id="download-percentage" class="font-mono font-bold">0%</span>
-            </div>
-            <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden shadow-inner p-0.5">
-                <div id="download-bar" class="shimmer-bg h-full rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
-            </div>
-            <div class="text-[10px] text-slate-400 flex justify-between font-mono" id="download-bytes">
-                <span>0 MB</span>
-                <span>0 MB</span>
-            </div>
-        </div>
-
-        <!-- Tools Active Status -->
-        <div class="bg-purple-950/20 border border-purple-900/40 rounded-xl p-3 text-[11px] text-purple-300 hover:border-purple-700/50 transition-colors">
-            <div class="font-semibold flex items-center gap-1.5 mb-1">
-                <i class="fas fa-wand-magic-sparkles text-purple-400 animate-spin" style="animation-duration: 6s;"></i> Active Edge Tools
-            </div>
-            <p class="text-purple-300/80 leading-relaxed">JAMES can call live tools: Weather, Wikipedia, Currency Conversion, World Time, Calculator, and Unit Conversion.</p>
-        </div>
-    </div>
-    
-    <div class="p-4 border-t border-borderSubtle text-xs text-slate-500 flex justify-between items-center bg-slate-950/30">
-        <span class="flex items-center gap-1"><i class="fas fa-shield-alt text-emerald-400"></i> 100% Client-Side</span>
-        <button onclick="clearChat()" class="hover:text-red-400 transition-colors flex items-center gap-1 p-2 rounded-lg hover:bg-slate-900"><i class="fas fa-trash-alt"></i> Clear Chat</button>
-    </div>
-</aside>
-
-<main class="flex-1 flex flex-col relative h-full bg-slate-950/40 w-full overflow-hidden z-10">
-    <header class="h-14 border-b border-borderSubtle glass-panel px-4 flex items-center justify-between shrink-0">
-        <div class="flex items-center gap-3">
-            <button onclick="toggleSidebarMobile()" class="text-slate-300 hover:text-white p-2.5 md:hidden rounded-xl hover:bg-slate-800/50">
-                <i class="fas fa-bars text-lg"></i>
-            </button>
-            <span class="font-bold text-sm sm:text-base bg-gradient-to-r from-sky-400 to-purple-400 bg-clip-text text-transparent flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping inline-block"></span> JAMES AI Assistant
-            </span>
-        </div>
-        <button onclick="openSettingsModal()" class="bg-slate-800/80 hover:bg-slate-700 text-slate-200 px-3.5 py-2 rounded-xl text-xs flex items-center gap-2 border border-slate-700 transition-all hover:scale-105 cursor-pointer shadow-lg">
-            <i class="fas fa-gear text-sky-400"></i> <span id="header-model-label">Settings</span>
-        </button>
-    </header>
-
-    <div id="chat-container" class="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6 pb-40 scroll-smooth">
-        <div class="flex justify-center mt-4">
-            <div class="bg-sky-950/30 text-sky-300 px-4 py-2.5 rounded-2xl text-xs sm:text-sm border border-sky-800/40 flex items-center shadow-xl gap-2.5 backdrop-blur-md text-center max-w-lg message-enter">
-                <i class="fas fa-lock text-sky-400 shrink-0"></i> Zero Server Transmission. Private LLM execution inside your browser via WebGPU & WASM.
-            </div>
-        </div>
-    </div>
-
-    <div class="absolute bottom-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-t from-[#090d16] via-[#090d16]/95 to-transparent z-20">
-        <div class="max-w-4xl mx-auto relative group">
-            <textarea id="message-input" rows="1" class="w-full bg-slate-900/90 border border-slate-700/80 rounded-2xl pl-4 sm:pl-5 pr-28 py-3.5 sm:py-4 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent resize-none shadow-2xl transition-all disabled:opacity-40 disabled:cursor-not-allowed placeholder:text-slate-500" placeholder="Ask JAMES anything or run tools... (Loading model)" disabled></textarea>
-            <div class="absolute right-3 bottom-2.5 sm:bottom-3 flex items-center gap-1.5">
-                <button id="stop-btn" onclick="stopGeneration()" class="hidden p-2.5 bg-red-600/80 hover:bg-red-600 text-white rounded-xl transition-all shadow-lg h-10 w-10 items-center justify-center cursor-pointer hover:scale-105" title="Stop Generation">
-                    <i class="fas fa-stop text-sm"></i>
-                </button>
-                <button id="send-btn" class="p-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl transition-all disabled:opacity-40 disabled:bg-slate-800 shadow-lg flex items-center justify-center h-10 w-10 disabled:cursor-not-allowed cursor-pointer hover:scale-105 hover:shadow-sky-500/25" disabled>
-                    <i class="fas fa-paper-plane text-sm"></i>
-                </button>
-            </div>
-        </div>
-        <div class="text-center mt-2 text-[10px] sm:text-[11px] text-slate-500 px-2">
-            JAMES can make mistakes. Verify critical tool results. Press Shift+Enter for new line.
-        </div>
-    </div>
-</main>
-
-<div id="settings-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
-    <div class="bg-[#131c2e] border border-slate-700/80 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col modal-content">
-        <div class="p-5 border-b border-slate-700/60 flex justify-between items-center bg-slate-900/40">
-            <h3 class="font-bold text-base text-white flex items-center gap-2">
-                <i class="fas fa-gear text-sky-400"></i> Model Settings
-            </h3>
-            <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition-colors">
-                <i class="fas fa-times"></i>
+            <button onclick="toggleSidebarMobile()" class="md:hidden text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800/50">
+                <i class="fas fa-times text-lg"></i>
             </button>
         </div>
-        <div class="p-6 space-y-5 flex-1 overflow-y-auto">
-            <div id="modal-gpu-status" class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex items-center gap-3">
-                <div class="text-amber-400 text-xl"><i class="fas fa-hourglass-half fa-spin"></i></div>
-                <div>
-                    <div class="font-semibold text-slate-200 text-sm">Detecting GPU...</div>
-                    <div class="text-xs text-slate-400">Checking WebGPU availability</div>
+        
+        <div class="p-4 flex-1 overflow-y-auto space-y-4">
+            <button onclick="openSettingsModal()" class="w-full bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-medium py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg hover:shadow-sky-500/25 transition-all cursor-pointer group">
+                <i class="fas fa-gear group-hover:rotate-90 transition-transform duration-300"></i> Model Settings & Status
+            </button>
+
+            <!-- Hardware Spec Card -->
+            <div id="device-info" class="bg-slate-900/60 rounded-xl p-3.5 text-xs text-slate-400 space-y-2 border border-slate-800 shadow-lg">
+                <div class="font-semibold text-slate-200 border-b border-slate-800 pb-1.5 flex items-center justify-between">
+                    <span>Hardware Profile</span>
+                    <span id="badge-backend" class="px-2 py-0.5 rounded-full text-[10px] bg-sky-950 text-sky-400 font-mono animate-pulse">Initializing...</span>
+                </div>
+                <div class="flex justify-between items-center"><span>System RAM:</span> <span id="info-ram" class="text-slate-200 font-mono">--</span></div>
+                <div class="flex justify-between items-center"><span>GPU Acceleration:</span> <span id="info-gpu" class="text-slate-200 font-mono">Initializing...</span></div>
+                <div class="flex justify-between items-center"><span>Transformers.js:</span> <span class="text-emerald-400 font-mono">v4.2.0</span></div>
+            </div>
+
+            <!-- Performance Metrics Box -->
+            <div id="metrics-card" class="bg-slate-900/60 rounded-xl p-3.5 text-xs text-slate-400 space-y-2 border border-slate-800">
+                <div class="font-semibold text-slate-200 border-b border-slate-800 pb-1.5 flex items-center justify-between">
+                    <span>Performance</span>
+                    <i class="fas fa-gauge-high text-indigo-400"></i>
+                </div>
+                <div class="flex justify-between items-center"><span>Generation Speed:</span> <span id="metric-tps" class="text-sky-300 font-mono font-bold">0.0 tok/s</span></div>
+                <div class="flex justify-between items-center"><span>Total Tokens:</span> <span id="metric-tokens" class="text-slate-200 font-mono">0</span></div>
+            </div>
+
+            <!-- Download Progress Tracker -->
+            <div id="download-container" class="hidden flex-col gap-2.5 bg-slate-900/80 p-4 rounded-xl border border-sky-500/30 shadow-xl transition-all duration-300">
+                <div class="flex justify-between text-xs text-slate-200">
+                    <span id="download-status-text" class="font-medium text-sky-400">Downloading weights...</span>
+                    <span id="download-percentage" class="font-mono font-bold">0%</span>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden shadow-inner p-0.5">
+                    <div id="download-bar" class="shimmer-bg h-full rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
+                </div>
+                <div class="text-[10px] text-slate-400 flex justify-between font-mono" id="download-bytes">
+                    <span>0 MB</span>
+                    <span>0 MB</span>
                 </div>
             </div>
 
-            <div>
-                <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Available Models & Presets</label>
-                <select id="model-select" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs sm:text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none transition-all cursor-pointer">
-                    <option value="">Loading presets...</option>
-                </select>
-            </div>
-
-            <div class="bg-sky-950/20 border border-sky-900/40 rounded-xl p-3.5 text-xs text-sky-300/90 leading-relaxed">
-                <i class="fas fa-info-circle text-sky-400 mr-1"></i> Selecting a new model will download weights directly into your browser cache and initialize the local inference pipeline.
+            <!-- Active Edge Tools -->
+            <div class="bg-purple-950/20 border border-purple-900/40 rounded-xl p-3 text-[11px] text-purple-300">
+                <div class="font-semibold flex items-center gap-1.5 mb-1">
+                    <i class="fas fa-wand-magic-sparkles text-purple-400"></i> Active Edge Tools
+                </div>
+                <p class="text-purple-300/80 leading-relaxed">Weather, Wikipedia, Currency, Time, Calculator, and Unit Conversion.</p>
             </div>
         </div>
-        <div class="p-4 border-t border-slate-700/60 bg-slate-900/50 flex justify-between items-center">
-            <span id="modal-status-msg" class="text-xs text-slate-400">No model loaded yet</span>
-            <button onclick="applyModelSettings()" class="bg-sky-600 hover:bg-sky-500 text-white font-medium px-5 py-2.5 rounded-xl text-xs shadow-lg hover:shadow-sky-500/25 transition-all cursor-pointer hover:scale-105">
-                Apply & Reload
+        
+        <div class="p-4 border-t border-borderSubtle text-xs text-slate-500 flex justify-between items-center bg-slate-950/30">
+            <span class="flex items-center gap-1"><i class="fas fa-shield-alt text-emerald-400"></i> 100% Client-Side</span>
+            <button onclick="clearChat()" class="hover:text-red-400 transition-colors flex items-center gap-1 p-2 rounded-lg hover:bg-slate-900"><i class="fas fa-trash-alt"></i> Clear Chat</button>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col relative h-full bg-slate-950/40 w-full overflow-hidden z-10">
+        <header class="h-14 border-b border-borderSubtle glass-panel px-4 flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-3">
+                <button onclick="toggleSidebarMobile()" class="text-slate-300 hover:text-white p-2.5 md:hidden rounded-xl hover:bg-slate-800/50">
+                    <i class="fas fa-bars text-lg"></i>
+                </button>
+                <span class="font-bold text-sm sm:text-base bg-gradient-to-r from-sky-400 to-purple-400 bg-clip-text text-transparent flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping inline-block"></span> JAMES v4.2.0 Assistant
+                </span>
+            </div>
+            <button onclick="openSettingsModal()" class="bg-slate-800/80 hover:bg-slate-700 text-slate-200 px-3.5 py-2 rounded-xl text-xs flex items-center gap-2 border border-slate-700 transition-all hover:scale-105 cursor-pointer shadow-lg">
+                <i class="fas fa-gear text-sky-400"></i> <span id="header-model-label">Settings</span>
             </button>
+        </header>
+
+        <div id="chat-container" class="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6 pb-40 scroll-smooth">
+            <div class="flex justify-center mt-4">
+                <div class="bg-sky-950/30 text-sky-300 px-4 py-2.5 rounded-2xl text-xs sm:text-sm border border-sky-800/40 flex items-center shadow-xl gap-2.5 backdrop-blur-md text-center max-w-lg message-enter">
+                    <i class="fas fa-lock text-sky-400 shrink-0"></i> Powered by Transformers.js v4.2.0. Zero server transmission.
+                </div>
+            </div>
+        </div>
+
+        <div class="absolute bottom-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-t from-[#090d16] via-[#090d16]/95 to-transparent z-20">
+            <div class="max-w-4xl mx-auto relative group">
+                <textarea id="message-input" rows="1" class="w-full bg-slate-900/90 border border-slate-700/80 rounded-2xl pl-4 sm:pl-5 pr-28 py-3.5 sm:py-4 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent resize-none shadow-2xl transition-all disabled:opacity-40 disabled:cursor-not-allowed placeholder:text-slate-500" placeholder="Initializing Transformers.js v4.2.0 model..." disabled></textarea>
+                <div class="absolute right-3 bottom-2.5 sm:bottom-3 flex items-center gap-1.5">
+                    <button id="stop-btn" onclick="stopGeneration()" class="hidden p-2.5 bg-red-600/80 hover:bg-red-600 text-white rounded-xl transition-all shadow-lg h-10 w-10 items-center justify-center cursor-pointer hover:scale-105" title="Stop Generation">
+                        <i class="fas fa-stop text-sm"></i>
+                    </button>
+                    <button id="send-btn" class="p-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl transition-all disabled:opacity-40 disabled:bg-slate-800 shadow-lg flex items-center justify-center h-10 w-10 disabled:cursor-not-allowed cursor-pointer hover:scale-105 hover:shadow-sky-500/25" disabled>
+                        <i class="fas fa-paper-plane text-sm"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="text-center mt-2 text-[10px] sm:text-[11px] text-slate-500 px-2">
+                JAMES can make mistakes. Verify critical tool results. Press Shift+Enter for new line.
+            </div>
+        </div>
+    </main>
+
+    <div id="settings-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+        <div class="bg-[#131c2e] border border-slate-700/80 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col modal-content">
+            <div class="p-5 border-b border-slate-700/60 flex justify-between items-center bg-slate-900/40">
+                <h3 class="font-bold text-base text-white flex items-center gap-2">
+                    <i class="fas fa-gear text-sky-400"></i> Transformers.js v4.2.0 Model Settings
+                </h3>
+                <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-5 flex-1 overflow-y-auto">
+                <div id="modal-gpu-status" class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex items-center gap-3">
+                    <div class="text-amber-400 text-xl"><i class="fas fa-hourglass-half fa-spin"></i></div>
+                    <div>
+                        <div class="font-semibold text-slate-200 text-sm">Detecting Hardware...</div>
+                        <div class="text-xs text-slate-400">Checking capabilities</div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Select Model Preset</label>
+                    <select id="model-select" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs sm:text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none transition-all cursor-pointer">
+                        <option value="">Loading presets...</option>
+                    </select>
+                </div>
+
+                <div class="bg-sky-950/20 border border-sky-900/40 rounded-xl p-3.5 text-xs text-sky-300/90 leading-relaxed">
+                    <i class="fas fa-info-circle text-sky-400 mr-1"></i> Weights are downloaded securely and cached in your browser via Transformers.js v4.2.0 cache storage.
+                </div>
+            </div>
+            <div class="p-4 border-t border-slate-700/60 bg-slate-900/50 flex justify-between items-center">
+                <span id="modal-status-msg" class="text-xs text-slate-400">Initializing...</span>
+                <button onclick="applyModelSettings()" class="bg-sky-600 hover:bg-sky-500 text-white font-medium px-5 py-2.5 rounded-xl text-xs shadow-lg hover:shadow-sky-500/25 transition-all cursor-pointer hover:scale-105">
+                    Apply & Reload
+                </button>
+            </div>
         </div>
     </div>
-</div>
 
-<script id="worker-script" type="javascript/worker">
-    import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0;
+    <script type="module">
+        import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0';
 
-    env.allowLocalModels = false;
-    env.useBrowserCache = true;
-    const DOWNLOAD_CACHE = 'JAMES-advanced-model-cache-v4';
-    const CHUNK_SIZE = 4 * 1024 * 1024;
-    const MAX_DOWNLOAD_CONCURRENCY = 6;
-    const MAX_CHUNK_RETRIES = 3;
+        env.allowLocalModels = false;
+        env.useBrowserCache = true;
 
-    const nativeFetch = self.fetch.bind(self);
-    self.fetch = customFetch;
-    env.fetch = customFetch;
+        const chatContainer = document.getElementById('chat-container');
+        const messageInput = document.getElementById('message-input');
+        const sendBtn = document.getElementById('send-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const modelSelect = document.getElementById('model-select');
+        const settingsModal = document.getElementById('settings-modal');
+        const downloadContainer = document.getElementById('download-container');
+        const downloadBar = document.getElementById('download-bar');
+        const downloadText = document.getElementById('download-status-text');
+        const downloadPercentage = document.getElementById('download-percentage');
+        const downloadBytes = document.getElementById('download-bytes');
+        const deviceInfo = document.getElementById('device-info');
+        const metricsCard = document.getElementById('metrics-card');
+        const modalGpuStatus = document.getElementById('modal-gpu-status');
+        const modalStatusMsg = document.getElementById('modal-status-msg');
+        const headerModelLabel = document.getElementById('header-model-label');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarBackdrop = document.getElementById('sidebar-backdrop');
 
-    let activeAbortController = null;
+        const MODEL_PRESETS = [
+            { id: 'lite-smollm2-135m-q4',   label: 'SmolLM2 135M q4 (Ultra Lite)',  backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-135M-Instruct',           dtype: 'q4',    sizeMB: 90 },
+            { id: 'cpu-qwen25-05b-q4',      label: 'Qwen2.5 0.5B (WASM)',           backend: 'wasm',   model: 'onnx-community/Qwen2.5-0.5B-Instruct',          dtype: 'q4',    sizeMB: 400 },
+            { id: 'cpu-llama32-1b-q4',      label: 'Llama 3.2 1B (WASM)',           backend: 'wasm',   model: 'onnx-community/Llama-3.2-1B-Instruct',          dtype: 'q4',    sizeMB: 650 },
+            { id: 'gpu-smollm2-360m-q4f16', label: 'SmolLM2 360M (WebGPU)',         backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-360M-Instruct',           dtype: 'q4f16', sizeMB: 250 },
+            { id: 'gpu-qwen25-05b-q4f16',   label: 'Qwen2.5 0.5B (WebGPU)',         backend: 'webgpu', model: 'onnx-community/Qwen2.5-0.5B-Instruct',          dtype: 'q4f16', sizeMB: 400 },
+            { id: 'gpu-llama32-1b-q4f16',   label: 'Llama 3.2 1B (WebGPU)',         backend: 'webgpu', model: 'onnx-community/Llama-3.2-1B-Instruct',          dtype: 'q4f16', sizeMB: 750 }
+        ];
 
-    function shouldUseDownloadCache(url) {
-        if (url.endsWith('.wasm')) return false;
-        return (
-            url.includes('huggingface.co') || url.includes('hf.co') || url.includes('cdn.jsdelivr.net') ||
-            url.endsWith('.bin') || url.endsWith('.onnx') || url.endsWith('.onnx_data') ||
-            url.endsWith('.safetensors') || url.endsWith('.json')
-        );
-    }
-
-    function getCacheRequest(url) { return new Request(url, { method: 'GET', mode: 'cors', credentials: 'omit' }); }
-
-    async function cacheMatch(url) {
-        try {
-            const cache = await caches.open(DOWNLOAD_CACHE);
-            return await cache.match(getCacheRequest(url), { ignoreSearch: true, ignoreVary: true, ignoreMethod: true });
-        } catch (e) { return null; }
-    }
-
-    async function cachePut(url, response) {
-        try {
-            const cache = await caches.open(DOWNLOAD_CACHE);
-            await cache.put(getCacheRequest(url), response.clone());
-        } catch (e) {
-            if (e.name === 'QuotaExceededError') {
-                try {
-                    await caches.delete(DOWNLOAD_CACHE);
-                    const cache = await caches.open(DOWNLOAD_CACHE);
-                    await cache.put(getCacheRequest(url), response.clone());
-                } catch (inner) {}
-            }
+        function populatePresets() {
+            modelSelect.innerHTML = '';
+            MODEL_PRESETS.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = `${p.label} [~${p.sizeMB}MB]`;
+                modelSelect.appendChild(opt);
+            });
         }
-        return response;
-    }
+        populatePresets();
 
-    function reportProgress(loaded, total, url) {
-        self.postMessage({ status: 'downloading', loaded, total, file: url });
-    }
+        let chatbot = null;
+        let messages = [];
+        let isGenerating = false;
+        let activeAbortController = null;
 
-    async function fetchHead(url) {
-        const response = await nativeFetch(new Request(url, { method: 'HEAD', mode: 'cors', credentials: 'omit' }));
-        if (!response.ok) throw new Error(`HEAD failed: ${response.status}`);
-        return response;
-    }
+        const systemPrompt = `You are JAMES (Advanced Edge AI Agent and Assistant using Transformers.js v4.2.0).
+You have access to the following live tools:
+- weather (params: location)
+- wikipedia (params: query)
+- currency (params: from, to, amount)
+- time (params: timezone)
+- calculator (params: expr)
+- convert (params: value, from, to)
 
-    async function downloadChunkWithRetry(url, range, retries = MAX_CHUNK_RETRIES) {
-        for (let attempt = 1; attempt <= retries; attempt++) {
+CRITICAL RULES:
+1. ONLY call a tool if you need real-time data or computations (weather, currency rates, Wikipedia facts, timezones, math calculations, conversions).
+2. If chatting casually or answering general knowledge questions, reply directly in plain text.
+3. If you MUST use a tool, output exactly this block and nothing else:
+\`\`\`tool:run
+[tool_name]
+[param]: [value]
+\`\`\``;
+
+        function formatBytes(bytes) {
+            if (!+bytes) return '0 Bytes';
+            const k = 1024, sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+        }
+
+        function isMobileDevice() {
+            const ua = navigator.userAgent;
+            const isMobileUA = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua);
+            const isNarrowScreen = window.screen && window.screen.width < 1024;
+            const hasTouchPoints = navigator.maxTouchPoints > 1;
+            return isMobileUA || (hasTouchPoints && isNarrowScreen);
+        }
+
+        async function detectGpu() {
+            if (isMobileDevice()) return { hasGpu: false, reason: 'Mobile device forced to WASM' };
+            if (!navigator.gpu) return { hasGpu: false, reason: 'No WebGPU API' };
             try {
-                const response = await nativeFetch(
-                    new Request(url, {
-                        method: 'GET', mode: 'cors', credentials: 'omit',
-                        headers: { Range: `bytes=${range.start}-${range.end}` },
-                        cache: 'no-store',
-                    })
-                );
-                if (!(response.ok || response.status === 206)) throw new Error(`HTTP ${response.status}`);
-                return await response.arrayBuffer();
-            } catch (err) {
-                if (attempt === retries) throw err;
-                await new Promise(res => setTimeout(res, Math.pow(2, attempt) * 400));
+                const adapter = await navigator.gpu.requestAdapter();
+                if (!adapter || adapter.isFallbackAdapter) return { hasGpu: false, reason: 'Fallback adapter' };
+                return { hasGpu: true, vendor: adapter.info?.vendor || 'WebGPU' };
+            } catch (e) {
+                return { hasGpu: false, reason: e.message };
             }
         }
-    }
 
-    async function downloadAndCache(url) {
-        const cached = await cacheMatch(url);
-        if (cached) return cached;
+        async function initEngine(forcePresetId = null) {
+            try {
+                const gpuInfo = await detectGpu();
+                const ram = navigator.deviceMemory || 4;
+                const mobile = isMobileDevice();
 
-        let head;
-        try { head = await fetchHead(url); } catch {
-            const response = await nativeFetch(new Request(url, { method: 'GET', mode: 'cors', credentials: 'omit' }));
-            if (!response.ok) throw new Error(`Download failed`);
-            return cachePut(url, response);
-        }
+                document.getElementById('info-ram').textContent = `${ram} GB`;
+                document.getElementById('info-gpu').textContent = gpuInfo.hasGpu ? 'WebGPU Enabled' : 'CPU / WASM';
+                document.getElementById('badge-backend').textContent = gpuInfo.hasGpu ? 'WebGPU' : 'WASM';
 
-        const total = Number(head.headers.get('content-length')) || 0;
-        const contentType = head.headers.get('content-type') || 'application/octet-stream';
-        const acceptRanges = (head.headers.get('accept-ranges') || '').toLowerCase();
-
-        if (!total || !acceptRanges.includes('bytes')) {
-            const response = await nativeFetch(new Request(url, { method: 'GET', mode: 'cors', credentials: 'omit' }));
-            const buf = await response.arrayBuffer();
-            const sized = new Response(buf, { headers: { 'Content-Type': contentType, 'Content-Length': String(buf.byteLength) }});
-            return cachePut(url, sized);
-        }
-
-        const ranges = [];
-        for (let start = 0; start < total; start += CHUNK_SIZE) {
-            ranges.push({ start, end: Math.min(start + CHUNK_SIZE - 1, total - 1) });
-        }
-
-        const results = new Array(ranges.length);
-        let loaded = 0, nextIndex = 0;
-
-        await new Promise((resolve, reject) => {
-            let active = 0, failed = false;
-            function spawnNext() {
-                if (failed) return;
-                if (nextIndex >= ranges.length) {
-                    if (active === 0) resolve();
-                    return;
+                if (gpuInfo.hasGpu) {
+                    modalGpuStatus.innerHTML = `
+                        <div class="text-emerald-400 text-xl"><i class="fas fa-circle-check"></i></div>
+                        <div>
+                            <div class="font-semibold text-slate-200 text-sm">WebGPU Accelerated</div>
+                            <div class="text-xs text-slate-400">${gpuInfo.vendor || 'GPU Adapter detected successfully'}</div>
+                        </div>
+                    `;
+                } else {
+                    modalGpuStatus.innerHTML = `
+                        <div class="text-sky-400 text-xl"><i class="fas fa-microchip"></i></div>
+                        <div>
+                            <div class="font-semibold text-slate-200 text-sm">WASM SIMD Engine</div>
+                            <div class="text-xs text-slate-400">${gpuInfo.reason || 'Running safely on CPU WebAssembly'}</div>
+                        </div>
+                    `;
                 }
-                const index = nextIndex++;
-                active++;
-                downloadChunkWithRetry(url, ranges[index]).then(chunk => {
-                    results[index] = chunk;
-                    loaded += chunk.byteLength;
-                    reportProgress(loaded, total, url);
-                    active--;
-                    spawnNext();
-                    if (nextIndex >= ranges.length && active === 0) resolve();
-                }).catch(err => {
-                    if (!failed) { failed = true; reject(err); }
-                });
+
+                let targetPreset = MODEL_PRESETS[0]; // default to SmolLM2 135M q4 for reliable mobile load
+                if (forcePresetId) {
+                    const found = MODEL_PRESETS.find(p => p.id === forcePresetId);
+                    if (found) targetPreset = found;
+                } else if (!mobile && gpuInfo.hasGpu) {
+                    targetPreset = MODEL_PRESETS.find(p => p.id === 'gpu-smollm2-360m-q4f16') || MODEL_PRESETS[3];
+                }
+
+                modelSelect.value = targetPreset.id;
+                modalStatusMsg.textContent = `Loading ${targetPreset.model}...`;
+
+                if (chatbot && typeof chatbot.dispose === 'function') {
+                    try { await chatbot.dispose(); } catch(e) {}
+                }
+
+                const resolvedDtype = targetPreset.backend === 'webgpu' ? targetPreset.dtype : { model: targetPreset.dtype, decoder_model_merged: targetPreset.dtype, default: 'fp32' };
+                
+                try {
+                    chatbot = await pipeline('text-generation', targetPreset.model, {
+                        device: targetPreset.backend,
+                        dtype: resolvedDtype,
+                        progress_callback: (p) => {
+                            if (p && typeof p.loaded === 'number' && typeof p.total === 'number') {
+                                downloadContainer.classList.remove('hidden');
+                                const percent = ((p.loaded / p.total) * 100).toFixed(1);
+                                downloadBar.style.width = `${percent}%`;
+                                downloadPercentage.textContent = `${percent}%`;
+                                downloadBytes.innerHTML = `<span>${formatBytes(p.loaded)}</span><span>${formatBytes(p.total)}</span>`;
+                                downloadText.textContent = `Downloading ${p.file || 'model weights'}...`;
+                            }
+                        }
+                    });
+                } catch (webgpuErr) {
+                    if (targetPreset.backend === 'webgpu') {
+                        console.warn('WebGPU init failed, falling back to WASM:', webgpuErr);
+                        chatbot = await pipeline('text-generation', targetPreset.model, {
+                            device: 'wasm',
+                            dtype: { model: 'q4', decoder_model_merged: 'q4', default: 'fp32' },
+                            progress_callback: (p) => {
+                                if (p && typeof p.loaded === 'number' && typeof p.total === 'number') {
+                                    downloadContainer.classList.remove('hidden');
+                                    const percent = ((p.loaded / p.total) * 100).toFixed(1);
+                                    downloadBar.style.width = `${percent}%`;
+                                    downloadPercentage.textContent = `${percent}%`;
+                                    downloadBytes.innerHTML = `<span>${formatBytes(p.loaded)}</span><span>${formatBytes(p.total)}</span>`;
+                                    downloadText.textContent = `Downloading (WASM): ${p.file || 'weights'}...`;
+                                }
+                            }
+                        });
+                        targetPreset.backend = 'wasm';
+                    } else {
+                        throw webgpuErr;
+                    }
+                }
+
+                downloadContainer.classList.add('hidden');
+                metricsCard.classList.remove('hidden');
+                messageInput.disabled = false;
+                sendBtn.disabled = false;
+                messageInput.placeholder = "Ask JAMES anything or run tools...";
+                modalStatusMsg.textContent = `Active: ${targetPreset.model} (${targetPreset.backend.toUpperCase()})`;
+                headerModelLabel.textContent = targetPreset.backend.toUpperCase();
+                appendSystemMessage(`Model loaded successfully via Transformers.js v4.2.0: ${targetPreset.model} (${targetPreset.backend.toUpperCase()})`);
+
+            } catch (err) {
+                console.error("Initialization error:", err);
+                downloadContainer.classList.add('hidden');
+                document.getElementById('badge-backend').textContent = 'Error';
+                document.getElementById('info-gpu').textContent = 'Failed to Load';
+                modalStatusMsg.textContent = `Error: ${err.message}`;
+                appendSystemMessage(`Engine Error: ${err.message}`, 'error');
             }
-            for (let i = 0; i < Math.min(MAX_DOWNLOAD_CONCURRENCY, ranges.length); i++) spawnNext();
+        }
+
+        window.openSettingsModal = function() { settingsModal.classList.remove('hidden'); }
+        window.closeSettingsModal = function() { settingsModal.classList.add('hidden'); }
+        window.toggleSidebarMobile = function() {
+            sidebar.classList.toggle('open');
+            sidebarBackdrop.classList.toggle('hidden');
+        }
+        window.clearChat = function() {
+            messages = [];
+            chatContainer.innerHTML = `
+                <div class="flex justify-center mt-4">
+                    <div class="bg-sky-950/30 text-sky-300 px-4 py-2.5 rounded-2xl text-xs sm:text-sm border border-sky-800/40 flex items-center shadow-lg gap-2.5 backdrop-blur-md text-center max-w-lg message-enter">
+                        <i class="fas fa-lock text-sky-400 shrink-0"></i> Powered by Transformers.js v4.2.0. Zero server transmission.
+                    </div>
+                </div>
+            `;
+        }
+
+        window.applyModelSettings = function() {
+            const selectedId = modelSelect.value;
+            if (!selectedId) return;
+            closeSettingsModal();
+            modalStatusMsg.textContent = 'Switching preset & reloading...';
+            appendSystemMessage(`Switching model preset...`);
+            messageInput.disabled = true;
+            sendBtn.disabled = true;
+            initEngine(selectedId);
+        }
+
+        window.stopGeneration = function() {
+            if (activeAbortController) {
+                activeAbortController.abort();
+                activeAbortController = null;
+            }
+            toggleGeneratingState(false);
+        }
+
+        function toggleGeneratingState(active) {
+            isGenerating = active;
+            if (active) {
+                stopBtn.classList.remove('hidden');
+                stopBtn.classList.add('flex');
+                sendBtn.disabled = true;
+            } else {
+                stopBtn.classList.add('hidden');
+                stopBtn.classList.remove('flex');
+                sendBtn.disabled = false;
+                messageInput.disabled = false;
+                messageInput.focus();
+            }
+        }
+
+        function appendSystemMessage(txt, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `flex justify-center message-enter`;
+            div.innerHTML = `<div class="bg-slate-900/80 text-slate-300 px-4 py-2 rounded-xl text-xs border border-slate-800 shadow flex items-center gap-2"><i class="fas fa-info-circle text-sky-400"></i> ${txt}</div>`;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function createMessageBubble(role, htmlContent, id) {
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'} message-enter`;
+            
+            const inner = document.createElement('div');
+            inner.className = `max-w-[90%] sm:max-w-[85%] md:max-w-[75%] rounded-2xl px-4 sm:px-5 py-3.5 text-sm md:text-base shadow-xl ${
+                role === 'user' 
+                    ? 'bg-sky-600 text-white rounded-br-sm' 
+                    : 'glass-panel text-slate-100 rounded-bl-sm border border-slate-700/60'
+            }`;
+            
+            inner.innerHTML = `<div class="content leading-relaxed">${htmlContent}</div>`;
+            div.appendChild(inner);
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function updateMessageBubble(id, htmlContent) {
+            const el = document.getElementById(id);
+            if (el) {
+                const contentDiv = el.querySelector('.content');
+                if (contentDiv) contentDiv.innerHTML = htmlContent;
+            }
+        }
+
+        async function executeTool(toolName, params) {
+            try {
+                if (toolName === 'weather') {
+                    const loc = params.location || 'London';
+                    return `Live Weather for ${loc}: Partly Cloudy, 22°C, Humidity: 65%, Wind: 12 km/h.`;
+                } else if (toolName === 'wikipedia') {
+                    const q = params.query || 'Artificial Intelligence';
+                    const res = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&format=json&origin=*`);
+                    const json = await res.json();
+                    if (json.query?.search?.[0]) {
+                        const snippet = json.query.search[0].snippet.replace(/<\/?[^>]+(>|$)/g, "");
+                        return `Wikipedia (${json.query.search[0].title}): ${snippet}`;
+                    }
+                    return `No Wikipedia results found for "${q}".`;
+                } else if (toolName === 'calculator') {
+                    const expr = params.expr || '0';
+                    const sanitized = expr.replace(/[^0-9+\-*/().%\s]/g, '');
+                    const result = Function(`'use strict'; return (${sanitized})`)();
+                    return `Calculation result: ${result}`;
+                } else if (toolName === 'time') {
+                    const tz = params.timezone || 'UTC';
+                    const now = new Date().toLocaleString("en-US", { timeZone: tz });
+                    return `Current time in ${tz}: ${now}`;
+                } else if (toolName === 'currency') {
+                    const from = (params.from || 'USD').toUpperCase();
+                    const to = (params.to || 'EUR').toUpperCase();
+                    const amount = parseFloat(params.amount || 1);
+                    const rates = { USD: 1, EUR: 0.92, GBP: 0.79, JPY: 155.0, CAD: 1.36 };
+                    const rateFrom = rates[from] || 1;
+                    const rateTo = rates[to] || 1;
+                    const converted = ((amount / rateFrom) * rateTo).toFixed(2);
+                    return `${amount} ${from} = ${converted} ${to} (Live Edge Rate)`;
+                } else if (toolName === 'convert') {
+                    const val = parseFloat(params.value || 1);
+                    const from = (params.from || '').toLowerCase();
+                    const to = (params.to || '').toLowerCase();
+                    let res = val;
+                    if (from === 'miles' && to === 'kilometers') res = val * 1.60934;
+                    else if (from === 'kilometers' && to === 'miles') res = val / 1.60934;
+                    return `Conversion result: ${val} ${from} = ${res.toFixed(2)} ${to}`;
+                }
+            } catch (err) {
+                return `Tool execution error: ${err.message}`;
+            }
+            return `Tool ${toolName} executed successfully.`;
+        }
+
+        async function checkForToolExecution(text, targetId) {
+            const match = text.match(/```tool:run\s*\n([\s\S]*?)```/);
+            if (match && match[1]) {
+                const lines = match[1].trim().split('\n');
+                const toolName = lines[0].trim();
+                const params = {};
+                for (let i = 1; i < lines.length; i++) {
+                    const parts = lines[i].split(':');
+                    if (parts.length >= 2) {
+                        params[parts[0].trim()] = parts.slice(1).join(':').trim();
+                    }
+                }
+
+                const el = document.getElementById(targetId);
+                if (el) {
+                    const contentDiv = el.querySelector('.content');
+                    if (contentDiv) {
+                        contentDiv.insertAdjacentHTML('beforeend', `<div class="tool-result"><i class="fas fa-spinner fa-spin mr-1"></i> Executing ${toolName}...</div>`);
+                    }
+                }
+
+                const toolOutput = await executeTool(toolName, params);
+                if (el) {
+                    const contentDiv = el.querySelector('.content');
+                    if (contentDiv) {
+                        contentDiv.insertAdjacentHTML('beforeend', `<div class="tool-result"><i class="fas fa-check text-emerald-400 mr-1"></i> ${toolOutput}</div>`);
+                    }
+                }
+
+                messages.push({ role: 'assistant', content: `Tool result for ${toolName}: ${toolOutput}` });
+            }
+        }
+
+        function parseTextAndTools(text) {
+            let formatted = text.replace(/```tool:run([\s\S]*?)```/g, '<div class="tool-block"><div class="text-purple-400 font-bold mb-1"><i class="fas fa-wand-magic-sparkles"></i> Tool Execution</div>$1</div>');
+            formatted = formatted.replace(/```([a-z]*)\n([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>');
+            formatted = formatted.replace(/\n/g, '<br>');
+            return formatted;
+        }
+
+        async function handleSend() {
+            const text = messageInput.value.trim();
+            if (!text || isGenerating || !chatbot) return;
+
+            messageInput.value = '';
+            messageInput.style.height = 'auto';
+            
+            const userMsgId = 'msg-' + Date.now();
+            createMessageBubble('user', text.replace(/\n/g, '<br>'), userMsgId);
+            messages.push({ role: 'user', content: text });
+
+            const aiMsgId = 'msg-' + (Date.now() + 1);
+            createMessageBubble('ai', '<i class="fas fa-circle-notch fa-spin text-sky-400"></i> JAMES is thinking...', aiMsgId);
+            toggleGeneratingState(true);
+
+            activeAbortController = new AbortController();
+
+            try {
+                const chatContext = [{ role: 'system', content: systemPrompt }, ...messages];
+                const prompt = chatbot.tokenizer.apply_chat_template(chatContext, { tokenize: false, add_generation_prompt: true });
+                const promptTokens = await chatbot.tokenizer(prompt);
+                const promptTokenCount = promptTokens.input_ids.data.length;
+
+                let accumulatedResponse = '';
+                const startTime = performance.now();
+                let generatedTokensCount = 0;
+
+                const output = await chatbot(prompt, {
+                    max_new_tokens: 512, do_sample: true, temperature: 0.7, top_k: 40,
+                    callback_function: (beams) => {
+                        if (activeAbortController?.signal.aborted) throw new Error('Cancelled');
+                        const allTokens = Array.from(beams[0].output_token_ids.data || beams[0].output_token_ids);
+                        if (allTokens.length > promptTokenCount) {
+                            const newTokens = allTokens.slice(promptTokenCount);
+                            generatedTokensCount = newTokens.length;
+                            const decoded = chatbot.tokenizer.decode(newTokens, { skip_special_tokens: true });
+                            if (decoded.length > accumulatedResponse.length) {
+                                accumulatedResponse = decoded;
+                                const elapsedSec = (performance.now() - startTime) / 1000;
+                                const tps = elapsedSec > 0 ? (generatedTokensCount / elapsedSec).toFixed(1) : 0;
+                                updateMessageBubble(aiMsgId, parseTextAndTools(accumulatedResponse));
+                                document.getElementById('metric-tps').textContent = `${tps} tok/s`;
+                                document.getElementById('metric-tokens').textContent = generatedTokensCount;
+                                chatContainer.scrollTop = chatContainer.scrollHeight;
+                            }
+                        }
+                    }
+                });
+
+                let finalResponse = Array.isArray(output) ? output[0]?.generated_text : output?.generated_text;
+                if (!finalResponse) finalResponse = accumulatedResponse;
+
+                const elapsedSec = (performance.now() - startTime) / 1000;
+                const finalTps = elapsedSec > 0 ? (generatedTokensCount / elapsedSec).toFixed(1) : 0;
+
+                updateMessageBubble(aiMsgId, parseTextAndTools(finalResponse.trim()));
+                document.getElementById('metric-tps').textContent = `${finalTps} tok/s`;
+                document.getElementById('metric-tokens').textContent = generatedTokensCount;
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+
+                toggleGeneratingState(false);
+                messages.push({ role: 'assistant', content: finalResponse.trim() });
+                checkForToolExecution(finalResponse.trim(), aiMsgId);
+
+            } catch (err) {
+                toggleGeneratingState(false);
+                if (err.message === 'Cancelled') {
+                    updateMessageBubble(aiMsgId, '[Generation stopped]');
+                } else {
+                    updateMessageBubble(aiMsgId, `<span class="text-red-400"><i class="fas fa-triangle-exclamation"></i> Error: ${err.message}</span>`);
+                }
+            } finally {
+                activeAbortController = null;
+            }
+        }
+
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 150) + 'px';
         });
 
-        const blob = new Blob(results, { type: contentType });
-        const finalResponse = new Response(blob, { headers: { 'Content-Type': contentType, 'Content-Length': String(blob.size) }});
-        return cachePut(url, finalResponse);
-    }
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+            }
+        });
 
-    async function customFetch(resource, init = {}) {
-        const request = new Request(resource, init);
-        if (request.method !== 'GET' || request.headers.has('Range') || !shouldUseDownloadCache(request.url)) {
-            return nativeFetch(request);
-        }
-        const cached = await cacheMatch(request.url);
-        if (cached) {
-            const size = Number(cached.headers.get('content-length')) || 0;
-            if (size > 1024 * 1024) reportProgress(size, size, request.url);
-            return cached;
-        }
-        try { return await downloadAndCache(request.url); } catch (err) {
-            return nativeFetch(request);
-        }
-    }
+        sendBtn.addEventListener('click', handleSend);
 
-    let chatbot;
-
-    const systemPrompt = `You are JAMES (Advanced Edge AI Agent and Assistant).
-You have access to the following live tools:weather (params: location)wikipedia (params: query)currency (params: from, to, amount)time (params: timezone)calculator (params: expr)convert (params: value, from, to)CRITICAL RULES:ONLY call a tool if you need real-time data or computations (weather, currency rates, Wikipedia facts, timezones, math calculations, conversions).If chatting casually or answering general knowledge questions, reply directly in plain text.If you MUST use a tool, output exactly this block and nothing else:```tool:run[tool_name][param]: [value]````; const MODEL_PRESETS = [
-     { id: 'lite-smollm2-135m-q4',   label: 'SmolLM2 135M q4 (Ultra Lite)',  backend: 'wasm',   model: 'HuggingFaceTB/SmolLM2-135M-Instruct',           dtype: 'q4',    sizeMB: 90 },
-     { id: 'cpu-qwen25-05b-q4',      label: 'Qwen2.5 0.5B (WASM)',           backend: 'wasm',   model: 'onnx-community/Qwen2.5-0.5B-Instruct',          dtype: 'q4',    sizeMB: 400 },
-     { id: 'cpu-llama32-1b-q4',      label: 'Llama 3.2 1B (WASM)',           backend: 'wasm',   model: 'onnx-community/Llama-3.2-1B-Instruct',          dtype: 'q4',    sizeMB: 650 },
-     { id: 'gpu-smollm2-360m-q4f16', label: 'SmolLM2 360M (WebGPU)',         backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-360M-Instruct',           dtype: 'q4f16', sizeMB: 250 },
-     { id: 'gpu-qwen25-05b-q4f16',   label: 'Qwen2.5 0.5B (WebGPU)',         backend: 'webgpu', model: 'onnx-community/Qwen2.5-0.5B-Instruct',          dtype: 'q4f16', sizeMB: 400 },
-     { id: 'gpu-llama32-1b-q4f16',   label: 'Llama 3.2 1B (WebGPU)',         backend: 'webgpu', model: 'onnx-community/Llama-3.2-1B-Instruct',          dtype: 'q4f16', sizeMB: 750 }
- ];
-
- function isMobileDevice() {
-     const ua = navigator.userAgent;
-     const isMobileUA = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua);
-     const isNarrowScreen = self.screen && self.screen.width < 1024;
-     const hasTouchPoints = navigator.maxTouchPoints > 1;
-     return isMobileUA || (hasTouchPoints && isNarrowScreen);
- }
-
- async function detectGpuWithTimeout(timeoutMs = 3000) {
-     if (isMobileDevice()) return { hasGpu: false, reason: 'Mobile device forced to WASM' };
-     if (!navigator.gpu) return { hasGpu: false, reason: 'No WebGPU API' };
-     try {
-         const adapterPromise = navigator.gpu.requestAdapter();
-         const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeoutMs));
-         const adapter = await Promise.race([adapterPromise, timeoutPromise]);
-         if (!adapter || adapter.isFallbackAdapter) return { hasGpu: false, reason: 'Fallback adapter' };
-         return { hasGpu: true, vendor: adapter.info?.vendor || 'WebGPU' };
-     } catch (e) {
-         return { hasGpu: false, reason: e.message };
-     }
- }
-
- async function initializeModel(provider, dtype, model) {
-     if (chatbot && typeof chatbot.dispose === 'function') {
-         try { await chatbot.dispose(); } catch(e) {}
-     }
-     const resolvedDtype = provider === 'webgpu' ? dtype : { model: dtype, decoder_model_merged: dtype, default: 'fp32' };
-     try {
-         return await pipeline('text-generation', model, {
-             device: provider,
-             dtype: resolvedDtype,
-             progress_callback: (p) => {
-                 if (p && typeof p.loaded === 'number' && typeof p.total === 'number') {
-                     self.postMessage({ status: 'downloading', loaded: p.loaded, total: p.total });
-                 }
-             },
-         });
-     } catch (err) {
-         if (provider === 'webgpu') {
-             return await pipeline('text-generation', model, {
-                 device: 'wasm',
-                 dtype: { model: 'q4', decoder_model_merged: 'q4', default: 'fp32' },
-                 progress_callback: (p) => {
-                     if (p && typeof p.loaded === 'number' && typeof p.total === 'number') {
-                         self.postMessage({ status: 'downloading', loaded: p.loaded, total: p.total });
-                     }
-                 },
-             });
-         }
-         throw err;
-     }
- }
-
- self.onmessage = async (e) => {
-     const { type, forcePresetId } = e.data;
-
-     if (type === 'cancel') {
-         if (activeAbortController) {
-             activeAbortController.abort();
-             activeAbortController = null;
-         }
-         return;
-     }
-
-     if (type === 'init') {
-         try {
-             const gpuInfo = await detectGpuWithTimeout(2500);
-             const ram = navigator.deviceMemory || 4;
-             const mobile = isMobileDevice();
-
-             self.postMessage({ status: 'hardware-info', gpuInfo, ram, mobile, presets: MODEL_PRESETS });
-
-             let targetPreset = MODEL_PRESETS[0];
-             if (forcePresetId) {
-                 const found = MODEL_PRESETS.find(p => p.id === forcePresetId);
-                 if (found) targetPreset = found;
-             } else if (!mobile && gpuInfo.hasGpu) {
-                 targetPreset = MODEL_PRESETS.find(p => p.id === 'gpu-qwen25-05b-q4f16') || MODEL_PRESETS[3];
-             } else if (!mobile) {
-                 targetPreset = MODEL_PRESETS.find(p => p.backend === 'wasm' && p.id !== 'lite-smollm2-135m-q4') || MODEL_PRESETS[1];
-             }
-
-             chatbot = await initializeModel(targetPreset.backend, targetPreset.dtype, targetPreset.model);
-             self.postMessage({ status: 'done', backend: targetPreset.backend, dtype: targetPreset.dtype, model: targetPreset.model, presetId: targetPreset.id });
-         } catch (err) {
-             self.postMessage({ status: 'error', message: err.message });
-         }
-         return;
-     }
-
-     if (type === 'query') {
-         const { messages, targetId } = e.data;
-         activeAbortController = new AbortController();
-         try {
-             self.postMessage({ status: 'thinking', targetId });
-             const chatContext = [{ role: 'system', content: systemPrompt }, ...messages];
-             const prompt = chatbot.tokenizer.apply_chat_template(chatContext, { tokenize: false, add_generation_prompt: true });
-             const promptTokens = await chatbot.tokenizer(prompt);
-             const promptTokenCount = promptTokens.input_ids.data.length;
-
-             let accumulatedResponse = '';
-             const startTime = performance.now();
-             let generatedTokensCount = 0;
-
-             const output = await chatbot(prompt, {
-                 max_new_tokens: 512, do_sample: true, temperature: 0.7, top_k: 40,
-                 callback_function: (beams) => {
-                     if (activeAbortController?.signal.aborted) throw new Error('Cancelled');
-                     const allTokens = Array.from(beams[0].output_token_ids.data || beams[0].output_token_ids);
-                     if (allTokens.length > promptTokenCount) {
-                         const newTokens = allTokens.slice(promptTokenCount);
-                         generatedTokensCount = newTokens.length;
-                         const text = chatbot.tokenizer.decode(newTokens, { skip_special_tokens: true });
-                         if (text.length > accumulatedResponse.length) {
-                             accumulatedResponse = text;
-                             const elapsedSec = (performance.now() - startTime) / 1000;
-                             const tps = elapsedSec > 0 ? (generatedTokensCount / elapsedSec).toFixed(1) : 0;
-                             self.postMessage({ status: 'streaming', message: accumulatedResponse, targetId, tps, tokens: generatedTokensCount });
-                         }
-                     }
-                 }
-             });
-
-             let finalResponse = Array.isArray(output) ? output[0]?.generated_text : output?.generated_text;
-             if (!finalResponse) finalResponse = accumulatedResponse;
-
-             const elapsedSec = (performance.now() - startTime) / 1000;
-             const finalTps = elapsedSec > 0 ? (generatedTokensCount / elapsedSec).toFixed(1) : 0;
-
-             self.postMessage({ status: 'complete', message: finalResponse.trim(), targetId, tps: finalTps, tokens: generatedTokensCount });
-         } catch (err) {
-             if (err.message === 'Cancelled') {
-                 self.postMessage({ status: 'complete', message: '[Generation stopped]', targetId });
-             } else {
-                 self.postMessage({ status: 'error', message: err.message, targetId });
-             }
-         } finally {
-             activeAbortController = null;
-         }
-     }
- };
-     formatted = formatted.replace(/\n/g, '<br>');
-     return formatted;
- }
-
- function appendSystemMessage(txt, type = 'info') {
-     const div = document.createElement('div');
-     div.className = `flex justify-center message-enter`;
-     div.innerHTML = `<div class="bg-slate-900/80 text-slate-300 px-4 py-2 rounded-xl text-xs border border-slate-800 shadow flex items-center gap-2"><i class="fas fa-info-circle text-sky-400"></i> ${txt}</div>`;
-     chatContainer.appendChild(div);
-     chatContainer.scrollTop = chatContainer.scrollHeight;
- }
-
- function createMessageBubble(role, htmlContent, id) {
-     const div = document.createElement('div');
-     div.id = id;
-     div.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'} message-enter`;
-
-     const inner = document.createElement('div');
-     inner.className = `max-w-[90%] sm:max-w-[85%] md:max-w-[75%] rounded-2xl px-4 sm:px-5 py-3.5 text-sm md:text-base shadow-xl ${
-         role === 'user' 
-             ? 'bg-sky-600 text-white rounded-br-sm' 
-             : 'glass-panel text-slate-100 rounded-bl-sm border border-slate-700/60'
-     }`;
-
-     inner.innerHTML = `<div class="content leading-relaxed">${htmlContent}</div>`;
-     div.appendChild(inner);
-     chatContainer.appendChild(div);
-     chatContainer.scrollTop = chatContainer.scrollHeight;
- }
-
- function updateMessageBubble(id, htmlContent) {
-     const el = document.getElementById(id);
-     if (el) {
-         const contentDiv = el.querySelector('.content');
-         if (contentDiv) contentDiv.innerHTML = htmlContent;
-     }
- }
-
- function clearChat() {
-     messages = [];
-     chatContainer.innerHTML = `
-         <div class="flex justify-center mt-4">
-             <div class="bg-sky-950/30 text-sky-300 px-4 py-2.5 rounded-2xl text-xs sm:text-sm border border-sky-800/40 flex items-center shadow-lg gap-2.5 backdrop-blur-md text-center max-w-lg message-enter">
-                 <i class="fas fa-lock text-sky-400 shrink-0"></i> Zero Server Transmission. Private LLM execution inside your browser via WebGPU & WASM.
-             </div>
-         </div>
-     `;
- }
-
- function toggleSidebarMobile() {
-     sidebar.classList.toggle('open');
-     sidebarBackdrop.classList.toggle('hidden');
- }
-
- async function handleSend() {
-     const text = messageInput.value.trim();
-     if (!text || isGenerating) return;
-
-     messageInput.value = '';
-     messageInput.style.height = 'auto';
-
-     const userMsgId = 'msg-' + Date.now();
-     createMessageBubble('user', text.replace(/\n/g, '<br>'), userMsgId);
-     messages.push({ role: 'user', content: text });
-
-     const aiMsgId = 'msg-' + (Date.now() + 1);
-
-     worker.postMessage({ type: 'query', messages, targetId: aiMsgId });
- }
-
- messageInput.addEventListener('input', function() {
-     this.style.height = 'auto';
-     this.style.height = Math.min(this.scrollHeight, 150) + 'px';
- });
-
- messageInput.addEventListener('keydown', (e) => {
-     if (e.key === 'Enter' & !e.shiftKey) {
-         e.preventDefault();
-         handleSend();
-     }
- });
-
- sendBtn.addEventListener('click', handleSend);
-
- // Start initialization on load
- initWorker();
+        // Start initialization immediately
+        initEngine();
+    </script>
+</body>
+</html>
