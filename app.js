@@ -768,12 +768,29 @@ function renderChatLog() {
     chatHistory.forEach(msg => {
         const messageWrap = document.createElement('div');
         messageWrap.className = `message-wrap ${msg.role === 'user' ? 'user-msg' : 'assistant-msg'}`;
+        
         const messageContent = document.createElement('div');
         messageContent.className = 'message-content';
-        messageContent.innerHTML = msg.role === 'assistant'
-            ? formatAssistantMessage(msg.content)
-            : (messageContent.textContent = msg.content, messageContent.textContent);
-        messageWrap.appendChild(messageContent);
+        
+        if (msg.role === 'assistant') {
+            messageContent.innerHTML = formatAssistantMessage(msg.content);
+            messageWrap.appendChild(messageContent);
+        } else {
+            messageContent.textContent = msg.content;
+            
+            const editBtn = document.createElement('button');
+            editBtn.className = 'edit-msg-btn';
+            editBtn.innerHTML = '✏️';
+            editBtn.title = 'Edit this message';
+            editBtn.onclick = () => window.editUserMessage(msg.content);
+
+            const container = document.createElement('div');
+            container.className = 'user-msg-container';
+            container.appendChild(editBtn);
+            container.appendChild(messageContent);
+            messageWrap.appendChild(container);
+        }
+        
         chatLog.appendChild(messageWrap);
     });
     chatLog.scrollTop = chatLog.scrollHeight;
