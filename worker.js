@@ -112,41 +112,54 @@ async function downloadAndCache(url) {
     const results = new Array(ranges.length);
     let loaded = 0;
     let nextIndex = 0;
+    let active = 0;
+    let failed = false;
+    let settled = false;
 
-    await new Promise((resolve, reject) => {
-        let active = 0;
-        let failed = false;
+    return new Promise((resolve, reject) => {
+        function finish(err) {
+            if (settled) return;
+            settled = true;
+            if (err) reject(err);
+            else {
+                const blob = new Blob(results, { type: contentType });
+                const finalResponse = new Response(blob, {
+                    headers: { 'Content-Type': contentType, 'Content-Length': String(blob.size) },
+                });
+                resolve(cachePut(url, finalResponse));
+            }
+        }
 
         function spawnNext() {
-            if (failed) return;
+            if (failed || settled) return;
             if (nextIndex >= ranges.length) {
-                if (active === 0) resolve();
+                if (active === 0) finish(null);
                 return;
             }
+
             const index = nextIndex++;
             active++;
+
             downloadChunk(url, ranges[index])
                 .then(chunk => {
+                    if (failed || settled) return;
                     results[index] = chunk;
                     loaded += chunk.byteLength;
                     reportProgress(loaded, total, url);
                     active--;
                     spawnNext();
-                    if (nextIndex >= ranges.length && active === 0) resolve();
+                    if (nextIndex >= ranges.length && active === 0) finish(null);
                 })
                 .catch(err => {
-                    if (!failed) { failed = true; reject(err); }
+                    if (!failed) {
+                        failed = true;
+                        finish(err);
+                    }
                 });
         }
 
         for (let i = 0; i < MAX_DOWNLOAD_CONCURRENCY; i++) spawnNext();
     });
-
-    const blob = new Blob(results, { type: contentType });
-    const finalResponse = new Response(blob, {
-        headers: { 'Content-Type': contentType, 'Content-Length': String(blob.size) },
-    });
-    return cachePut(url, finalResponse);
 }
 
 async function customFetch(resource, init = {}) {
@@ -157,6 +170,7 @@ async function customFetch(resource, init = {}) {
     if (!shouldUseDownloadCache(request.url)) {
         return nativeFetch(request);
     }
+
     const cached = await cacheMatch(request.url);
     if (cached) {
         console.log(`[Cache Hit] ${request.url}`);
@@ -166,6 +180,7 @@ async function customFetch(resource, init = {}) {
         }
         return cached;
     }
+
     try {
         return await downloadAndCache(request.url);
     } catch (err) {
@@ -174,7 +189,7 @@ async function customFetch(resource, init = {}) {
     }
 }
 
-let chatbot;
+let chatbot = null;
 let activePreset = null;
 
 const systemPrompt = `You are JAMES, a helpful, friendly AI assistant running locally in the browser. Keep responses concise and under 512 tokens.
@@ -355,8 +370,12 @@ async function detectWasmCapabilities() {
     const caps = { memory64: false, simd: false, threads: false, bulkMemory: false, multiValue: false, exceptions: false, gc: false };
 
     async function probe(bytes) {
-        try { await WebAssembly.compile(new Uint8Array(bytes)); return true; }
-        catch { return false; }
+        try {
+            await WebAssembly.compile(new Uint8Array(bytes));
+            return true;
+        } catch {
+            return false;
+        }
     }
 
     caps.memory64 = await probe([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x05, 0x04, 0x01, 0x04, 0x00, 0x01]);
@@ -365,24 +384,37 @@ async function detectWasmCapabilities() {
     caps.bulkMemory = await probe([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x0a, 0x0e, 0x01, 0x0c, 0x00, 0x41, 0x00, 0x41, 0x00, 0x41, 0x00, 0xfc, 0x0b, 0x00, 0x0b]);
     caps.multiValue = await probe([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60, 0x00, 0x02, 0x7f, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x08, 0x01, 0x06, 0x00, 0x41, 0x00, 0x41, 0x00, 0x0b]);
     if (typeof WebAssembly.Tag === 'function') caps.exceptions = true;
-    try { await WebAssembly.compile(new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x5f, 0x00, 0x00])); caps.gc = true; } catch { }
+    try {
+        await WebAssembly.compile(new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x5f, 0x00, 0x00]));
+        caps.gc = true;
+    } catch { /* ignore */ }
 
     console.log('🔬 WASM Capabilities:', caps);
     return caps;
 }
 
 // ── GPU Detection ─────────────────────────────────────────────────────────────
-// Strategy: be OPTIMISTIC. If WebGPU adapter exists and isn't a software
-// fallback, treat it as capable. Let the pipeline fail naturally with a real
-// error rather than blocking the user with a false negative.
 
 function detectBrowserEngine() {
     const ua = navigator.userAgent;
     let browser = 'Unknown', engine = 'Unknown', version = '';
-    if (ua.includes('Firefox/')) { browser = 'Firefox'; engine = 'Gecko'; version = ua.match(/Firefox\/(\d+)/)?.[1] || ''; }
-    else if (ua.includes('Edg/')) { browser = 'Edge'; engine = 'Blink'; version = ua.match(/Edg\/(\d+)/)?.[1] || ''; }
-    else if (ua.includes('Chrome/')) { browser = 'Chrome'; engine = 'Blink'; version = ua.match(/Chrome\/(\d+)/)?.[1] || ''; }
-    else if (ua.includes('Safari/') && !ua.includes('Chrome/')) { browser = 'Safari'; engine = 'WebKit'; version = ua.match(/Version\/(\d+)/)?.[1] || ''; }
+    if (ua.includes('Firefox/')) {
+        browser = 'Firefox';
+        engine = 'Gecko';
+        version = ua.match(/Firefox\/(\d+)/)?.[1] || '';
+    } else if (ua.includes('Edg/')) {
+        browser = 'Edge';
+        engine = 'Blink';
+        version = ua.match(/Edg\/(\d+)/)?.[1] || '';
+    } else if (ua.includes('Chrome/')) {
+        browser = 'Chrome';
+        engine = 'Blink';
+        version = ua.match(/Chrome\/(\d+)/)?.[1] || '';
+    } else if (ua.includes('Safari/') && !ua.includes('Chrome/')) {
+        browser = 'Safari';
+        engine = 'WebKit';
+        version = ua.match(/Version\/(\d+)/)?.[1] || '';
+    }
     return { browser, engine, version };
 }
 
@@ -397,24 +429,32 @@ async function detectGpu() {
     if (!navigator.gpu) return noGpu('WebGPU API not available in this browser');
 
     let adapter = null;
-    try { adapter = await navigator.gpu.requestAdapter(); }
-    catch (e) { return noGpu('requestAdapter() threw: ' + e.message); }
+    try {
+        adapter = await navigator.gpu.requestAdapter();
+    } catch (e) {
+        return noGpu('requestAdapter() threw: ' + e.message);
+    }
     if (!adapter) return noGpu('No WebGPU adapter found (no GPU or driver missing)');
 
-    // ── Gather vendor info ────────────────────────────────────────────────
     let vendor = '', architecture = '', device = '', description = '';
     try {
         if (adapter.info) {
-            vendor = adapter.info.vendor || ''; architecture = adapter.info.architecture || '';
-            device = adapter.info.device || ''; description = adapter.info.description || '';
+            vendor = adapter.info.vendor || '';
+            architecture = adapter.info.architecture || '';
+            device = adapter.info.device || '';
+            description = adapter.info.description || '';
         } else if (typeof adapter.requestAdapterInfo === 'function') {
             const info = await adapter.requestAdapterInfo();
-            vendor = info.vendor || ''; architecture = info.architecture || '';
-            device = info.device || ''; description = info.description || '';
+            vendor = info.vendor || '';
+            architecture = info.architecture || '';
+            device = info.device || '';
+            description = info.description || '';
         }
-    } catch (e) { console.warn('GPU info hidden by browser privacy settings:', e.message); }
+    } catch (e) {
+        console.warn('GPU info hidden by browser privacy settings:', e.message);
+    }
 
-    // ── Normalize ANGLE vendor (Chrome/Edge on Windows wraps real GPU via ANGLE/D3D) ──
+    // Normalize ANGLE vendor (Chrome/Edge on Windows wraps real GPU via ANGLE/D3D)
     let normalizedVendor = vendor;
     const vendorLower = vendor.toLowerCase();
     if (vendorLower === 'google' || vendorLower.includes('angle') || vendorLower === '') {
@@ -433,18 +473,15 @@ async function detectGpu() {
     const maxBufferMB = (adapter.limits?.maxBufferSize || 0) / (1024 * 1024);
     const featureList = adapter.features ? [...adapter.features] : [];
 
-    // ── OPTIMISTIC GPU detection ──────────────────────────────────────────
-    // If the adapter is NOT a software fallback, we treat it as a capable GPU.
-    // This covers Nvidia via ANGLE, privacy-masked Firefox, and any future vendor.
-    // The pipeline itself will throw a real, actionable error if WebGPU truly
-    // can't run the model — far better than a false "no GPU" block.
     if (isFallback) {
         const reason = 'Software fallback adapter — not suitable for GPU inference';
         console.warn('⚠️', reason);
-        return { hasGpu: false, vendor: normalizedVendor, architecture, device, description, isFallback, maxStorageMB, maxBufferMB, features: featureList, browserInfo, reason };
+        return {
+            hasGpu: false, vendor: normalizedVendor, architecture, device, description,
+            isFallback, maxStorageMB, maxBufferMB, features: featureList, browserInfo, reason
+        };
     }
 
-    // Non-fallback adapter = real GPU (Nvidia, AMD, Intel, Apple Silicon, Qualcomm…)
     const reason = `GPU detected — vendor: ${normalizedVendor || 'hidden'}, buffer: ${maxStorageMB.toFixed(0)} MB`;
     console.log('🚀', reason);
     console.log(`🖥️ Browser: ${browserInfo.browser} ${browserInfo.version} (${browserInfo.engine})`);
@@ -459,7 +496,9 @@ async function detectGpu() {
 
 // ── Smart auto-selection ──────────────────────────────────────────────────────
 
-function getDeviceRamGB() { return navigator.deviceMemory || 4; }
+function getDeviceRamGB() {
+    return navigator.deviceMemory || 4;
+}
 
 function rankAutoPresets(gpuInfo, ramGB, isConstrained, wasmCaps = null) {
     const { hasGpu } = gpuInfo;
@@ -470,9 +509,9 @@ function rankAutoPresets(gpuInfo, ramGB, isConstrained, wasmCaps = null) {
             .sort((a, b) => (b.params || 0) - (a.params || 0));
     }
 
-    // A conservative estimate for VRAM capacity based on system RAM.
-    // We NO LONGER clamp this to `maxStorageMB` because WebGPU splits large models
-    // into multiple buffers! `maxStorageMB` is just a single-buffer limit.
+    // Conservative estimate for VRAM capacity based on system RAM.
+    // We do NOT clamp to maxStorageMB because WebGPU splits large models
+    // into multiple buffers; maxStorageMB is only a single-buffer limit.
     const gpuBudgetMB = hasGpu ? (ramGB * 1024 * 0.70) : 0;
     const cpuBudgetFactor = (wasmCaps && wasmCaps.memory64) ? 0.60 : 0.40;
     const cpuBudgetMB = ramGB * 1024 * cpuBudgetFactor;
@@ -486,12 +525,11 @@ function rankAutoPresets(gpuInfo, ramGB, isConstrained, wasmCaps = null) {
     });
 
     candidates.sort((a, b) => {
-        // Prioritize GPU models over CPU
+        // Prefer GPU models
         const gpuA = a.requires === 'gpu' ? 1 : 0;
         const gpuB = b.requires === 'gpu' ? 1 : 0;
         if (gpuA !== gpuB) return gpuB - gpuA;
-
-        // Sort by parameter count (best models first)
+        // Then higher parameter count
         return (b.params || 0) - (a.params || 0);
     });
 
@@ -510,9 +548,6 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
     let lastError = null;
 
     // ── 0. Forced preset — load directly, no capability filtering ────────────
-    // This is the key fix: when the user explicitly picks a model (including any
-    // GPU model), we skip all heuristics and just try to load it. WebGPU will
-    // throw a real, descriptive error if the hardware truly can't run it.
     if (forcePresetId) {
         const preset = MODEL_PRESETS.find(p => p.id === forcePresetId);
         if (!preset) throw new Error(`Unknown preset id: ${forcePresetId}`);
@@ -534,7 +569,6 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
         const last = MODEL_PRESETS.find(p => p.id === lastPresetId);
         if (last) {
             console.log(`🔄 Warm start: ${last.label}`);
-            // Notify the UI so it can show "Resuming: [Model Name]..."
             self.postMessage({ status: 'warm-start', preset: last });
             try {
                 chatbot = await initializeModel(last.backend, last.dtype, last.model);
@@ -545,6 +579,7 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
             } catch (err) {
                 console.warn(`❌ Warm start failed, clearing cache:`, err);
                 self.postMessage({ status: 'clear-last-preset' });
+                lastError = err;
             }
         }
     }
@@ -571,6 +606,7 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
     const litePresets = MODEL_PRESETS
         .filter(p => p.id.startsWith('lite-'))
         .sort((a, b) => (a.sizeMB || 0) - (b.sizeMB || 0));
+
     for (const preset of litePresets) {
         try {
             console.log(`⏳ Last-resort lite: ${preset.label}`);
@@ -586,7 +622,7 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
     }
 
     console.error('💥 All models failed.');
-    throw lastError;
+    throw lastError || new Error('All model presets failed to load');
 }
 
 let isGenerating = false;
@@ -621,11 +657,19 @@ self.onmessage = async (e) => {
     if (type === 'query') {
         if (isGenerating) {
             console.warn('Worker received query while already generating. Ignoring to prevent WebGPU corruption.');
-            reportWorkerError(new Error("JAMES is busy processing another request."), targetId);
+            reportWorkerError(new Error('JAMES is busy processing another request.'), targetId);
             return;
         }
+        if (!chatbot) {
+            reportWorkerError(new Error('Model is not initialized yet.'), targetId);
+            return;
+        }
+
         isGenerating = true;
         isAborted = false;
+
+        // CRITICAL: declare outside try so it is visible in the catch block
+        let accumulatedResponse = '';
 
         try {
             self.postMessage({ status: 'thinking', targetId, chatId });
@@ -644,8 +688,6 @@ self.onmessage = async (e) => {
             const promptTokens = await chatbot.tokenizer(prompt);
             const promptTokenCount = promptTokens.input_ids.data.length;
 
-            let accumulatedResponse = '';
-
             let maxTokens = 1024;
             let temp = 1.0;
 
@@ -654,8 +696,8 @@ self.onmessage = async (e) => {
                     maxTokens = 512;
                     temp = 0.8;
                 } else if (activePreset.params >= 3.0) {
-                    maxTokens = 2048; // 3B models can generate much longer, coherent responses
-                    temp = 0.7;       // Lower temp helps the 3B models reliably format ```tool:run blocks
+                    maxTokens = 2048;
+                    temp = 0.7;
                 }
             }
 
@@ -668,13 +710,22 @@ self.onmessage = async (e) => {
                 return_full_text: false,
                 callback_function: (beams) => {
                     if (isAborted) throw new Error('AbortGeneration');
-                    const allTokens = Array.from(beams[0].output_token_ids.data || beams[0].output_token_ids);
+
+                    const tokenIds = beams?.[0]?.output_token_ids;
+                    if (!tokenIds) return;
+
+                    const allTokens = Array.from(tokenIds.data || tokenIds);
                     if (allTokens.length > promptTokenCount) {
                         const newTokens = allTokens.slice(promptTokenCount);
                         const text = chatbot.tokenizer.decode(newTokens, { skip_special_tokens: true });
                         if (text.length > accumulatedResponse.length) {
                             accumulatedResponse = text;
-                            self.postMessage({ status: 'streaming', message: accumulatedResponse, targetId, chatId });
+                            self.postMessage({
+                                status: 'streaming',
+                                message: accumulatedResponse,
+                                targetId,
+                                chatId
+                            });
                         }
                     }
                 }
@@ -688,10 +739,21 @@ self.onmessage = async (e) => {
                 finalResponse = accumulatedResponse.trim();
             }
 
-            self.postMessage({ status: 'complete', message: finalResponse.trim(), targetId, chatId });
+            self.postMessage({
+                status: 'complete',
+                message: finalResponse.trim(),
+                targetId,
+                chatId
+            });
         } catch (err) {
             if (err.message === 'AbortGeneration') {
-                self.postMessage({ status: 'complete', message: accumulatedResponse.trim(), targetId, chatId });
+                // Now safe: accumulatedResponse is in scope
+                self.postMessage({
+                    status: 'complete',
+                    message: accumulatedResponse.trim(),
+                    targetId,
+                    chatId
+                });
             } else {
                 reportWorkerError(err, targetId);
             }
