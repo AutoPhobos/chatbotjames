@@ -144,6 +144,50 @@ export class SmallTalkHandler {
                     "I'll leave the deep architecture details to the project docs — what I can tell you is everything runs client-side on your device.",
                 ],
             },
+
+            // ── Knowledge Cutoff & Updates ─────────────────────────────────────
+            {
+                triggers: [
+                    'what is your knowledge cutoff', "what's your knowledge cutoff",
+                    'do you know about recent events', 'how current is your information',
+                    'are you up to date', 'when were you last updated', 'what version are you',
+                    'what version is this', 'are you the latest version', 'do you get updates',
+                    'how often are you updated',
+                ],
+                responses: [
+                    "I don't have a way to check my own version or a specific cutoff date from inside the chat — for anything time-sensitive, lean on my built-in tools rather than my own memory.",
+                    "That's more of an app-level detail than something I can check myself. The app is the best place to look for version or update info.",
+                ],
+            },
+
+            // ── Memory & Learning ───────────────────────────────────────────────
+            {
+                triggers: [
+                    'do you remember me', 'do you remember our conversation', 'do you have memory',
+                    'will you remember this', 'do you learn from our chats',
+                    'do you learn from conversations', 'do you save our conversation',
+                    'do you remember what i said', 'will you remember me next time',
+                    'do you have long term memory',
+                ],
+                responses: [
+                    "I don't learn or retrain from our chats — each session starts fresh. Anything kept around, like chat history, lives in your browser's storage, not in me.",
+                    "No long-term memory here. I'm not changed by our conversation, and whether past chats stick around is up to the app, not me.",
+                ],
+            },
+
+            // ── Accuracy & Limitations ─────────────────────────────────────────
+            {
+                triggers: [
+                    'do you make mistakes', 'can you be wrong', 'do you hallucinate',
+                    'are you always right', 'are you always accurate', 'how accurate are you',
+                    'what cant you do', "what can't you do", 'what are your limitations',
+                    'do you have limits', 'can you be trusted', 'should i trust you',
+                ],
+                responses: [
+                    "I can absolutely make mistakes, like any AI — I can sound confident and still be wrong. Worth double-checking anything important!",
+                    "I'm not infallible. I do my best, but for anything critical — medical, legal, financial — please verify independently.",
+                ],
+            },
             {
                 triggers: ['how old are you', 'when were you born', "what's your age", 'whats your age'],
                 responses: [
@@ -167,11 +211,14 @@ export class SmallTalkHandler {
                     'is this private', 'is james private', 'do you use an api', 'do you call an api',
                     'do you send my data anywhere', 'is my data safe', 'is my data secure',
                     'do you track me', 'do you store my data', 'do you log my conversations',
+                    'can you access the internet', 'do you have internet access',
+                    'can you browse the web', 'can you go online', 'do you work offline',
+                    'can i use you offline', 'does this work offline',
                 ],
                 responses: [
-                    "100% local! I run right in your browser using on-device inference — nothing you type is sent to a server.",
-                    "Once loaded, I run fully offline. No API calls, no tracking, no logging — your conversations stay on your device.",
-                    "Yep, everything happens locally in your browser. No server round-trips, no data collection.",
+                    "Our conversation runs 100% locally in your browser — no server sees what you type. A few specific tools, like weather or currency lookups, do reach out to fetch live data, but the chat itself stays on your device.",
+                    "The core chat runs fully on-device with nothing logged or tracked. Only optional tools (weather, currency, Wikipedia, etc.) need a connection to pull fresh data.",
+                    "Yep — local inference, no tracking, no conversation logging. Just know a couple of built-in tools need internet to fetch live info.",
                 ],
             },
 
@@ -190,6 +237,19 @@ export class SmallTalkHandler {
                 ],
             },
 
+            // ── Cost & Access ────────────────────────────────────────────────
+            {
+                triggers: [
+                    'is this free', 'are you free', 'do i have to pay', 'is james free',
+                    'does this cost money', 'is there a subscription', 'do i need an account',
+                    'do i need to sign up', 'do i need to log in',
+                ],
+                responses: [
+                    "That's a question for the app itself rather than me — I don't have visibility into pricing or accounts from inside the chat.",
+                    "I can't speak to pricing or sign-up requirements myself. Check the app or its docs for that.",
+                ],
+            },
+
             // ── Capabilities ───────────────────────────────────────────────────
             {
                 triggers: [
@@ -200,6 +260,20 @@ export class SmallTalkHandler {
                 responses: [
                     "I can chat, answer questions, look up weather, convert currencies, fetch Wikipedia summaries, generate passwords and UUIDs, tell time in any timezone, set timers, read your clipboard, and more. Just ask!",
                     "I can help with general questions plus real-time tools: 🌤️ weather, 💱 currency, 📚 Wikipedia, ⏰ time, 🔑 passwords, 🎨 color palettes, ⏳ timers, and more. What do you need?",
+                ],
+            },
+
+            // ── Languages ────────────────────────────────────────────────────
+            {
+                triggers: [
+                    'do you speak spanish', 'can you speak other languages',
+                    'what languages do you speak', 'do you support other languages',
+                    'can you translate', 'do you speak french', 'do you speak other languages',
+                    'can you speak spanish', 'can you speak french',
+                ],
+                responses: [
+                    "I'll do my best with other languages, though like most models I tend to be strongest in English. Feel free to try me in yours!",
+                    "I can attempt other languages, but quality may vary depending on the underlying model — English is usually my strongest suit.",
                 ],
             },
             {
