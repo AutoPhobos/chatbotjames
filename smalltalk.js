@@ -56,6 +56,9 @@ export class SmallTalkHandler {
                     "how's it going", 'how are things', 'you ok', 'are you ok', 'how have you been',
                     "how're you", 'how r u', "how's everything", 'how goes it',
                     'are you well', 'you good', 'you alright', 'how are u',
+                    'how you doing', 'how ya doing', 'how you doin', "how's your day",
+                    "how's your day going", 'how you feeling', 'how are you feeling',
+                    "how's life", 'how are ya', "how's tricks", 'you doing ok', 'you doing okay',
                 ],
                 responses: [
                     "I'm doing great, thanks for asking! How can I help?",
@@ -68,7 +71,10 @@ export class SmallTalkHandler {
 
             // ── What's up ──────────────────────────────────────────────────────
             {
-                triggers: ["what's up", 'whats up', 'wassup', 'wsp', 'wyd', 'what up'],
+                triggers: [
+                    "what's up", 'whats up', 'wassup', 'wsp', 'wyd', 'what up',
+                    "what's good", 'whats good', "what's new", 'whats new',
+                ],
                 responses: [
                     "Not much, just here to help! What do you need?",
                     "Ready and waiting! What's on your mind?",
@@ -92,12 +98,50 @@ export class SmallTalkHandler {
                     'are you ai', 'are you an ai', 'are you a bot', 'are you a robot',
                     'are you human', 'are you real', 'are you sentient', 'are you alive',
                     'do you have feelings', 'do you feel', 'do you think', 'are you conscious',
-                    'do you have a body', 'are you a person',
+                    'do you have a body', 'are you a person', 'are you an llm',
+                    'are you a language model', 'are you a large language model',
+                    'are you a chatbot', 'are you an ai model',
                 ],
                 responses: [
                     "I'm an AI — no feelings, no consciousness, but quite good at being helpful. 🤖",
                     "Yep, AI through and through. No heartbeat, but I'll do my best to be useful!",
                     "Definitely an AI. What can I help you with?",
+                ],
+            },
+
+            // ── AI Model & Comparisons ─────────────────────────────────────────
+            {
+                triggers: [
+                    'what model are you', 'what model do you use', 'which model are you',
+                    'what llm are you', 'what llm do you use', 'what ai model is this',
+                    'what model is this', 'what model powers you', 'what model runs you',
+                    'are you gpt', 'are you chatgpt', 'are you claude', 'are you gemini',
+                    'are you llama', 'are you based on gpt', 'are you based on chatgpt',
+                    'are you based on claude', 'are you based on llama', 'is this gpt',
+                    'is this chatgpt', 'is this claude', 'is this gemini',
+                ],
+                responses: [
+                    "I'm JAMES — a standalone local model, not GPT, Claude, or Gemini. I run entirely in your browser instead of calling out to a cloud API.",
+                    "I'm not tied to any single named cloud model. I run as a local LLM directly on your device, separate from ChatGPT, Claude, or Gemini.",
+                    "Good question! I'm my own local, in-browser model rather than a wrapper around someone else's API.",
+                ],
+            },
+
+            // ── How JAMES Works ────────────────────────────────────────────────
+            {
+                triggers: [
+                    'how were you trained', 'how do you work', 'how does james work',
+                    'how does this work', 'what is your architecture', "what's your architecture",
+                    'what architecture do you use', 'how many parameters do you have',
+                    'how many parameters do you use', 'how many parameters',
+                    'what is your context window', "what's your context window",
+                    'how big is your context window', 'what were you trained on',
+                    'what data were you trained on', 'how much data were you trained on',
+                ],
+                responses: [
+                    "That's getting into the technical weeds! I run on local, in-browser inference — I'm better at helping than narrating my own internals. 😄",
+                    "I don't have exact specs to recite, but I'm built to run efficiently right in your browser without needing a server.",
+                    "I'll leave the deep architecture details to the project docs — what I can tell you is everything runs client-side on your device.",
                 ],
             },
             {
@@ -112,6 +156,37 @@ export class SmallTalkHandler {
                 responses: [
                     "I live in your browser! No servers, no cloud — just local inference right on your device.",
                     "Right here on your device. That's my whole world. 🌐",
+                ],
+            },
+
+            // ── Local Execution & Privacy ──────────────────────────────────────
+            {
+                triggers: [
+                    'do you run locally', 'are you running locally', 'do you need internet',
+                    'do you require internet', 'do you need wifi', 'is my data sent to a server',
+                    'is this private', 'is james private', 'do you use an api', 'do you call an api',
+                    'do you send my data anywhere', 'is my data safe', 'is my data secure',
+                    'do you track me', 'do you store my data', 'do you log my conversations',
+                ],
+                responses: [
+                    "100% local! I run right in your browser using on-device inference — nothing you type is sent to a server.",
+                    "Once loaded, I run fully offline. No API calls, no tracking, no logging — your conversations stay on your device.",
+                    "Yep, everything happens locally in your browser. No server round-trips, no data collection.",
+                ],
+            },
+
+            // ── Tech Stack & Open Source ───────────────────────────────────────
+            {
+                triggers: [
+                    'is this open source', 'is james open source', 'what tech stack do you use',
+                    'what technology do you use', 'what framework do you use',
+                    'what engine do you use', 'what inference engine do you use',
+                    'can i see your source code', 'where is your source code',
+                    'what license are you under', 'what license is this',
+                ],
+                responses: [
+                    "I'd point you to the project's docs or README for the full technical rundown — but I can tell you I run locally, right in your browser.",
+                    "I'll defer to the project documentation for licensing and tech-stack details. My focus is on helping, not self-documentation! 😄",
                 ],
             },
 
@@ -289,12 +364,17 @@ export class SmallTalkHandler {
             {
                 triggers: [
                     'who made you', 'who created you', 'who is your creator', 'who is your maker',
-                    'who developed you', 'who built you', 'where did you come from'
+                    'who developed you', 'who built you', 'where did you come from',
+                    'who owns you', 'who programmed you', 'who coded you', 'who designed you',
+                    'who invented you', 'who wrote you', 'who is behind james', 'who is behind this',
+                    'what company made you', 'what company created you', 'who is your developer',
+                    'who published you'
                 ],
                 responses: [
                     "I was developed by Andrey Lopukhov.",
                     "Andrey Lopukhov created me to be a fast, private, browser-based AI.",
-                    "I'm a project created by Andrey Lopukhov. Nice to meet you!"
+                    "I'm a project created by Andrey Lopukhov. Nice to meet you!",
+                    "You can thank Andrey Lopukhov for bringing me to life!"
                 ],
             },
 
