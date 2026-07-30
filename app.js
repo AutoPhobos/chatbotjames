@@ -91,7 +91,7 @@ let _selectedPresetId = null;
 let _deviceRamGB = 4;
 let attachedFiles = [];
 
-// ─── Word-by-word Streaming Animation ────────────────────────────────────────
+// ─── Character-by-character Streaming Animation ──────────────────────────────
 const streamQueues = new Map();
 
 function queueStreamText(targetId, fullText) {
@@ -112,12 +112,12 @@ function drainStreamQueue(targetId) {
     }
     state.running = true;
 
-    const from = state.displayed.length;
-    const nextSpace = state.pending.indexOf(' ', from + 1);
-    state.displayed = state.pending.slice(0, nextSpace === -1 ? state.pending.length : nextSpace + 1);
+    // Advance exactly one character
+    state.displayed = state.pending.slice(0, state.displayed.length + 1);
     updateLiveBubble(state.displayed, targetId);
 
-    setTimeout(() => drainStreamQueue(targetId), 35);
+    // ~18–25 ms per character feels natural; adjust to taste
+    setTimeout(() => drainStreamQueue(targetId), 20);
 }
 
 function flushStreamQueue(targetId) {
