@@ -235,6 +235,23 @@ function workerMessageHandler(e) {
             handleToolCalls(message, targetId, e.data.chatId);
             break;
 
+        case 'aborted': {
+            flushStreamQueue(targetId);
+            if (e.data.chatId === currentChatId && message) {
+                // If there's partial text generated before the abort, keep it in the history
+                updateLiveBubble(message, targetId);
+                chatHistory.push({ role: 'assistant', content: message });
+                persistCurrentChat();
+            } else if (e.data.chatId !== currentChatId && message) {
+                const bgChat = allChats.find(c => c.id === e.data.chatId);
+                if (bgChat) {
+                    bgChat.messages.push({ role: 'assistant', content: message });
+                    localStorage.setItem('chatbot-chats', JSON.stringify(allChats));
+                }
+            }
+            break;
+        }
+
         case 'error': {
             const errorText = typeof message === 'string' ? message : JSON.stringify(message);
             console.error('James Error payload:', e.data);
@@ -417,14 +434,11 @@ function handleStopGeneration() {
     if (worker) {
         worker.postMessage({ type: 'abort' });
     }
-
-    setIdleState(true);
-    updateStatusLight('idle');
-    const statusText = document.getElementById('statusText');
-    if (statusText) statusText.textContent = 'READY';
-
+    
+    // Do NOT call setIdleState here. Let the worker process the abort and reply with status: 'aborted'
+    // which will be handled in workerMessageHandler to gracefully reset the UI.
+    
     streamQueues.forEach((_, targetId) => flushStreamQueue(targetId));
-    initWorker();
 }
 
 function scrollToBottom() {
@@ -486,16 +500,17 @@ async function handleToolCalls(message, targetId, originChatId) {
         : (allChats.find(c => c.id === originChatId)?.messages || []);
 
     if (originChatId === currentChatId) {
-        const toolNames = toolCalls.map(c => c.tool).join(', ');
-        updateLiveBubble(`🔧 Used tool: ${toolNames} — thinking…`, targetId);
+        // Ensure the original message with the tool call block is visible
+        updateLiveBubble(message, targetId);
     }
 
     const messagesForModel = getMessagesWindow(activeMessages);
+    const nextTargetId = Date.now(); // Create a new bubble for the follow-up response
 
     worker.postMessage({
         type: 'query',
         messages: messagesForModel,
-        targetId,
+        targetId: nextTargetId,
         chatId: originChatId
     });
 }
@@ -628,6 +643,15 @@ function escapeHTML(raw) {
 function formatAssistantMessage(text) {
     const escaped = escapeHTML(text);
     return escaped
+        .replace(/```\s*tool:run\n?([\s\S]*?)```/g, (_, code) => {
+            const lines = code.trim().split('\n');
+            const toolName = lines[0] || 'Unknown';
+            const params = lines.slice(1).join('<br>');
+            return `<div class="tool-usage-box" style="margin: 8px 0; padding: 10px; background: rgba(0,0,0,0.2); border-left: 3px solid #3b82f6; border-radius: 4px; font-family: monospace; font-size: 0.9em;">
+                <div style="color: #60a5fa; font-weight: bold; margin-bottom: 4px;">🔧 Tool: ${toolName}</div>
+                <div style="color: #94a3b8;">${params}</div>
+            </div>`;
+        })
         .replace(/```([\s\S]*?)```/g, (_, code) => `<pre><code>${code.trim()}</code></pre>`)
         .replace(/(^|\n)######\s*(.+)/g, '$1<h6>$2</h6>')
         .replace(/(^|\n)#####\s*(.+)/g, '$1<h5>$2</h5>')

@@ -691,7 +691,7 @@ self.onmessage = async (e) => {
             self.postMessage({ status: 'complete', message: finalResponse.trim(), targetId, chatId });
         } catch (err) {
             if (err.message === 'AbortGeneration') {
-                self.postMessage({ status: 'complete', message: accumulatedResponse.trim(), targetId, chatId });
+                self.postMessage({ status: 'aborted', message: accumulatedResponse.trim(), targetId, chatId });
             } else {
                 reportWorkerError(err, targetId);
             }
