@@ -259,6 +259,11 @@ function initWorker() {
         worker.terminate();
     }
     worker = new Worker('worker.js', { type: 'module' });
+    // Re-attach the message handler so the new worker isn't silent
+    worker.onmessage = workerMessageHandler;
+    // Re-initialize the model so the new worker is fully operational
+    const _lastPreset = localStorage.getItem('james-last-preset-id');
+    worker.postMessage({ type: 'init', lastPresetId: _lastPreset || null });
 }
 
 // ─── File Attachment & Plaintext View ───────────────────────────────────────

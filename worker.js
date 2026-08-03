@@ -627,6 +627,8 @@ self.onmessage = async (e) => {
         isGenerating = true;
         isAborted = false;
 
+        let accumulatedResponse = '';
+
         try {
             self.postMessage({ status: 'thinking', targetId, chatId });
 
@@ -643,8 +645,6 @@ self.onmessage = async (e) => {
 
             const promptTokens = await chatbot.tokenizer(prompt);
             const promptTokenCount = promptTokens.input_ids.data.length;
-
-            let accumulatedResponse = '';
 
             let maxTokens = 1024;
             let temp = 1.0;
