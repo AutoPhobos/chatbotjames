@@ -135,7 +135,7 @@ function getMessagesWindow(messages) {
 }
 
 // Unified Worker Message Handler
-worker.onmessage = (e) => {
+function workerMessageHandler(e) {
     const { status, message, loaded, total, file, targetId } = e.data;
     const statusText = document.getElementById('statusText');
 
@@ -252,7 +252,9 @@ worker.onmessage = (e) => {
             break;
         }
     }
-};
+}
+worker.onmessage = workerMessageHandler;
+
 
 function initWorker() {
     if (worker) {
@@ -282,7 +284,13 @@ function setupFileAttachment() {
 }
 
 function handleFilesSelected(files) {
+    const TEXT_TYPES = /^(text\/|application\/(json|xml|javascript|x-httpd-php|x-sh|x-python|yaml|toml|csv|rtf|sql|typescript))/i;
     Array.from(files).forEach(file => {
+        // Warn if file is likely binary (not a recognisable text type)
+        if (file.type && !TEXT_TYPES.test(file.type)) {
+            appendErrorToChat(`⚠️ "${file.name}" appears to be a binary file (${file.type || 'unknown type'}). Only plain-text files can be attached. Try exporting as .txt or .csv.`);
+            return;
+        }
         const reader = new FileReader();
         reader.onload = (e) => {
             attachedFiles.push({
@@ -294,6 +302,7 @@ function handleFilesSelected(files) {
         reader.readAsText(file);
     });
 }
+
 
 function renderAttachmentPreviews() {
     const previewContainer = document.getElementById('attachmentPreview');

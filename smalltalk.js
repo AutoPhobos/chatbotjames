@@ -44,7 +44,6 @@ export class SmallTalkHandler {
                 triggers: [
                     'good morning', 'morning', 'gm', 'rise and shine',
                     'buenos dias', 'buenos días',
-                    'bonjour',
                     'guten morgen',
                     'dobroe utro', 'доброе утро',
                     'bom dia',

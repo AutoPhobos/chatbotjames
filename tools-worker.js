@@ -1,4 +1,6 @@
 import { create as oramaCreate, insert as oramaInsert, search as oramaSearch } from './orama.js';
+import { performWebSearch } from './tools-search.js';
+
 
 // tools-worker.js — handles all non-Python tool execution for JAMES
 // Each tool is invoked via a tagged block: ```tool:run {"tool":"name","params":{...}}```
@@ -77,14 +79,13 @@ async function getWeather(params) {
     };
 }
 
-// ── Web Search (DuckDuckGo fallback) ──────────────────────────────────────
+// ── Web Search — delegates to tools-search.js (SearXNG + Wikipedia + Jina) ──
 async function getWebSearch(params) {
     const { query } = params;
-    return {
-        query,
-        url: `https://duckduckgo.com/?q=${encodeURIComponent(query)}`
-    };
+    if (!query) throw new Error('web_search requires a query parameter');
+    return performWebSearch(query);
 }
+
 
 // ── Wikipedia summary ─────────────────────────────────────────────────────
 async function getWikipedia(params) {
