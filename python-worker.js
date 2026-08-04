@@ -215,7 +215,7 @@ _reset_streams()
 
         // Wire up interrupt support when the caller supplies a SharedArrayBuffer
         // (must be from a cross-origin-isolated page: COOP + COEP headers).
-        if (interruptBuffer instanceof SharedArrayBuffer) {
+        if (typeof SharedArrayBuffer !== 'undefined' && interruptBuffer instanceof SharedArrayBuffer) {
             pyodide.setInterruptBuffer(new Uint8Array(interruptBuffer));
         } else {
             pyodide.setInterruptBuffer(null);
