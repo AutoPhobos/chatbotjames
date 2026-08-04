@@ -19,9 +19,6 @@ export class SmallTalkHandler {
                 ],
             },
             {
-<<<<<<< HEAD
-                triggers: ['good morning', 'morning', 'gm', 'rise and shine'],
-=======
                 triggers: [
                     'good morning', 'morning', 'gm', 'rise and shine',
                     'buenos dias', 'buenos días',
@@ -30,12 +27,6 @@ export class SmallTalkHandler {
                     'bom dia',
                     'buongiorno',
                     'zao shang hao'
-                ],
->>>>>>> a00e78b3d5b6d4e9da416af0cd623235b1ec4b69
-                responses: [
-                    "Good morning! ☀️ What can I help you with today?",
-                    "Morning! Ready to go. What do you need?",
-                    "Good morning! Hope the day's treating you well. What's up?",
                 ],
             },
             {
