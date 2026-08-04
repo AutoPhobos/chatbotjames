@@ -432,7 +432,11 @@ export function extractAIMove(text, game) {
         const match = text.match(intentRegex);
         if (match && match[1]) return match[1];
     } else if (game.type === 'checkers') {
-        const match = text.match(/(\d+)\s*[,:]?\s*(\d+)\s*(?:to|->|-|→|\s+)\s*(\d+)\s*[,:]?\s*(\d+)/i);
+        let match = text.match(/(\d+)\s*[,:]?\s*(\d+)\s*(?:to|->|-|→|\s+)\s*(\d+)\s*[,:]?\s*(\d+)/i);
+        if (match) return match[0];
+        
+        // Catch hallucinated chess notation (e.g. "e7 to e5") to trigger an error for the LLM
+        match = text.match(/\b([a-h][1-8])\s*(?:to|->|-|→|\s+)?\s*([a-h][1-8])\b/i);
         if (match) return match[0];
     }
     return null;
