@@ -344,12 +344,16 @@ function calculatorTool(params) {
             .replace(/\bmod\b/gi, '%')
             .replace(/\bx\b/gi, '*')
             .replace(/[^0-9+\-*/%.() ]/g, '');
+        if (!safe.trim()) throw new Error(`Invalid expression: ${expression}`);
         // eslint-disable-next-line no-new-func
         result = Function('"use strict"; return (' + safe + ')')();
     }
 
-    if (typeof result !== 'number' || !isFinite(result)) {
-        throw new Error(`Cannot evaluate: ${expression}`);
+    if (typeof result !== 'number' || isNaN(result)) {
+        throw new Error(`Expression produced NaN: ${expression}`);
+    }
+    if (!isFinite(result)) {
+        throw new Error(`Expression result is infinite (division by zero?): ${expression}`);
     }
 
     return {
@@ -647,25 +651,32 @@ async function hashTool(params) {
 }
 
 // ── NEW: Dice, coin flip, random range ────────────────────────────────────
+// Cryptographically secure random float in [0, 1)
+function _cryptoRandom() {
+    const arr = new Uint32Array(1);
+    crypto.getRandomValues(arr);
+    return arr[0] / (0xFFFFFFFF + 1);
+}
+
 function randomTool(params) {
     const { mode, count = 1, sides = 6, min = 1, max = 100 } = params;
 
     if (mode === 'coin') {
-        const flip = Math.random() < 0.5 ? 'Heads' : 'Tails';
+        const flip = _cryptoRandom() < 0.5 ? 'Heads' : 'Tails';
         return { mode: 'coin', result: flip };
     }
 
     if (mode === 'range') {
         const lo = Math.min(parseInt(min), parseInt(max));
         const hi = Math.max(parseInt(min), parseInt(max));
-        const result = Math.floor(Math.random() * (hi - lo + 1)) + lo;
+        const result = Math.floor(_cryptoRandom() * (hi - lo + 1)) + lo;
         return { mode: 'range', min: lo, max: hi, result };
     }
 
     if (mode === 'dice') {
         const n = Math.min(parseInt(count), 100);
         const s = Math.min(parseInt(sides), 1000);
-        const rolls = Array.from({ length: n }, () => Math.floor(Math.random() * s) + 1);
+        const rolls = Array.from({ length: n }, () => Math.floor(_cryptoRandom() * s) + 1);
         const total = rolls.reduce((a, b) => a + b, 0);
         return { mode: 'dice', dice: `${n}d${s}`, rolls, total };
     }
@@ -719,7 +730,7 @@ self.onmessage = async (e) => {
             case 'help': result = helpTool(params); break;
             // ── Original tools ──────────────────────────────────────────
             case 'weather': result = await getWeather(params); break;
-            case 'websearch': result = await getWebSearch(params); break;
+            case 'websearch':
             case 'web_search': result = await getWebSearch(params); break;
             case 'wikipedia': result = await getWikipedia(params); break;
             case 'currency': result = await getCurrency(params); break;

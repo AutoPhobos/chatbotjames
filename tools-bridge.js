@@ -71,7 +71,11 @@ async function handleFileUpload(file, neuralLink) {
         if (chatLog) {
             const warn = document.createElement('div');
             warn.className = 'message-wrap assistant-msg';
-            warn.innerHTML = `<div class="message-content" style="color:#ef4444">⚠️ File too large (max 1 MB): ${file.name}</div>`;
+            const inner = document.createElement('div');
+            inner.className = 'message-content';
+            inner.style.color = '#ef4444';
+            inner.textContent = `⚠️ File too large (max 1 MB): ${file.name}`;
+            warn.appendChild(inner);
             chatLog.appendChild(warn);
         }
         return;

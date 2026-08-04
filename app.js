@@ -363,8 +363,9 @@ function sendMessage() {
 
     const displayMessage = text + (attachedFiles.length > 0 ? ` [Attached: ${attachedFiles.map(f => f.name).join(', ')}]` : '');
 
-    // Properly archive user message including file context
-    chatHistory.push({ role: 'user', content: displayMessage });
+    // Store fullPrompt in history so the model actually receives file content
+    chatHistory.push({ role: 'user', content: fullPrompt });
+    // Show only the display message in the UI (not raw file content)
     appendUserMessage(displayMessage);
 
     cmdInput.value = '';
@@ -380,7 +381,8 @@ function sendMessage() {
     if (currentChatId) {
         const chat = allChats.find(c => c.id === currentChatId);
         if (chat && chat.name === 'New Chat') {
-            chat.name = text.substring(0, 30) + (text.length > 30 ? '...' : '');
+            const titleSource = text || attachedFiles.map(f => f.name).join(', ') || 'File upload';
+            chat.name = titleSource.substring(0, 30) + (titleSource.length > 30 ? '...' : '');
             localStorage.setItem('chatbot-chats', JSON.stringify(allChats));
             updateChatList();
             updateChatListActive(currentChatId);
