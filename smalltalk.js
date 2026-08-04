@@ -2,20 +2,42 @@
  * SmallTalkHandler
  * Intercepts common small-talk messages and returns an instant canned response,
  * bypassing the LLM entirely. Fast, free, and always available even while the
- * model is still loading.
+ * model is still loading. Supports multiple top world languages and robust edge cases.
  */
 export class SmallTalkHandler {
     constructor() {
         this._patterns = [
 
-            // ── Greetings ──────────────────────────────────────────────────────
+            // ── Greetings (Multilingual) ────────────────────────────────────────
             {
-                triggers: ['hello', 'hi', 'hey', 'howdy', 'hiya', 'yo', 'hola', 'sup', 'ello', 'heya', 'hai'],
+                triggers: [
+                    // English
+                    'hello', 'hi', 'hey', 'howdy', 'hiya', 'yo', 'sup', 'ello', 'heya', 'hai',
+                    // Spanish
+                    'hola', 'que tal',
+                    // French
+                    'bonjour', 'salut',
+                    // German
+                    'hallo', 'servus',
+                    // Russian
+                    'privet', 'привет',
+                    // Portuguese
+                    'ola', 'olá',
+                    // Italian
+                    'ciao',
+                    // Chinese (Pinyin)
+                    'ni hao'
+                ],
                 responses: [
                     "Hey! What's on your mind?",
                     "Hi there! How can I help?",
                     "Hello! Ready to assist — what do you need?",
                     "Hey! What can I do for you today?",
+                    "¡Hola! ¿En qué puedo ayudarte?",
+                    "Bonjour ! Comment puis-je vous aider ?",
+                    "Hallo! Wie kann ich Ihnen helfen?",
+                    "Привет! Чем могу помочь?",
+                    "Olá! Como posso ajudar?"
                 ],
             },
             {
@@ -28,40 +50,75 @@ export class SmallTalkHandler {
                     'buongiorno',
                     'zao shang hao'
                 ],
-            },
-            {
-                triggers: ['good afternoon', 'afternoon'],
                 responses: [
-                    "Good afternoon! How can I help?",
-                    "Afternoon! What do you need?",
+                    "Good morning! ☀️ What can I help you with today?",
+                    "Morning! Ready to go. What do you need?",
+                    "Good morning! Hope the day's treating you well. What's up?",
+                    "¡Buenos días! ☀️ ¿Qué tal tu mañana?",
+                    "Guten Morgen! ☀️ Wie kann ich helfen?"
                 ],
             },
             {
-                triggers: ['good evening', 'evening', 'good night', 'goodnight', 'good nite', 'gn'],
+                triggers: [
+                    'good afternoon', 'afternoon',
+                    'buenas tardes',
+                    'bon apres-midi', 'bon après-midi',
+                    'guten tag',
+                    'dobry den', 'добрый день',
+                    'boa tarde',
+                    'buon pomeriggio'
+                ],
+                responses: [
+                    "Good afternoon! How can I help?",
+                    "Afternoon! What do you need?",
+                    "¡Buenas tardes! ¿En qué te puedo colaborar?"
+                ],
+            },
+            {
+                triggers: [
+                    'good evening', 'evening', 'good night', 'goodnight', 'good nite', 'gn',
+                    'buenas noches',
+                    'bonsoir', 'bonne nuit',
+                    'guten abend', 'gute nacht',
+                    'dobry vecher', 'добрый вечер', 'спокойной ночи',
+                    'boa noite',
+                    'buonasera', 'buonanotte'
+                ],
                 responses: [
                     "Good evening! How can I assist?",
                     "Evening! What do you need?",
                     "Good night! 🌙 Let me know if there's anything before you go.",
+                    "¡Buenas noches! 🌙 ¿En qué te puedo ayudar antes de descansar?"
                 ],
             },
             {
-                triggers: ['greetings', 'salutations', 'ahoy', 'aloha', 'namaste', 'shalom', 'ciao'],
+                triggers: ['greetings', 'salutations', 'ahoy', 'aloha', 'namaste', 'shalom'],
                 responses: [
                     "Greetings! How can I help?",
                     "Hello! What's on your mind?",
                 ],
             },
 
-            // ── How are you ────────────────────────────────────────────────────
+            // ── How are you (Multilingual) ─────────────────────────────────────
             {
                 triggers: [
+                    // English
                     'how are you', 'how are you doing', 'how do you do', 'how is it going',
                     "how's it going", 'how are things', 'you ok', 'are you ok', 'how have you been',
                     "how're you", 'how r u', "how's everything", 'how goes it',
                     'are you well', 'you good', 'you alright', 'how are u',
-                    'how you doing', 'how ya doing', 'how you doin', "how's your day",
-                    "how's your day going", 'how you feeling', 'how are you feeling',
-                    "how's life", 'how are ya', "how's tricks", 'you doing ok', 'you doing okay',
+                    // Spanish
+                    'como estas', 'cómo estás', 'que tal todo', 'como te va',
+                    // French
+                    'comment ca va', 'comment ça va', 'ca va', 'ça va',
+                    // German
+                    'wie geht es dir', 'wie gehts', 'wie geht\'s',
+                    // Russian
+                    'kak dela', 'как дела', 'как ты',
+                    // Portuguese
+                    'tudo bem', 'como vai',
+                    // Italian
+                    'come stai', 'come va'
                 ],
                 responses: [
                     "I'm doing great, thanks for asking! How can I help?",
@@ -69,15 +126,14 @@ export class SmallTalkHandler {
                     "All good on my end! What do you need?",
                     "Doing well! Ready to help. What's up?",
                     "Functioning at 100%! What's on your mind?",
+                    "¡Todo excelente por aquí! ¿Y tú, qué tal?",
+                    "¡Funcionando al 100%! ¿En qué te puedo colaborar?"
                 ],
             },
 
             // ── What's up ──────────────────────────────────────────────────────
             {
-                triggers: [
-                    "what's up", 'whats up', 'wassup', 'wsp', 'wyd', 'what up',
-                    "what's good", 'whats good', "what's new", 'whats new',
-                ],
+                triggers: ["what's up", 'whats up', 'wassup', 'wsp', 'wyd', 'what up'],
                 responses: [
                     "Not much, just here to help! What do you need?",
                     "Ready and waiting! What's on your mind?",
@@ -90,6 +146,7 @@ export class SmallTalkHandler {
                 triggers: [
                     'who are you', 'what are you', "what's your name", 'whats your name',
                     'introduce yourself', 'tell me about yourself', 'who is JAMES', 'what is JAMES',
+                    'quien eres', 'qui es tu', 'wer bist du', 'kto ty', 'quem e voce', 'chi sei'
                 ],
                 responses: [
                     "I'm JAMES — a local, private AI assistant running entirely in your browser. No servers, no tracking.",
@@ -101,94 +158,12 @@ export class SmallTalkHandler {
                     'are you ai', 'are you an ai', 'are you a bot', 'are you a robot',
                     'are you human', 'are you real', 'are you sentient', 'are you alive',
                     'do you have feelings', 'do you feel', 'do you think', 'are you conscious',
-                    'do you have a body', 'are you a person', 'are you an llm',
-                    'are you a language model', 'are you a large language model',
-                    'are you a chatbot', 'are you an ai model',
+                    'do you have a body', 'are you a person'
                 ],
                 responses: [
                     "I'm an AI — no feelings, no consciousness, but quite good at being helpful. 🤖",
                     "Yep, AI through and through. No heartbeat, but I'll do my best to be useful!",
                     "Definitely an AI. What can I help you with?",
-                ],
-            },
-
-            // ── AI Model & Comparisons ─────────────────────────────────────────
-            {
-                triggers: [
-                    'what model are you', 'what model do you use', 'which model are you',
-                    'what llm are you', 'what llm do you use', 'what ai model is this',
-                    'what model is this', 'what model powers you', 'what model runs you',
-                    'are you gpt', 'are you chatgpt', 'are you claude', 'are you gemini',
-                    'are you llama', 'are you based on gpt', 'are you based on chatgpt',
-                    'are you based on claude', 'are you based on llama', 'is this gpt',
-                    'is this chatgpt', 'is this claude', 'is this gemini',
-                ],
-                responses: [
-                    "I'm JAMES — a standalone local model, not GPT, Claude, or Gemini. I run entirely in your browser instead of calling out to a cloud API.",
-                    "I'm not tied to any single named cloud model. I run as a local LLM directly on your device, separate from ChatGPT, Claude, or Gemini.",
-                    "Good question! I'm my own local, in-browser model rather than a wrapper around someone else's API.",
-                ],
-            },
-
-            // ── How JAMES Works ────────────────────────────────────────────────
-            {
-                triggers: [
-                    'how were you trained', 'how do you work', 'how does james work',
-                    'how does this work', 'what is your architecture', "what's your architecture",
-                    'what architecture do you use', 'how many parameters do you have',
-                    'how many parameters do you use', 'how many parameters',
-                    'what is your context window', "what's your context window",
-                    'how big is your context window', 'what were you trained on',
-                    'what data were you trained on', 'how much data were you trained on',
-                ],
-                responses: [
-                    "That's getting into the technical weeds! I run on local, in-browser inference — I'm better at helping than narrating my own internals. 😄",
-                    "I don't have exact specs to recite, but I'm built to run efficiently right in your browser without needing a server.",
-                    "I'll leave the deep architecture details to the project docs — what I can tell you is everything runs client-side on your device.",
-                ],
-            },
-
-            // ── Knowledge Cutoff & Updates ─────────────────────────────────────
-            {
-                triggers: [
-                    'what is your knowledge cutoff', "what's your knowledge cutoff",
-                    'do you know about recent events', 'how current is your information',
-                    'are you up to date', 'when were you last updated', 'what version are you',
-                    'what version is this', 'are you the latest version', 'do you get updates',
-                    'how often are you updated',
-                ],
-                responses: [
-                    "I don't have a way to check my own version or a specific cutoff date from inside the chat — for anything time-sensitive, lean on my built-in tools rather than my own memory.",
-                    "That's more of an app-level detail than something I can check myself. The app is the best place to look for version or update info.",
-                ],
-            },
-
-            // ── Memory & Learning ───────────────────────────────────────────────
-            {
-                triggers: [
-                    'do you remember me', 'do you remember our conversation', 'do you have memory',
-                    'will you remember this', 'do you learn from our chats',
-                    'do you learn from conversations', 'do you save our conversation',
-                    'do you remember what i said', 'will you remember me next time',
-                    'do you have long term memory',
-                ],
-                responses: [
-                    "I don't learn or retrain from our chats — each session starts fresh. Anything kept around, like chat history, lives in your browser's storage, not in me.",
-                    "No long-term memory here. I'm not changed by our conversation, and whether past chats stick around is up to the app, not me.",
-                ],
-            },
-
-            // ── Accuracy & Limitations ─────────────────────────────────────────
-            {
-                triggers: [
-                    'do you make mistakes', 'can you be wrong', 'do you hallucinate',
-                    'are you always right', 'are you always accurate', 'how accurate are you',
-                    'what cant you do', "what can't you do", 'what are your limitations',
-                    'do you have limits', 'can you be trusted', 'should i trust you',
-                ],
-                responses: [
-                    "I can absolutely make mistakes, like any AI — I can sound confident and still be wrong. Worth double-checking anything important!",
-                    "I'm not infallible. I do my best, but for anything critical — medical, legal, financial — please verify independently.",
                 ],
             },
             {
@@ -206,93 +181,46 @@ export class SmallTalkHandler {
                 ],
             },
 
-            // ── Local Execution & Privacy ──────────────────────────────────────
-            {
-                triggers: [
-                    'do you run locally', 'are you running locally', 'do you need internet',
-                    'do you require internet', 'do you need wifi', 'is my data sent to a server',
-                    'is this private', 'is james private', 'do you use an api', 'do you call an api',
-                    'do you send my data anywhere', 'is my data safe', 'is my data secure',
-                    'do you track me', 'do you store my data', 'do you log my conversations',
-                    'can you access the internet', 'do you have internet access',
-                    'can you browse the web', 'can you go online', 'do you work offline',
-                    'can i use you offline', 'does this work offline',
-                ],
-                responses: [
-                    "Our conversation runs 100% locally in your browser — no server sees what you type. A few specific tools, like weather or currency lookups, do reach out to fetch live data, but the chat itself stays on your device.",
-                    "The core chat runs fully on-device with nothing logged or tracked. Only optional tools (weather, currency, Wikipedia, etc.) need a connection to pull fresh data.",
-                    "Yep — local inference, no tracking, no conversation logging. Just know a couple of built-in tools need internet to fetch live info.",
-                ],
-            },
-
-            // ── Tech Stack & Open Source ───────────────────────────────────────
-            {
-                triggers: [
-                    'is this open source', 'is james open source', 'what tech stack do you use',
-                    'what technology do you use', 'what framework do you use',
-                    'what engine do you use', 'what inference engine do you use',
-                    'can i see your source code', 'where is your source code',
-                    'what license are you under', 'what license is this',
-                ],
-                responses: [
-                    "I'd point you to the project's docs or README for the full technical rundown — but I can tell you I run locally, right in your browser.",
-                    "I'll defer to the project documentation for licensing and tech-stack details. My focus is on helping, not self-documentation! 😄",
-                ],
-            },
-
-            // ── Cost & Access ────────────────────────────────────────────────
-            {
-                triggers: [
-                    'is this free', 'are you free', 'do i have to pay', 'is james free',
-                    'does this cost money', 'is there a subscription', 'do i need an account',
-                    'do i need to sign up', 'do i need to log in',
-                ],
-                responses: [
-                    "That's a question for the app itself rather than me — I don't have visibility into pricing or accounts from inside the chat.",
-                    "I can't speak to pricing or sign-up requirements myself. Check the app or its docs for that.",
-                ],
-            },
-
             // ── Capabilities ───────────────────────────────────────────────────
             {
                 triggers: [
                     'what can you do', 'what are your capabilities', 'what do you know',
                     'what are your features', 'how can you help me', 'what are you good at',
                     'what do you offer', 'what tools do you have', 'show me what you can do',
+                    'que puedes hacer', 'qu\'est-ce que tu peux faire'
                 ],
                 responses: [
                     "I can chat, answer questions, look up weather, convert currencies, fetch Wikipedia summaries, generate passwords and UUIDs, tell time in any timezone, set timers, read your clipboard, and more. Just ask!",
                     "I can help with general questions plus real-time tools: 🌤️ weather, 💱 currency, 📚 Wikipedia, ⏰ time, 🔑 passwords, 🎨 color palettes, ⏳ timers, and more. What do you need?",
                 ],
             },
-
-            // ── Languages ────────────────────────────────────────────────────
             {
-                triggers: [
-                    'do you speak spanish', 'can you speak other languages',
-                    'what languages do you speak', 'do you support other languages',
-                    'can you translate', 'do you speak french', 'do you speak other languages',
-                    'can you speak spanish', 'can you speak french',
-                ],
-                responses: [
-                    "I'll do my best with other languages, though like most models I tend to be strongest in English. Feel free to try me in yours!",
-                    "I can attempt other languages, but quality may vary depending on the underlying model — English is usually my strongest suit.",
-                ],
-            },
-            {
-                triggers: ['help', 'help me'],
+                triggers: ['help', 'help me', 'ayuda', 'aide', 'hilfe', 'помощь', 'ajuda'],
                 responses: [
                     "Of course! Just tell me what you need — I can answer questions, use tools, or just chat.",
                     "I'm here to help! What do you need?",
                 ],
             },
 
-            // ── Gratitude ──────────────────────────────────────────────────────
+            // ── Gratitude (Multilingual) ───────────────────────────────────────
             {
                 triggers: [
+                    // English
                     'thanks', 'thank you', 'thank you so much', 'thanks a lot', 'ty', 'thx',
                     'thnks', 'much appreciated', 'cheers', 'appreciate it', 'appreciated',
                     'thank u', 'many thanks', 'thanks a bunch', 'thanks a million',
+                    // Spanish
+                    'gracias', 'muchas gracias', 'te agradezco',
+                    // French
+                    'merci', 'merci beaucoup',
+                    // German
+                    'danke', 'vielen dank',
+                    // Russian
+                    'spasibo', 'спасибо', 'благодарю',
+                    // Portuguese
+                    'obrigado', 'obrigada', 'valeu',
+                    // Italian
+                    'grazie', 'grazie mille'
                 ],
                 responses: [
                     "Happy to help! 😊",
@@ -301,25 +229,37 @@ export class SmallTalkHandler {
                     "Glad I could help!",
                     "Of course! Let me know if there's anything else.",
                     "No problem at all!",
+                    "¡De nada! 😊 Con mucho gusto.",
+                    "¡A ti! Avísame si necesitas algo más."
                 ],
             },
 
-            // ── Farewells ──────────────────────────────────────────────────────
+            // ── Farewells (Multilingual) ───────────────────────────────────────
             {
                 triggers: [
+                    // English
                     'bye', 'goodbye', 'see you', 'see ya', 'later', 'take care', 'cya',
-                    'farewell', 'adios', 'peace', 'ttyl', 'gotta go', 'i have to go',
+                    'farewell', 'adios', 'adiós', 'peace', 'ttyl', 'gotta go', 'i have to go',
                     'im leaving', "i'm leaving", 'catch you later', 'so long', 'tata',
-                    'hasta la vista', 'auf wiedersehen', 'auf wiedersehen', 'arrivederci',
+                    'hasta la vista', 'auf wiedersehen', 'arrivederci',
                     'im out', "i'm out", 'laters',
+                    // French
+                    'au revoir', 'salut', 'a plus', 'à plus',
+                    // German
+                    'tschuss', 'tschüss', 'bis bald',
+                    // Russian
+                    'poka', 'до свидания', 'пока',
+                    // Portuguese
+                    'tchau', 'ate logo', 'até logo'
                 ],
-
                 responses: [
                     "Take care! Come back anytime. 👋",
                     "Goodbye! See you next time.",
                     "Later! 👋",
                     "Bye! Don't be a stranger.",
                     "See you around! 👋",
+                    "¡Cuídate mucho! Vuelve cuando quieras. 👋",
+                    "¡Hasta luego! Que tengas un excelente día."
                 ],
             },
 
@@ -329,6 +269,7 @@ export class SmallTalkHandler {
                     'ok', 'okay', 'sure', 'got it', 'understood', 'alright', 'sounds good',
                     'noted', 'roger', 'copy that', 'i see', 'i understand', 'makes sense',
                     'fair enough', 'ok cool', 'ok great', 'ok thanks', 'yep', 'yup', 'yeah',
+                    'vale', 'de acuerdo', 'entendido'
                 ],
                 responses: [
                     "Got it! Let me know if you need anything else.",
@@ -345,6 +286,7 @@ export class SmallTalkHandler {
                     'impressive', "you're smart", "you're the best", 'you rock',
                     'you are great', 'you are awesome', 'you are the best', 'amazing',
                     'fantastic', 'brilliant', 'well played', 'nicely done',
+                    'muy bien', 'eres genial'
                 ],
                 responses: [
                     "Aw, thanks! 😊 You're pretty great yourself.",
@@ -371,6 +313,7 @@ export class SmallTalkHandler {
                 triggers: [
                     'tell me a joke', 'say something funny', 'make me laugh',
                     'tell a joke', 'tell me something funny', 'joke', 'give me a joke',
+                    'cuentame un chiste', 'chiste'
                 ],
                 responses: [
                     "Why do programmers prefer dark mode? Because light attracts bugs. 🐛",
@@ -384,7 +327,7 @@ export class SmallTalkHandler {
 
             // ── Boredom ────────────────────────────────────────────────────────
             {
-                triggers: ["i'm bored", 'im bored', 'i am bored', 'entertain me', 'amuse me', 'bored'],
+                triggers: ["i'm bored", 'im bored', 'i am bored', 'entertain me', 'amuse me', 'bored', 'estoy aburrido'],
                 responses: [
                     "Let's fix that! Ask me anything — trivia, a joke, currency rates, weather somewhere exotic. 🌍",
                     "How about a joke? Or I can look something up on Wikipedia, generate a color palette, or just chat. What sounds good?",
@@ -442,16 +385,12 @@ export class SmallTalkHandler {
                 triggers: [
                     'who made you', 'who created you', 'who is your creator', 'who is your maker',
                     'who developed you', 'who built you', 'where did you come from',
-                    'who owns you', 'who programmed you', 'who coded you', 'who designed you',
-                    'who invented you', 'who wrote you', 'who is behind james', 'who is behind this',
-                    'what company made you', 'what company created you', 'who is your developer',
-                    'who published you'
+                    'quien te creo', 'qui t\'a cree'
                 ],
                 responses: [
                     "I was developed by Andrey Lopukhov.",
                     "Andrey Lopukhov created me to be a fast, private, browser-based AI.",
-                    "I'm a project created by Andrey Lopukhov. Nice to meet you!",
-                    "You can thank Andrey Lopukhov for bringing me to life!"
+                    "I'm a project created by Andrey Lopukhov. Nice to meet you!"
                 ],
             },
 
@@ -459,7 +398,7 @@ export class SmallTalkHandler {
             {
                 triggers: [
                     'sorry', 'im sorry', "i'm sorry", 'my bad', 'my apologies', 'apologies',
-                    'forgive me', 'i apologize'
+                    'forgive me', 'i apologize', 'lo siento', 'perdón'
                 ],
                 responses: [
                     "No worries at all!",
@@ -512,7 +451,7 @@ export class SmallTalkHandler {
             {
                 triggers: [
                     'what is the meaning of life', 'meaning of life', 'why are we here',
-                    'what is the purpose of life'
+                    'what is the purpose of life', 'cual es el sentido de la vida'
                 ],
                 responses: [
                     "42. At least, that's what Douglas Adams said. 🌌",
@@ -539,7 +478,7 @@ export class SmallTalkHandler {
             {
                 triggers: [
                     'i love you', 'love you', 'will you marry me', 'do you love me',
-                    'marry me', 'be my valentine'
+                    'marry me', 'be my valentine', 'te amo', 'te quiero'
                 ],
                 responses: [
                     "I appreciate the sentiment! I'm just an AI, though. 🤖💙",
@@ -577,11 +516,14 @@ export class SmallTalkHandler {
     }
 
     /**
-     * Normalize input: lowercase, collapse whitespace, strip punctuation except apostrophes.
+     * Normalize input: lowercase, strip accents/diacritics, collapse whitespace, strip punctuation except apostrophes.
      */
     _normalize(text) {
+        if (!text || typeof text !== 'string') return '';
         return text
             .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '') // Strip diacritics/accents safely (e.g. café -> cafe)
             .replace(/[^\w\s']/g, ' ')
             .replace(/\s+/g, ' ')
             .trim();
@@ -592,13 +534,15 @@ export class SmallTalkHandler {
      * or null if the message should be forwarded to the LLM.
      */
     match(input) {
+        if (!input || typeof input !== 'string') return null;
         const normalized = this._normalize(input);
+        if (!normalized) return null;
 
-        // Exact match, or with "JAMES" appended/prepended
+        // 1. Exact match, or with "JAMES" appended/prepended
         for (const pattern of this._patterns) {
             for (const trigger of pattern.triggers) {
-                const lowerTrigger = trigger.toLowerCase();
-                const j = 'JAMES'.toLowerCase();
+                const lowerTrigger = this._normalize(trigger);
+                const j = 'james';
                 if (
                     normalized === lowerTrigger ||
                     normalized === lowerTrigger + ' ' + j ||
@@ -609,13 +553,15 @@ export class SmallTalkHandler {
             }
         }
 
-        // Lenient pass: input starts with a trigger and isn't much longer
-        // (catches "hi!", "hey there", "thanks!!!", etc.)
+        // 2. Lenient boundary-safe pass: input starts with a trigger followed by a space/punctuation boundary
+        // (prevents short triggers like "hi" from falsely matching "history")
         for (const pattern of this._patterns) {
             for (const trigger of pattern.triggers) {
+                const lowerTrigger = this._normalize(trigger);
                 if (
-                    normalized.startsWith(trigger) &&
-                    normalized.length <= trigger.length + 8
+                    normalized.startsWith(lowerTrigger) &&
+                    normalized.length <= lowerTrigger.length + 8 &&
+                    (normalized.charAt(lowerTrigger.length) === ' ' || normalized.length === lowerTrigger.length)
                 ) {
                     return this._pick(pattern.responses);
                 }
