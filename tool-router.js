@@ -711,6 +711,18 @@ export class ToolTriggerHandler {
 
 export const toolRouter = new ToolTriggerHandler();
 
+export {
+    CURRENCY_MAP,
+    TIMEZONE_MAP,
+    UNIT_MAP,
+    resolveCurrency,
+    resolveTimezone,
+    resolveUnit,
+    cleanTail,
+    safeInt,
+    evalMath
+};
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Quick self-test  (run with: node toolTriggerHandler.js)

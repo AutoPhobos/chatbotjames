@@ -1,5 +1,6 @@
 import { create as oramaCreate, insert as oramaInsert, search as oramaSearch } from './orama.js';
 import { performWebSearch } from './tools-search.js';
+import { evalMath } from './tool-router.js';
 
 
 // tools-worker.js — handles all non-Python tool execution for JAMES
@@ -348,17 +349,8 @@ function calculatorTool(params) {
         if (!expression || typeof expression !== 'string') {
             throw new Error('No expression provided');
         }
-        const processed = expression
-            .replace(/\^/g, '**')
-            .replace(/\bmod\b/gi, '%')
-            .replace(/\bx\b/gi, '*');
-            
-        if (!/^[0-9+\-*/%.() ]+$/.test(processed)) {
-            throw new Error(`Invalid characters in expression: ${expression}`);
-        }
         try {
-            // eslint-disable-next-line no-new-func
-            result = Function('"use strict"; return (' + processed + ')')();
+            result = evalMath(expression);
         } catch (e) {
             throw new Error(`Malformed expression: ${expression}`);
         }
@@ -735,45 +727,42 @@ async function ipTool(params) {
 }
 
 // ── Main message handler ──────────────────────────────────────────────────
+const TOOL_HANDLERS = {
+    help: helpTool,
+    weather: getWeather,
+    websearch: getWebSearch,
+    web_search: getWebSearch,
+    wikipedia: getWikipedia,
+    currency: getCurrency,
+    time: getTime,
+    uuid: generateUUID,
+    password: generatePassword,
+    palette: generatePalette,
+    date: dateTool,
+    file: readFile,
+    location: getLocation,
+    clipboard: readClipboard,
+    timer: timerTool,
+    search: searchIndex,
+    index: indexDocument,
+    calculator: calculatorTool,
+    convert: convertUnits,
+    countdown: countdownTool,
+    base64: base64Tool,
+    color: colorTool,
+    hash: hashTool,
+    random: randomTool,
+    ip: ipTool,
+};
+
 self.onmessage = async (e) => {
     const { execId, tool, params } = e.data;
 
     try {
-        let result;
-
-        switch (tool) {
-            case 'help': result = helpTool(params); break;
-            // ── Original tools ──────────────────────────────────────────
-            case 'weather': result = await getWeather(params); break;
-            case 'websearch':
-            case 'web_search': result = await getWebSearch(params); break;
-            case 'wikipedia': result = await getWikipedia(params); break;
-            case 'currency': result = await getCurrency(params); break;
-            case 'time': result = await getTime(params); break;
-            case 'uuid': result = generateUUID(params); break;
-            case 'password': result = generatePassword(params); break;
-            case 'palette': result = generatePalette(params); break;
-            case 'date': result = dateTool(params); break;
-            case 'file': result = readFile(params); break;
-            case 'location': result = getLocation(params); break;
-            case 'clipboard': result = readClipboard(params); break;
-            case 'timer': result = timerTool(params); break;
-            case 'search': result = await searchIndex(params); break;
-            case 'index': result = await indexDocument(params); break;
-            // ── New tools ───────────────────────────────────────────────
-            case 'calculator': result = calculatorTool(params); break;
-            case 'convert': result = convertUnits(params); break;
-            case 'countdown': result = countdownTool(params); break;
-            case 'base64': result = base64Tool(params); break;
-            case 'color': result = colorTool(params); break;
-            case 'hash': result = await hashTool(params); break;
-            case 'random': result = randomTool(params); break;
-            case 'ip': result = await ipTool(params); break;
-            default: throw new Error(`Unknown tool: ${tool}`);
-        }
-
+        const handler = TOOL_HANDLERS[tool];
+        if (!handler) throw new Error(`Unknown tool: ${tool}`);
+        const result = await handler(params);
         self.postMessage({ status: 'done', result, execId });
-
     } catch (err) {
         self.postMessage({ status: 'error', error: err.message, execId });
     }

@@ -622,157 +622,137 @@ function parseToolCalls(text) {
     return calls;
 }
 
-async function executeTool(toolName, params) {
-    if (toolName === 'start_game') {
-        const gameType = params.game;
-        activeGame = gameType === 'checkers' ? new CheckersGame() : new ChessGame();
-
-        setTimeout(() => {
-            const chatLog = document.getElementById('chatLog');
-            activeGameUI = renderGameBoard(activeGame, chatLog, (moveInfo) => {
-                const gameOver = activeGame.isGameOver();
-
-                if (gameOver) {
-                    const result = activeGame.type === 'checkers' && activeGame.getWinner
-                        ? (activeGame.getWinner() === 'w' ? 'White wins!' : 'Black wins!')
-                        : 'Game over!';
-                    const msg = `[Game Over] ${result} The board has been updated.`;
-                    chatHistory.push({ role: 'user', content: msg });
-                    appendUserMessage(`[Game Over — ${result}]`, chatHistory.length - 1);
-                    persistCurrentChat();
-                    setIdleState(false);
-                    worker.postMessage({
-                        type: 'query',
-                        messages: getMessagesWindow(chatHistory),
-                        targetId: getNextTargetId(),
-                        chatId: currentChatId
-                    });
-                    return;
-                }
-
-                const moveNotation = moveInfo.notation || '';
-                const aiPrompt = activeGame.type === 'chess'
-                    ? `[Game State] Current FEN: ${activeGame.getFen()}. You are playing Black. The user just moved${moveNotation ? ` (${moveNotation})` : ''}. It is NOW YOUR TURN. You MUST immediately use the make_move tool to play your move in standard algebraic notation (e.g. e5, Nf6). Do NOT say 'your turn' — it is your turn right now.`
-                    : `[Game State] Current Checkers Board: ${activeGame.getFen()}. You are playing Black (b/B). The user just moved${moveNotation ? ` (${moveNotation})` : ''}. It is NOW YOUR TURN. You MUST immediately use the make_move tool with 'from_r,from_c to to_r,to_c' format. Do NOT say 'your turn' — it is your turn right now.`;
-
-                chatHistory.push({ role: 'user', content: aiPrompt });
-                appendUserMessage(`[Moved piece]`, chatHistory.length - 1);
-                persistCurrentChat();
-
-                setIdleState(false);
-                const messagesForModel = getMessagesWindow(chatHistory);
-                worker.postMessage({
-                    type: 'query',
-                    messages: messagesForModel,
-                    targetId: getNextTargetId(),
-                    chatId: currentChatId
-                });
-            });
-        }, 500);
-
-        return { status: "game_started", game: gameType };
-    }
-
-    if (toolName === 'make_move') {
-        if (!activeGame) throw new Error("No active game to make a move in.");
-        const moveStr = String(params.move || '');
-        const moveMade = activeGame.makeSanMove(moveStr);
-        if (moveMade) {
-            let notation = null;
-            if (activeGame.type === 'chess') {
-                notation = moveMade.san || moveStr;
-            } else {
-                const m = moveStr.match(/(\d+)\s*[,:]?\s*(\d+)\s*(?:to|->|-|→|\s+)\s*(\d+)\s*[,:]?\s*(\d+)/i);
-                if (m) notation = `(${m[1]},${m[2]})→(${m[3]},${m[4]})`;
-                else notation = moveStr;
-            }
-            if (activeGameUI) activeGameUI.update(notation);
-            const newState = activeGame.getFen();
-            const gameOver = activeGame.isGameOver();
-            if (gameOver) {
-                const result = activeGame.type === 'checkers' && activeGame.getWinner
-                    ? (activeGame.getWinner() === 'w' ? 'White wins!' : 'Black wins!')
-                    : 'Game over!';
-                return { status: "moved", move: moveStr, newState, gameOver: true, result };
-            }
-            if (activeGame.type === 'checkers' && moveMade.multiJump) {
-                return {
-                    status: "multi_jump_required",
-                    move: moveStr,
-                    mustJumpFrom: activeGame.mustJumpFrom,
-                    newState,
-                    message: `Jump completed! Multi-jump required from (${activeGame.mustJumpFrom.r},${activeGame.mustJumpFrom.c}). You MUST call make_move again immediately for the next jump.`
-                };
-            }
-            return { status: "moved", move: moveStr, newState };
-        } else {
-            throw new Error(`Invalid or illegal move: ${moveStr}. Please check the board state and try a valid move.`);
-        }
-    }
-
-    if (toolName === 'search_web' || toolName === 'web_search' || toolName === 'websearch') {
-        try {
-            return await import('./tools-search.js').then(m => m.performWebSearch(params.query || params.q));
-        } catch (error) {
-            throw new Error('Web search failed: ' + error.message);
-        }
-    }
-    if (toolName === 'location') {
-        try {
-            return await import('./tools-bridge.js').then(m => m.getLocation());
-        } catch (error) {
-            throw new Error('Location access failed: ' + error.message);
-        }
-    }
-    if (toolName === 'clipboard') {
-        try {
-            const content = await import('./tools-bridge.js').then(m => m.readClipboard());
-            return { content, length: content.length };
-        } catch (error) {
-            throw new Error('Clipboard access failed: ' + error.message);
-        }
-    }
-    if (toolName === 'python') {
-        if (!params || !params.code) throw new Error('Python tool requires a code parameter');
-        return new Promise((resolve, reject) => {
-            const execId = crypto.randomUUID();
-            let timeoutId;
-            const handler = (e) => {
-                if (e.data.execId === execId) {
-                    clearTimeout(timeoutId);
-                    pythonWorker.removeEventListener('message', handler);
-                    e.data.status === 'done'
-                        ? resolve(e.data.output)
-                        : reject(new Error(e.data.error || 'Python execution failed'));
-                }
-            };
-            pythonWorker.addEventListener('message', handler);
-            pythonWorker.postMessage({ type: 'run', code: params.code, execId });
-            timeoutId = setTimeout(() => {
-                pythonWorker.removeEventListener('message', handler);
-                reject(new Error('Python execution timed out'));
-            }, 30000);
-        });
-    }
-
+function callWorkerRPC(targetWorker, messageData, timeoutMs = 30000) {
     return new Promise((resolve, reject) => {
         const execId = crypto.randomUUID();
         let timeoutId;
         const handler = (e) => {
-            if (e.data.execId === execId) {
+            if (e.data?.execId === execId) {
                 clearTimeout(timeoutId);
-                toolsWorker.removeEventListener('message', handler);
-                if (e.data.status === 'done') resolve(e.data.result);
-                else if (e.data.status === 'error') reject(new Error(e.data.error));
+                targetWorker.removeEventListener('message', handler);
+                if (e.data.status === 'done') {
+                    resolve(e.data.result !== undefined ? e.data.result : e.data.output);
+                } else if (e.data.status === 'error') {
+                    reject(new Error(e.data.error || 'Worker execution failed'));
+                }
             }
         };
-        toolsWorker.addEventListener('message', handler);
-        toolsWorker.postMessage({ execId, tool: toolName, params });
+        targetWorker.addEventListener('message', handler);
+        targetWorker.postMessage({ ...messageData, execId });
         timeoutId = setTimeout(() => {
-            toolsWorker.removeEventListener('message', handler);
-            reject(new Error('Tool execution timeout'));
-        }, 30000);
+            targetWorker.removeEventListener('message', handler);
+            reject(new Error('Worker execution timed out'));
+        }, timeoutMs);
     });
+}
+
+function handleStartGame(params) {
+    const gameType = params.game;
+    activeGame = gameType === 'checkers' ? new CheckersGame() : new ChessGame();
+
+    setTimeout(() => {
+        const chatLog = document.getElementById('chatLog');
+        activeGameUI = renderGameBoard(activeGame, chatLog, (moveInfo) => {
+            const gameOver = activeGame.isGameOver();
+
+            if (gameOver) {
+                const result = activeGame.type === 'checkers' && activeGame.getWinner
+                    ? (activeGame.getWinner() === 'w' ? 'White wins!' : 'Black wins!')
+                    : 'Game over!';
+                const msg = `[Game Over] ${result} The board has been updated.`;
+                chatHistory.push({ role: 'user', content: msg });
+                appendUserMessage(`[Game Over — ${result}]`, chatHistory.length - 1);
+                persistCurrentChat();
+                setIdleState(false);
+                worker.postMessage({
+                    type: 'query',
+                    messages: getMessagesWindow(chatHistory),
+                    targetId: getNextTargetId(),
+                    chatId: currentChatId
+                });
+                return;
+            }
+
+            const moveNotation = moveInfo.notation || '';
+            const aiPrompt = activeGame.type === 'chess'
+                ? `[Game State] Current FEN: ${activeGame.getFen()}. You are playing Black. The user just moved${moveNotation ? ` (${moveNotation})` : ''}. It is NOW YOUR TURN. You MUST immediately use the make_move tool to play your move in standard algebraic notation (e.g. e5, Nf6). Do NOT say 'your turn' — it is your turn right now.`
+                : `[Game State] Current Checkers Board: ${activeGame.getFen()}. You are playing Black (b/B). The user just moved${moveNotation ? ` (${moveNotation})` : ''}. It is NOW YOUR TURN. You MUST immediately use the make_move tool with 'from_r,from_c to to_r,to_c' format. Do NOT say 'your turn' — it is your turn right now.`;
+
+            chatHistory.push({ role: 'user', content: aiPrompt });
+            appendUserMessage(`[Moved piece]`, chatHistory.length - 1);
+            persistCurrentChat();
+
+            setIdleState(false);
+            const messagesForModel = getMessagesWindow(chatHistory);
+            worker.postMessage({
+                type: 'query',
+                messages: messagesForModel,
+                targetId: getNextTargetId(),
+                chatId: currentChatId
+            });
+        });
+    }, 500);
+
+    return { status: "game_started", game: gameType };
+}
+
+function handleMakeMove(params) {
+    if (!activeGame) throw new Error("No active game to make a move in.");
+    const moveStr = String(params.move || '');
+    const moveMade = activeGame.makeSanMove(moveStr);
+    if (moveMade) {
+        let notation = null;
+        if (activeGame.type === 'chess') {
+            notation = moveMade.san || moveStr;
+        } else {
+            const m = moveStr.match(/(\d+)\s*[,:]?\s*(\d+)\s*(?:to|->|-|→|\s+)\s*(\d+)\s*[,:]?\s*(\d+)/i);
+            if (m) notation = `(${m[1]},${m[2]})→(${m[3]},${m[4]})`;
+            else notation = moveStr;
+        }
+        if (activeGameUI) activeGameUI.update(notation);
+        const newState = activeGame.getFen();
+        const gameOver = activeGame.isGameOver();
+        if (gameOver) {
+            const result = activeGame.type === 'checkers' && activeGame.getWinner
+                ? (activeGame.getWinner() === 'w' ? 'White wins!' : 'Black wins!')
+                : 'Game over!';
+            return { status: "moved", move: moveStr, newState, gameOver: true, result };
+        }
+        if (activeGame.type === 'checkers' && moveMade.multiJump) {
+            return {
+                status: "multi_jump_required",
+                move: moveStr,
+                mustJumpFrom: activeGame.mustJumpFrom,
+                newState,
+                message: `Jump completed! Multi-jump required from (${activeGame.mustJumpFrom.r},${activeGame.mustJumpFrom.c}). You MUST call make_move again immediately for the next jump.`
+            };
+        }
+        return { status: "moved", move: moveStr, newState };
+    } else {
+        throw new Error(`Invalid or illegal move: ${moveStr}. Please check the board state and try a valid move.`);
+    }
+}
+
+async function executeTool(toolName, params) {
+    switch (toolName) {
+        case 'start_game':
+            return handleStartGame(params);
+        case 'make_move':
+            return handleMakeMove(params);
+        case 'search_web':
+        case 'web_search':
+        case 'websearch':
+            return import('./tools-search.js').then(m => m.performWebSearch(params.query || params.q));
+        case 'location':
+            return import('./tools-bridge.js').then(m => m.getLocation());
+        case 'clipboard':
+            return import('./tools-bridge.js').then(m => m.readClipboard()).then(content => ({ content, length: content.length }));
+        case 'python':
+            if (!params?.code) throw new Error('Python tool requires a code parameter');
+            return callWorkerRPC(pythonWorker, { type: 'run', code: params.code });
+        default:
+            return callWorkerRPC(toolsWorker, { tool: toolName, params });
+    }
 }
 
 pythonWorker.onmessage = (e) => {
