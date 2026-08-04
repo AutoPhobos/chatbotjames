@@ -27,10 +27,10 @@ const NETWORK_FIRST = [
     'preview.png'
 ];
 
-// Install: pre-cache only CDN static assets
+// Install: pre-cache static assets and app files for offline compliance
 self.addEventListener('install', (e) => {
     e.waitUntil(
-        caches.open(CACHE_NAME).then(c => c.addAll(STATIC_ASSETS))
+        caches.open(CACHE_NAME).then(c => c.addAll([...STATIC_ASSETS, ...NETWORK_FIRST]))
     );
     self.skipWaiting();
 });

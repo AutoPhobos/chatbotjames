@@ -29,6 +29,10 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = FETCH_TIMEOUT_MS)
 }
 
 export async function performWebSearch(query) {
+    if (typeof query === 'object' && query !== null) {
+        query = query.query || query.q || query.term || '';
+    }
+    query = String(query || '').trim();
     if (!query) {
         return [{ error: 'Search query cannot be empty.' }];
     }

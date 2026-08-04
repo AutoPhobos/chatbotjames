@@ -45,8 +45,12 @@ function dbSaveChat(chat) {
     if (!chat) return;
     openChatDB()
         .then(db => {
-            const tx = db.transaction(IDB_STORE, 'readwrite');
-            tx.objectStore(IDB_STORE).put(chat);
+            try {
+                const tx = db.transaction(IDB_STORE, 'readwrite');
+                tx.objectStore(IDB_STORE).put(chat);
+            } catch (e) {
+                console.warn('IDB save transaction failed:', e);
+            }
         })
         .catch(e => console.warn('IDB save failed:', e));
 }
@@ -55,8 +59,12 @@ function dbSaveChat(chat) {
 function dbDeleteChat(id) {
     openChatDB()
         .then(db => {
-            const tx = db.transaction(IDB_STORE, 'readwrite');
-            tx.objectStore(IDB_STORE).delete(id);
+            try {
+                const tx = db.transaction(IDB_STORE, 'readwrite');
+                tx.objectStore(IDB_STORE).delete(id);
+            } catch (e) {
+                console.warn('IDB delete transaction failed:', e);
+            }
         })
         .catch(e => console.warn('IDB delete failed:', e));
 }
@@ -416,7 +424,7 @@ function workerMessageHandler(e) {
         }
 
         case 'error': {
-            const errorText = typeof message === 'string' ? message : JSON.stringify(message);
+            const errorText = typeof message === 'string' ? message : (message ? JSON.stringify(message) : 'An error occurred');
             console.error('James Error payload:', e.data);
 
             if (errorText.includes('Instance reference no longer exists') || errorText.includes('failed to call OrtRun')) {
@@ -1005,7 +1013,10 @@ function formatAssistantMessage(text) {
         .replace(/\*(.+?)\*/g, '<em>$1</em>')
         .replace(/`([^`\n]+?)`/g, '<code>$1</code>')
         .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, linkText, url) => {
-            const cleanUrl = url.trim().toLowerCase().startsWith('javascript:') ? '#' : url.trim();
+            const rawUrl = url.trim();
+            const lowerUrl = rawUrl.toLowerCase();
+            const isUnsafe = lowerUrl.startsWith('javascript:') || lowerUrl.startsWith('data:') || lowerUrl.startsWith('vbscript:');
+            const cleanUrl = isUnsafe ? '#' : escapeHTML(rawUrl);
             return `<a href="${cleanUrl}" target="_blank" rel="noreferrer noopener">${linkText}</a>`;
         })
         .replace(/\n/g, '<br>');

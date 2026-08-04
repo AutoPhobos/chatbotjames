@@ -115,17 +115,23 @@ function pyResultToString(result) {
     if (typeof result.toJs === 'function') {
         try {
             const js = result.toJs({ dict_converter: Object.fromEntries });
-            return JSON.stringify(js);
+            return JSON.stringify(js, (_, v) => typeof v === 'bigint' ? v.toString() : v);
         } catch (_) {
             // fall through to toString
         }
     }
     if (typeof result.toString === 'function') {
-        const s = result.toString();
-        // Filter out the unhelpful proxy sentinel
-        if (s !== '[object Object]') return s;
+        try {
+            const s = result.toString();
+            // Filter out the unhelpful proxy sentinel
+            if (s !== '[object Object]') return s;
+        } catch (_) { /* fall through */ }
     }
-    return String(result);
+    try {
+        return String(result);
+    } catch (_) {
+        return '[Unserializable Result]';
+    }
 }
 
 /**

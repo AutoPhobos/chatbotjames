@@ -345,6 +345,9 @@ function calculatorTool(params) {
     let { expression, result } = params;
 
     if (result === undefined) {
+        if (!expression || typeof expression !== 'string') {
+            throw new Error('No expression provided');
+        }
         const processed = expression
             .replace(/\^/g, '**')
             .replace(/\bmod\b/gi, '%')
@@ -353,8 +356,12 @@ function calculatorTool(params) {
         if (!/^[0-9+\-*/%.() ]+$/.test(processed)) {
             throw new Error(`Invalid characters in expression: ${expression}`);
         }
-        // eslint-disable-next-line no-new-func
-        result = Function('"use strict"; return (' + processed + ')')();
+        try {
+            // eslint-disable-next-line no-new-func
+            result = Function('"use strict"; return (' + processed + ')')();
+        } catch (e) {
+            throw new Error(`Malformed expression: ${expression}`);
+        }
     }
 
     if (typeof result !== 'number' || isNaN(result)) {
@@ -555,14 +562,14 @@ function colorTool(params) {
     const { mode, hex, r, g, b } = params;
 
     function hexToRgb(h) {
-        const clean = h.replace(/^#/, '').padEnd(6, '0');
+        const clean = String(h || '000000').replace(/^#/, '').padEnd(6, '0');
         const full = clean.length === 3
             ? clean.split('').map(c => c + c).join('')
             : clean;
         return {
-            r: parseInt(full.slice(0, 2), 16),
-            g: parseInt(full.slice(2, 4), 16),
-            b: parseInt(full.slice(4, 6), 16)
+            r: parseInt(full.slice(0, 2), 16) || 0,
+            g: parseInt(full.slice(2, 4), 16) || 0,
+            b: parseInt(full.slice(4, 6), 16) || 0
         };
     }
 

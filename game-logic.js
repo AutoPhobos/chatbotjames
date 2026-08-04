@@ -193,7 +193,7 @@ export class CheckersGame {
      * taking forced-capture and multi-jump rules into account.
      */
     isValidMove(sr, sc, tr, tc) {
-        if (tr < 0 || tr > 7 || tc < 0 || tc > 7) return false;
+        if (sr < 0 || sr > 7 || sc < 0 || sc > 7 || tr < 0 || tr > 7 || tc < 0 || tc > 7) return false;
         if (this.board[tr][tc] !== 0) return false;
 
         const piece = this.board[sr][sc];
