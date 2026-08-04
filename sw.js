@@ -7,14 +7,19 @@ const STATIC_ASSETS = [
 
 // App files: network-first but cached for offline PWA compliance
 const NETWORK_FIRST = [
+    '/',
     'app.js',
     'worker.js',
     'tools-worker.js',
+    'tools-bridge.js',
+    'tools-search.js',
     'python-worker.js',
     'orama.js',
     'index.html',
     'style.css',
-    'manifest.json'
+    'manifest.json',
+    'favicon.ico',
+    'preview.png'
 ];
 
 // ── Install: pre-cache only CDN static assets ─────────────────────────────
@@ -52,7 +57,7 @@ self.addEventListener('fetch', (event) => {
     }
 
     // Network-first for app files (caches them for offline PWA installability)
-    if (NETWORK_FIRST.some(f => filename === f || url.pathname.endsWith(f))) {
+    if (url.pathname === '/' || NETWORK_FIRST.some(f => filename === f || url.pathname.endsWith(f))) {
         event.respondWith(
             fetch(event.request)
                 .then(res => {
