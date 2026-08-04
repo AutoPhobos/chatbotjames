@@ -5,6 +5,13 @@ import { renderGameBoard } from './game-ui.js';
 import { CONFIG } from './config.js';
 import { BUILD_NUMBER } from './build.js?v=2';
 
+// Safe LocalStorage wrapper to prevent UI crash in strict privacy modes
+const safeLocalStorage = {
+    getItem: (key) => { try { return localStorage.getItem(key); } catch(e) { return null; } },
+    setItem: (key, val) => { try { localStorage.setItem(key, val); } catch(e) {} },
+    removeItem: (key) => { try { localStorage.removeItem(key); } catch(e) {} }
+};
+
 let activeGame = null;
 let activeGameUI = null;
 
