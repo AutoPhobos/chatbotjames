@@ -1535,3 +1535,4 @@ applyModelBtn?.addEventListener('click', () => {
     worker.postMessage({ type: 'init', forcePresetId: _selectedPresetId });
 });
 
+
