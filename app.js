@@ -40,6 +40,7 @@ import {
     updateModelInfo,
     refreshPresetCards
 } from './model-panel.js';
+import { UserInputProcessor } from './input-processor.js';
 
 let activeGame = null;
 let activeGameUI = null;
@@ -375,13 +376,15 @@ function sendMessage() {
     const text = cmdInput.value.trim();
     if ((!text && attachedFiles.length === 0) || _isGeneratingUI) return;
 
-    let fullPrompt = text;
+    const processedText = UserInputProcessor.process(text);
+
+    let fullPrompt = processedText;
     if (attachedFiles.length > 0) {
         let fileContext = "\n\n[Attached Files Content]:\n";
         attachedFiles.forEach(file => {
             fileContext += `\n--- START FILE: ${file.name} ---\n${file.content}\n--- END FILE: ${file.name} ---\n`;
         });
-        fullPrompt = (text ? text + "\n" : "Please analyze the attached file(s):") + fileContext;
+        fullPrompt = (processedText ? processedText + "\n" : "Please analyze the attached file(s):") + fileContext;
     }
 
     let userMovePlayed = null;
@@ -407,7 +410,7 @@ function sendMessage() {
         }
     }
 
-    const displayMessage = text + (attachedFiles.length > 0 ? ` [Attached: ${attachedFiles.map(f => f.name).join(', ')}]` : '');
+    const displayMessage = processedText + (attachedFiles.length > 0 ? ` [Attached: ${attachedFiles.map(f => f.name).join(', ')}]` : '');
 
     chatHistory.push({ role: 'user', content: fullPrompt });
     appendUserMessage(displayMessage, chatHistory.length - 1);
@@ -434,13 +437,13 @@ function sendMessage() {
     }
 
     if (filesToSend.length === 0) {
-        const canned = smallTalk.match(text);
+        const canned = smallTalk.match(processedText);
         if (canned) {
             simulateCannedResponse(canned);
             return;
         }
 
-        const toolMatch = toolRouter.match(text);
+        const toolMatch = toolRouter.match(processedText);
         if (toolMatch) {
             const simulatedAssistantMessage = "```tool:run\n" + toolMatch.tool + "\n" + Object.entries(toolMatch.params).map(([k, v]) => `${k}: ${v}`).join('\n') + "\n```";
             setIdleState(false);
