@@ -58,3 +58,28 @@ export function playDoneSound() {
     _playTone({ freq: 523.25, type: 'sine', gainPeak: 0.10, duration: 0.18, rampUp: 0.01 }); // C5
     setTimeout(() => _playTone({ freq: 783.99, type: 'sine', gainPeak: 0.08, duration: 0.22, rampUp: 0.01 }), 120); // G5
 }
+
+export function playGameMoveSound() {
+    if (_audioCtx.state === 'suspended') _audioCtx.resume();
+    _playTone({ freq: 380, type: 'triangle', gainPeak: 0.15, duration: 0.08, rampUp: 0.01, rampDown: 0.07 });
+}
+
+export function playGameWinSound() {
+    if (_audioCtx.state === 'suspended') _audioCtx.resume();
+    _playTone({ freq: 523.25, type: 'square', gainPeak: 0.08, duration: 0.15 }); // C5
+    setTimeout(() => _playTone({ freq: 659.25, type: 'square', gainPeak: 0.08, duration: 0.15 }), 150); // E5
+    setTimeout(() => _playTone({ freq: 783.99, type: 'square', gainPeak: 0.12, duration: 0.4 }), 300); // G5
+}
+
+export function playGameLoseSound() {
+    if (_audioCtx.state === 'suspended') _audioCtx.resume();
+    _playTone({ freq: 349.23, type: 'sawtooth', gainPeak: 0.08, duration: 0.3 }); // F4
+    setTimeout(() => _playTone({ freq: 311.13, type: 'sawtooth', gainPeak: 0.08, duration: 0.3 }), 250); // Eb4
+    setTimeout(() => _playTone({ freq: 293.66, type: 'sawtooth', gainPeak: 0.12, duration: 0.5 }), 500); // D4
+}
+
+export function playGameBuffSound() {
+    if (_audioCtx.state === 'suspended') _audioCtx.resume();
+    _playTone({ freq: 600, type: 'sine', gainPeak: 0.1, duration: 0.15 });
+    setTimeout(() => _playTone({ freq: 880, type: 'sine', gainPeak: 0.15, duration: 0.2 }), 100);
+}

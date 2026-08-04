@@ -14,7 +14,11 @@ import {
     acquireWakeLock,
     releaseWakeLock,
     playSendSound,
-    playDoneSound
+    playDoneSound,
+    playGameMoveSound,
+    playGameWinSound,
+    playGameLoseSound,
+    playGameBuffSound
 } from './audio-wakelock.js';
 import {
     streamQueues,
@@ -509,11 +513,28 @@ async function handleToolCalls(message, targetId, originChatId) {
                     let notation = null;
                     if (activeGame.type === 'chess') {
                         notation = move.san || move.trim();
+                        if (move.promotion) playGameBuffSound();
+                        else playGameMoveSound();
                     } else {
                         notation = `(${move.from.r},${move.from.c})→(${move.to.r},${move.to.c})`;
+                        if (move.multiJump || move.jump) playGameBuffSound();
+                        else playGameMoveSound();
                     }
                     if (activeGameUI) activeGameUI.update(notation);
                 }
+                
+                if (activeGame.isGameOver()) {
+                    const winner = activeGame.getWinner ? activeGame.getWinner() : null;
+                    if (winner === 'w') playGameWinSound();
+                    else if (winner === 'b') playGameLoseSound();
+                    else if (activeGame.type === 'chess' && activeGame.game.isCheckmate()) {
+                        if (activeGame.game.turn() === 'b') playGameWinSound();
+                        else playGameLoseSound();
+                    } else {
+                        playGameMoveSound();
+                    }
+                }
+                
                 interceptedGameMove = true;
             }
         }
@@ -692,10 +713,28 @@ function handleGameMove(moveInfo) {
     const gameOver = activeGame.isGameOver();
 
     if (gameOver) {
-        const result = activeGame.type === 'checkers' && activeGame.getWinner
-            ? (activeGame.getWinner() === 'w' ? 'White wins!' : 'Black wins!')
-            : 'Game over!';
-        const msg = `[Game Over] ${result} The board has been updated.`;
+        const winner = activeGame.getWinner ? activeGame.getWinner() : null; // Checkers only
+        if (winner === 'w') playGameWinSound();
+        else if (winner === 'b') playGameLoseSound();
+        else if (activeGame.type === 'chess' && activeGame.game.isCheckmate()) {
+            if (activeGame.game.turn() === 'b') playGameWinSound();
+            else playGameLoseSound();
+        } else {
+            playGameMoveSound(); // Draw / game over catchall
+        }
+    } else if (moveInfo.promotion || moveInfo.multiJump || moveInfo.jump) {
+        playGameBuffSound();
+    } else {
+        playGameMoveSound();
+    }
+
+    const aiColor = activeGame.type === 'chess' ? 'Black' : 'Black (b/B)';
+    const result = activeGame.type === 'checkers' && activeGame.getWinner
+        ? (activeGame.getWinner() === 'w' ? 'White wins!' : 'Black wins!')
+        : 'Game over!';
+    const msg = `[Game Over] ${result} The board has been updated.`;
+    
+    if (gameOver) {
         chatHistory.push({ role: 'user', content: msg, hidden: true });
         chatHistory.push({ role: 'system', content: `[Game Over] ${result}` });
         persistCurrentChat();
@@ -750,26 +789,44 @@ function handleStartGame(params) {
 function handleMakeMove(params) {
     if (!activeGame) throw new Error("No active game to make a move in.");
     const moveStr = String(params.move || '');
-    const moveMade = activeGame.makeSanMove(moveStr);
-    if (moveMade) {
-        let notation = null;
-        if (activeGame.type === 'chess') {
-            notation = moveMade.san || moveStr;
-        } else {
-            const m = moveStr.match(/(\d+)\s*[,:]?\s*(\d+)\s*(?:to|->|-|→|\s+)\s*(\d+)\s*[,:]?\s*(\d+)/i);
-            if (m) notation = `(${m[1]},${m[2]})→(${m[3]},${m[4]})`;
-            else notation = moveStr;
+    const movesMade = activeGame.makeSanMove(moveStr);
+    if (movesMade) {
+        const moves = Array.isArray(movesMade) ? movesMade : [movesMade];
+        let lastMove = null;
+        for (const move of moves) {
+            let notation = null;
+            if (activeGame.type === 'chess') {
+                notation = move.san || moveStr;
+                lastMove = move;
+            } else {
+                notation = `(${move.from.r},${move.from.c})→(${move.to.r},${move.to.c})`;
+                lastMove = move;
+            }
+            if (activeGameUI) activeGameUI.update(notation);
         }
-        if (activeGameUI) activeGameUI.update(notation);
+        
         const newState = activeGame.getFen();
         const gameOver = activeGame.isGameOver();
+        
         if (gameOver) {
+            const winner = activeGame.getWinner ? activeGame.getWinner() : null; // Checkers only
+            if (winner === 'w') playGameWinSound();
+            else if (winner === 'b') playGameLoseSound();
+            else if (activeGame.type === 'chess' && activeGame.game.isCheckmate()) {
+                if (activeGame.game.turn() === 'b') playGameWinSound();
+                else playGameLoseSound();
+            } else {
+                playGameMoveSound(); // Draw / game over catchall
+            }
+            
             const result = activeGame.type === 'checkers' && activeGame.getWinner
                 ? (activeGame.getWinner() === 'w' ? 'White wins!' : 'Black wins!')
                 : 'Game over!';
             return { status: "moved", move: moveStr, newState, gameOver: true, result };
         }
-        if (activeGame.type === 'checkers' && moveMade.multiJump) {
+        
+        if (activeGame.type === 'checkers' && lastMove && lastMove.multiJump) {
+            playGameBuffSound();
             return {
                 status: "multi_jump_required",
                 move: moveStr,
@@ -778,6 +835,13 @@ function handleMakeMove(params) {
                 message: `Jump completed! Multi-jump required from (${activeGame.mustJumpFrom.r},${activeGame.mustJumpFrom.c}). You MUST call make_move again immediately for the next jump.`
             };
         }
+        
+        if (lastMove && (lastMove.promotion || lastMove.jump)) {
+            playGameBuffSound();
+        } else {
+            playGameMoveSound();
+        }
+        
         return { status: "moved", move: moveStr, newState };
     } else {
         throw new Error(`Invalid or illegal move: ${moveStr}. Please check the board state and try a valid move.`);
