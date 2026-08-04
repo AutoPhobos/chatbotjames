@@ -649,8 +649,8 @@ async function handleToolCalls(message, targetId, originChatId) {
         _toolCallDepth = 0;
 
         let interceptedGameMove = false;
-        if (activeGame && originChatId === currentChatId) {
-            // Try to parse the AI's response as a plain-text game move (no tool:run block)
+        if (activeGame && originChatId === currentChatId && activeGame.getTurn() === 'b') {
+            // Try to parse the AI's response as a plain-text game move ONLY if it's currently Black's (the AI's) turn
             const moveMade = activeGame.makeSanMove(message);
             if (moveMade) {
                 // Extract notation for the panel (same logic as make_move handler)
@@ -658,7 +658,7 @@ async function handleToolCalls(message, targetId, originChatId) {
                 if (activeGame.type === 'chess') {
                     notation = moveMade.san || message.trim();
                 } else {
-                    const m = message.match(/(\d+)\D+?(\d+)\s*(?:to|->|→)\s*(\d+)\D+?(\d+)/i);
+                    const m = message.match(/(\d+)\s*[,:]?\s*(\d+)\s*(?:to|->|-|→|\s+)\s*(\d+)\s*[,:]?\s*(\d+)/i);
                     notation = m ? `(${m[1]},${m[2]})→(${m[3]},${m[4]})` : message.trim();
                 }
                 if (activeGameUI) activeGameUI.update(notation);
@@ -856,7 +856,7 @@ async function executeTool(toolName, params) {
                 notation = moveMade.san || moveStr;
             } else {
                 // For checkers, moveStr is e.g. "5,2 to 4,3"
-                const m = moveStr.match(/(\d+)\D+?(\d+)\s*(?:to|->|→)\s*(\d+)\D+?(\d+)/i);
+                const m = moveStr.match(/(\d+)\s*[,:]?\s*(\d+)\s*(?:to|->|-|→|\s+)\s*(\d+)\s*[,:]?\s*(\d+)/i);
                 if (m) notation = `(${m[1]},${m[2]})→(${m[3]},${m[4]})`;
                 else notation = moveStr;
             }
@@ -869,6 +869,15 @@ async function executeTool(toolName, params) {
                     ? (activeGame.getWinner() === 'w' ? 'White wins!' : 'Black wins!')
                     : 'Game over!';
                 return { status: "moved", move: moveStr, newState, gameOver: true, result };
+            }
+            if (activeGame.type === 'checkers' && moveMade.multiJump) {
+                return {
+                    status: "multi_jump_required",
+                    move: moveStr,
+                    mustJumpFrom: activeGame.mustJumpFrom,
+                    newState,
+                    message: `Jump completed! Multi-jump required from (${activeGame.mustJumpFrom.r},${activeGame.mustJumpFrom.c}). You MUST call make_move again immediately for the next jump.`
+                };
             }
             return { status: "moved", move: moveStr, newState };
         } else {

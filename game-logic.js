@@ -98,6 +98,10 @@ export class CheckersGame {
         this.mustJumpFrom = null;
     }
 
+    getTurn() {
+        return this.turn;
+    }
+
     getState() {
         return { board: JSON.stringify(this.board), turn: this.turn, mustJumpFrom: this.mustJumpFrom };
     }
@@ -329,7 +333,7 @@ export class CheckersGame {
      *   "(5,2) -> (4,3)"  |  "5,2-4,3"
      */
     makeSanMove(san) {
-        const match = san.match(/(\d+)\D+?(\d+)\s*(?:to|->|-|→)\s*(\d+)\D+?(\d+)/i);
+        const match = san.match(/(\d+)\s*[,:]?\s*(\d+)\s*(?:to|->|-|→|\s+)\s*(\d+)\s*[,:]?\s*(\d+)/i);
         if (match) {
             const sr = parseInt(match[1]), sc = parseInt(match[2]);
             const tr = parseInt(match[3]), tc = parseInt(match[4]);
