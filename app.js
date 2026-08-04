@@ -2,6 +2,7 @@ import { smallTalk } from './smalltalk.js';
 import { toolRouter } from './tool-router.js';
 import { ChessGame, CheckersGame } from './game-logic.js';
 import { renderGameBoard } from './game-ui.js';
+import { CONFIG } from './config.js';
 
 let activeGame = null;
 let activeGameUI = null;
@@ -121,7 +122,7 @@ function releaseWakeLock() {
 }
 
 // ─── Virtual Scroll State ───────────────────────────────────────────────
-const RENDER_WINDOW = 50;  // max DOM-rendered messages at a time
+const RENDER_WINDOW = CONFIG.ui.renderWindowMessages;  // max DOM-rendered messages at a time
 let _renderOffset = 0;     // chatHistory index where the render window begins
 let _chatObserver = null;  // IntersectionObserver watching the top sentinel
 
@@ -240,7 +241,7 @@ function drainStreamQueue(targetId) {
     state.displayed = state.pending.slice(0, from + 1);
     updateLiveBubble(state.displayed, targetId);
 
-    setTimeout(() => drainStreamQueue(targetId), 15);
+    setTimeout(() => drainStreamQueue(targetId), CONFIG.ui.streamRenderIntervalMs);
 }
 
 function flushStreamQueue(targetId) {
@@ -250,8 +251,8 @@ function flushStreamQueue(targetId) {
 }
 
 // ─── Window Memory Helper ───────────────────────────────────────────────────
-const MAX_HISTORY = 10;
-const MAX_TOOL_DEPTH = 4; // Max consecutive tool call cycles before breaking the loop
+const MAX_HISTORY = CONFIG.ui.maxHistory;
+const MAX_TOOL_DEPTH = CONFIG.ui.maxToolDepth; // Max consecutive tool call cycles before breaking the loop
 let _toolCallDepth = 0;
 
 function getMessagesWindow(messages) {
@@ -972,7 +973,7 @@ function updateLiveBubble(text, targetId, force = false) {
     }
     
     const now = Date.now();
-    if (!force && now - _lastRenderTime < 33) {
+    if (!force && now - _lastRenderTime < CONFIG.ui.throttleFpsMs) {
         return; // Throttle heavy markdown regexes to ~30fps
     }
     _lastRenderTime = now;

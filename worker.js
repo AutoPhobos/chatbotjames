@@ -1,11 +1,12 @@
 import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0';
+import { CONFIG } from './config.js';
 
 // --- CONFIGURATION ---
 env.allowLocalModels = false;
 env.useBrowserCache = false;
 const DOWNLOAD_CACHE = 'JAMES-model-cache';
-const CHUNK_SIZE = 4 * 1024 * 1024; // 4 MiB
-const MAX_DOWNLOAD_CONCURRENCY = 3;
+const CHUNK_SIZE = CONFIG.worker.chunkSizeMb * 1024 * 1024;
+const MAX_DOWNLOAD_CONCURRENCY = CONFIG.worker.maxDownloadConcurrency;
 
 const nativeFetch = self.fetch.bind(self);
 self.fetch = customFetch;
@@ -680,8 +681,8 @@ self.onmessage = async (e) => {
             const promptTokens = await chatbot.tokenizer(prompt);
             const promptTokenCount = promptTokens.input_ids.data.length;
 
-            let maxTokens = 1024;
-            let temp = 1.0;
+            let maxTokens = CONFIG.worker.maxTokens;
+            let temp = CONFIG.worker.temperature;
 
             if (activePreset) {
                 if (activePreset.params < 1.0) {
@@ -697,8 +698,8 @@ self.onmessage = async (e) => {
                 max_new_tokens: maxTokens,
                 do_sample: true,
                 temperature: temp,
-                top_k: 20,
-                top_p: 0.9,
+                top_k: CONFIG.worker.topK,
+                top_p: CONFIG.worker.topP,
                 return_full_text: false,
                 callback_function: (beams) => {
                     if (isAborted) return true; // Attempt to cleanly stop generation
