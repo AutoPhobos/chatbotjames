@@ -33,9 +33,12 @@ export function setupToolsBridge(neuralLink) {
     log.addEventListener('drop', async (e) => {
         e.preventDefault();
         log.style.outline = '';
-        const file = e.dataTransfer.files[0];
-        if (!file) return;
-        await handleFileUpload(file, neuralLink);
+        const files = Array.from(e.dataTransfer.files);
+        if (!files.length) return;
+        // Process all dropped files, not just the first
+        for (const file of files) {
+            await handleFileUpload(file, neuralLink);
+        }
     });
 
     // File input button (optional — add <input type="file" id="file-input" hidden> to HTML)
@@ -62,14 +65,26 @@ export function setupToolsBridge(neuralLink) {
 async function handleFileUpload(file, neuralLink) {
     const maxSize = 1024 * 1024; // 1MB limit
     if (file.size > maxSize) {
-        import('./app.js').then(m => m.log(`⚠️ File too large (max 1MB): ${file.name}`, 'sys'));
+        // Log directly to the chat area instead of circular import
+        console.warn(`File too large (max 1MB): ${file.name}`);
+        const chatLog = neuralLink.DOM.log;
+        if (chatLog) {
+            const warn = document.createElement('div');
+            warn.className = 'message-wrap assistant-msg';
+            const inner = document.createElement('div');
+            inner.className = 'message-content';
+            inner.style.color = '#ef4444';
+            inner.textContent = `⚠️ File too large (max 1 MB): ${file.name}`;
+            warn.appendChild(inner);
+            chatLog.appendChild(warn);
+        }
         return;
     }
 
     const text = await file.text();
     const prompt = `I've uploaded a file called "${file.name}". Here's its content:\n\n${text.slice(0, 8000)}${text.length > 8000 ? '\n\n[...truncated]' : ''}`;
 
-    import('./app.js').then(m => m.log(`📎 File uploaded: ${file.name} (${(file.size / 1024).toFixed(1)}KB)`, 'sys'));
+    console.log(`📎 File uploaded: ${file.name} (${(file.size / 1024).toFixed(1)}KB)`);
 
     // Inject as a user message
     neuralLink.DOM.cmd.value = prompt;

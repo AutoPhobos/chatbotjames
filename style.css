@@ -1,3 +1,23 @@
+/* ═════ VIRTUAL SCROLL SENTINEL ═════ */
+.chat-sentinel {
+    text-align: center;
+    padding: 8px 16px;
+    margin: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    color: rgba(148, 163, 184, 0.7);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px dashed rgba(148, 163, 184, 0.15);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s, color 0.2s;
+}
+
+.chat-sentinel:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(148, 163, 184, 1);
+}
+
 /* ═════ INSTALL BANNER ═════ */
 .install-banner {
     position: fixed;

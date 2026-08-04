@@ -39,9 +39,7 @@ async function initPyodide() {
     self.postMessage({ status: 'loading' });
 
     try {
-        pyodide = await loadPyodide({
-            indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/',
-        });
+        pyodide = await loadPyodide();
 
         // Install micropip so the worker can fetch arbitrary wheels.
         await pyodide.loadPackage('micropip');

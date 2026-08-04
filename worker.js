@@ -1,15 +1,16 @@
-import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0';
+import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.3.3';
+import { CONFIG } from './config.js';
 
 // --- CONFIGURATION ---
 env.allowLocalModels = false;
-env.useBrowserCache = false;
-const DOWNLOAD_CACHE = 'JAMES-model-cache';
-const CHUNK_SIZE = 4 * 1024 * 1024; // 4 MiB
-const MAX_DOWNLOAD_CONCURRENCY = 3;
+env.useBrowserCache = true;
+const DOWNLOAD_CACHE = 'JAMES-model-cache-v3';
+const CHUNK_SIZE = CONFIG.worker.chunkSizeMb * 1024 * 1024;
+const MAX_DOWNLOAD_CONCURRENCY = CONFIG.worker.maxDownloadConcurrency;
 
 const nativeFetch = self.fetch.bind(self);
-self.fetch = customFetch;
-env.fetch = customFetch;
+// // self.fetch = customFetch;
+// // env.fetch = customFetch;
 
 function shouldUseDownloadCache(url) {
     if (url.endsWith('.wasm')) return false;
@@ -72,6 +73,39 @@ async function downloadChunk(url, range) {
     return response.arrayBuffer();
 }
 
+async function fetchWithProgress(url, total = 0) {
+    const response = await nativeFetch(
+        new Request(url, { method: 'GET', mode: 'cors', credentials: 'omit' })
+    );
+    if (!response.ok) throw new Error(`Download failed: ${response.status}`);
+    
+    total = total || Number(response.headers.get('content-length')) || 0;
+    const contentType = response.headers.get('content-type') || 'application/octet-stream';
+    
+    if (!response.body) {
+        const buf = await response.arrayBuffer();
+        reportProgress(buf.byteLength, total || buf.byteLength, url);
+        return cachePut(url, new Response(buf, { headers: { 'Content-Type': contentType, 'Content-Length': String(buf.byteLength) } }));
+    }
+
+    const reader = response.body.getReader();
+    let loaded = 0;
+    const chunks = [];
+    
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        loaded += value.byteLength;
+        reportProgress(loaded, total || loaded, url); // Ensure it reports *something*
+    }
+    
+    const blob = new Blob(chunks, { type: contentType });
+    return cachePut(url, new Response(blob, {
+        headers: { 'Content-Type': contentType, 'Content-Length': String(blob.size) },
+    }));
+}
+
 async function downloadAndCache(url) {
     const cached = await cacheMatch(url);
     if (cached) return cached;
@@ -80,11 +114,7 @@ async function downloadAndCache(url) {
     try {
         head = await fetchHead(url);
     } catch {
-        const response = await nativeFetch(
-            new Request(url, { method: 'GET', mode: 'cors', credentials: 'omit' })
-        );
-        if (!response.ok) throw new Error(`Download failed: ${response.status}`);
-        return cachePut(url, response);
+        return fetchWithProgress(url);
     }
 
     const total = Number(head.headers.get('content-length')) || 0;
@@ -92,16 +122,7 @@ async function downloadAndCache(url) {
     const acceptRanges = (head.headers.get('accept-ranges') || '').toLowerCase();
 
     if (!total || !acceptRanges.includes('bytes')) {
-        const response = await nativeFetch(
-            new Request(url, { method: 'GET', mode: 'cors', credentials: 'omit' })
-        );
-        if (!response.ok) throw new Error(`Download failed: ${response.status}`);
-        const buf = await response.arrayBuffer();
-        const ct = response.headers.get('content-type') || 'application/octet-stream';
-        const sized = new Response(buf, {
-            headers: { 'Content-Type': ct, 'Content-Length': String(buf.byteLength) },
-        });
-        return cachePut(url, sized);
+        return fetchWithProgress(url, total);
     }
 
     const ranges = [];
@@ -163,7 +184,12 @@ async function downloadAndCache(url) {
 }
 
 async function customFetch(resource, init = {}) {
-    const request = new Request(resource, init);
+    let request;
+    if (resource instanceof Request) {
+        request = resource.clone();
+    } else {
+        request = new Request(resource, init);
+    }
     if (request.method !== 'GET' || request.headers.has('Range')) {
         return nativeFetch(request);
     }
@@ -185,7 +211,7 @@ async function customFetch(resource, init = {}) {
         return await downloadAndCache(request.url);
     } catch (err) {
         console.warn('Custom fetch failed, falling back to native fetch:', err);
-        return nativeFetch(request);
+        return nativeFetch(resource instanceof Request ? resource.clone() : new Request(resource, init));
     }
 }
 
@@ -202,6 +228,8 @@ AVAILABLE TOOLS (use only when essential):
 - time (params: timezone) → current time in a specified timezone
 - calculator (params: expr) → evaluate math expressions
 - convert (params: value, from, to) → standard unit conversion
+- start_game (params: game) → Starts a game of "chess" or "checkers" with the user in the UI
+- make_move (params: move) → Make a move in the active game. (Chess: SAN like "e5", Checkers: "r,c to r,c")
 
 BEHAVIOR RULES:
 1. DEFAULT: Always reply conversationally without tools. Only use tools for real-time, external, or non-static knowledge.
@@ -264,6 +292,28 @@ amount: 100
 
 Then:
 "100 USD is approximately [result] EUR at current rates."
+
+User: "Let's play a game of chess"
+→ Use start_game tool.
+
+\`\`\`tool:run
+start_game
+game: chess
+\`\`\`
+
+Then:
+"I have started a game of chess. Your move!"
+
+User: "[Game State] Current FEN: ... You are playing Black. What is your next move?"
+→ Use make_move tool.
+
+\`\`\`tool:run
+make_move
+move: e5
+\`\`\`
+
+Then:
+"I play e5. Your turn!"
 
 User: "What's 25 * 4?"
 → No tool needed.
@@ -344,22 +394,30 @@ function isTVDevice() {
 }
 
 const MODEL_PRESETS = [
-    // ── GPU · WebGPU ───────────────────────────────────────────────────────
-    { id: 'gpu-qwen25-05b-q4f16', label: 'Qwen2.5 0.5B', backend: 'webgpu', model: 'onnx-community/Qwen2.5-0.5B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 400, ram: '2 GB', params: 0.5 },
-    { id: 'gpu-smollm-17b-q4f16', label: 'SmolLM2 1.7B', backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 950, ram: '3 GB', params: 1.7 },
-    { id: 'gpu-llama32-1b-q4f16', label: 'Llama 3.2 1B', backend: 'webgpu', model: 'onnx-community/Llama-3.2-1B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 750, ram: '3 GB', params: 1.2 },
-    { id: 'gpu-qwen25-15b-q4f16', label: 'Qwen2.5 1.5B', backend: 'webgpu', model: 'onnx-community/Qwen2.5-1.5B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 950, ram: '4 GB', params: 1.5 },
-    { id: 'gpu-llama32-3b-q4f16', label: 'Llama 3.2 3B', backend: 'webgpu', model: 'onnx-community/Llama-3.2-3B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 2100, ram: '6 GB', params: 3.2 },
-    { id: 'gpu-gemma3-1b-q4f16', label: 'Gemma 3 1B', backend: 'webgpu', model: 'onnx-community/gemma-3-1b-it', dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 600, ram: '3 GB', params: 1.0 },
-    { id: 'gpu-deepseek-15b-q4f16', label: 'DeepSeek-R1 1.5B', backend: 'webgpu', model: 'onnx-community/DeepSeek-R1-Distill-Qwen-1.5B', dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 1000, ram: '4 GB', params: 1.5 },
+    // ── GPU · WebGPU (Capable Computers, 3B+ Params) ───────────────────────
+    { id: 'gpu-llama31-8b-q4f16', label: 'Llama 3.1 8B', backend: 'webgpu', model: 'onnx-community/Meta-Llama-3.1-8B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 4800, ram: '16 GB', params: 8.0 },
+    { id: 'gpu-qwen25-7b-q4f16', label: 'Qwen2.5 7B', backend: 'webgpu', model: 'onnx-community/Qwen2.5-7B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 4200, ram: '12 GB', params: 7.0 },
     { id: 'gpu-phi35-mini-q4f16', label: 'Phi-3.5-mini 3.8B', backend: 'webgpu', model: 'onnx-community/Phi-3.5-mini-instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 2200, ram: '8 GB', params: 3.8 },
-    // ── CPU · WASM ─────────────────────────────────────────────────────────
+    { id: 'gpu-llama32-3b-q4f16', label: 'Llama 3.2 3B', backend: 'webgpu', model: 'onnx-community/Llama-3.2-3B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 2100, ram: '6 GB', params: 3.2 },
+    { id: 'gpu-qwen25-3b-q4f16', label: 'Qwen2.5 3B', backend: 'webgpu', model: 'onnx-community/Qwen2.5-3B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 1800, ram: '6 GB', params: 3.0 },
+    
+    // ── GPU · WebGPU (Mid-Range Laptops, 1B - 2B Params) ───────────────────
+    { id: 'gpu-gemma2-2b-q4f16', label: 'Gemma 2 2B', backend: 'webgpu', model: 'onnx-community/gemma-2-2b-it', dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 1400, ram: '4 GB', params: 2.0 },
+    { id: 'gpu-smollm-17b-q4f16', label: 'SmolLM2 1.7B', backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 950, ram: '3 GB', params: 1.7 },
+    { id: 'gpu-deepseek-15b-q4f16', label: 'DeepSeek-R1 1.5B', backend: 'webgpu', model: 'onnx-community/DeepSeek-R1-Distill-Qwen-1.5B', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 1000, ram: '4 GB', params: 1.5 },
+    { id: 'gpu-llama32-1b-q4f16', label: 'Llama 3.2 1B', backend: 'webgpu', model: 'onnx-community/Llama-3.2-1B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 750, ram: '3 GB', params: 1.2 },
+
+    // ── GPU · WebGPU (Low-Power / Mobile, < 1B Params) ─────────────────────
+    { id: 'gpu-qwen25-05b-q4f16', label: 'Qwen2.5 0.5B', backend: 'webgpu', model: 'onnx-community/Qwen2.5-0.5B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 400, ram: '2 GB', params: 0.5 },
+    
+    // ── CPU · WASM (General Fallbacks) ─────────────────────────────────────
     { id: 'cpu-llama32-1b-q4', label: 'Llama 3.2 1B', backend: 'wasm', model: 'onnx-community/Llama-3.2-1B-Instruct', dtype: 'q4', requires: 'cpu', autoSelect: true, sizeMB: 650, ram: '2 GB', params: 1.2 },
     { id: 'cpu-tinyllama-q4', label: 'TinyLlama 1.1B', backend: 'wasm', model: 'Xenova/TinyLlama-1.1B-Chat-v1.0', dtype: 'q4', requires: 'cpu', autoSelect: true, sizeMB: 600, ram: '2 GB', params: 1.1 },
     { id: 'cpu-tinyllama-q8', label: 'TinyLlama 1.1B q8', backend: 'wasm', model: 'Xenova/TinyLlama-1.1B-Chat-v1.0', dtype: 'q8', requires: 'cpu', autoSelect: true, sizeMB: 1100, ram: '3 GB', params: 1.1 },
     { id: 'cpu-qwen25-05b-q4', label: 'Qwen2.5 0.5B', backend: 'wasm', model: 'onnx-community/Qwen2.5-0.5B-Instruct', dtype: 'q4', requires: 'cpu', autoSelect: true, sizeMB: 400, ram: '1 GB', params: 0.5 },
     { id: 'cpu-smollm-17b-q4', label: 'SmolLM2 1.7B', backend: 'wasm', model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct', dtype: 'q4', requires: 'cpu', autoSelect: false, sizeMB: 950, ram: '3 GB', params: 1.7 },
-    // ── Lite ───────────────────────────────────────────────────────────────
+    
+    // ── Lite (Absolute Fallbacks for constrained devices) ──────────────────
     { id: 'lite-smollm-135m-q8', label: 'SmolLM2 135M q8', backend: 'wasm', model: 'HuggingFaceTB/SmolLM2-135M-Instruct', dtype: 'q8', requires: 'cpu', autoSelect: true, sizeMB: 150, ram: '512 MB', params: 0.135 },
     { id: 'lite-smollm-135m-q4', label: 'SmolLM2 135M q4', backend: 'wasm', model: 'HuggingFaceTB/SmolLM2-135M-Instruct', dtype: 'q4', requires: 'cpu', autoSelect: true, sizeMB: 90, ram: '256 MB', params: 0.135 },
 ];
@@ -429,11 +487,21 @@ async function detectGpu() {
     if (!navigator.gpu) return noGpu('WebGPU API not available in this browser');
 
     let adapter = null;
+<<<<<<< HEAD
     try {
         adapter = await navigator.gpu.requestAdapter();
     } catch (e) {
         return noGpu('requestAdapter() threw: ' + e.message);
     }
+=======
+    try { 
+        adapter = await Promise.race([
+            navigator.gpu.requestAdapter(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+        ]);
+    }
+    catch (e) { return noGpu('requestAdapter() threw: ' + e.message); }
+>>>>>>> a00e78b3d5b6d4e9da416af0cd623235b1ec4b69
     if (!adapter) return noGpu('No WebGPU adapter found (no GPU or driver missing)');
 
     let vendor = '', architecture = '', device = '', description = '';
@@ -503,11 +571,9 @@ function getDeviceRamGB() {
 function rankAutoPresets(gpuInfo, ramGB, isConstrained, wasmCaps = null) {
     const { hasGpu } = gpuInfo;
 
-    if (isConstrained) {
-        return MODEL_PRESETS
-            .filter(p => p.id.startsWith('lite-'))
-            .sort((a, b) => (b.params || 0) - (a.params || 0));
-    }
+    // We removed the hardcoded `isConstrained` filter that previously forced smartphones
+    // to only use `lite-` models. Now, high-end smartphones can dynamically select
+    // larger models (like 0.5B or 1B) depending on their actual RAM capacity!
 
     // Conservative estimate for VRAM capacity based on system RAM.
     // We do NOT clamp to maxStorageMB because WebGPU splits large models
@@ -551,7 +617,8 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
     if (forcePresetId) {
         const preset = MODEL_PRESETS.find(p => p.id === forcePresetId);
         if (!preset) throw new Error(`Unknown preset id: ${forcePresetId}`);
-        console.log(`⚡ Loading user-selected preset: ${preset.label} (${preset.backend}/${preset.dtype})`);
+        console.log(`🚀 Loading user-selected preset: ${preset.label} (${preset.backend}/${preset.dtype})`);
+        self.postMessage({ status: 'warm-start', preset: preset });
         try {
             chatbot = await initializeModel(preset.backend, preset.dtype, preset.model);
             activePreset = preset;
@@ -590,7 +657,8 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
 
     for (const preset of ranked) {
         try {
-            console.log(`⏳ Trying: ${preset.label}`);
+            console.log(`🚀 Trying: ${preset.label}`);
+            self.postMessage({ status: 'warm-start', preset: preset });
             chatbot = await initializeModel(preset.backend, preset.dtype, preset.model);
             activePreset = preset;
             console.log(`✅ Loaded: ${preset.label}`);
@@ -609,7 +677,8 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
 
     for (const preset of litePresets) {
         try {
-            console.log(`⏳ Last-resort lite: ${preset.label}`);
+            console.log(`⚠️ Last-resort lite: ${preset.label}`);
+            self.postMessage({ status: 'warm-start', preset: preset });
             chatbot = await initializeModel(preset.backend, preset.dtype, preset.model);
             activePreset = preset;
             console.log(`✅ Loaded lite: ${preset.label}`);
@@ -637,6 +706,11 @@ self.onmessage = async (e) => {
     }
 
     if (type === 'init') {
+        // If we receive a new init while generating, force-reset the flag.
+        // The old generation loop will error out naturally (chatbot is now a new instance)
+        // and the finally block will set isGenerating = false again, which is harmless.
+        isAborted = true;
+        isGenerating = false;
         try {
             await new Promise((resolve) => setTimeout(resolve, 125));
             const [gpuInfo, wasmCaps] = await Promise.all([detectGpu(), detectWasmCapabilities()]);
@@ -668,7 +742,10 @@ self.onmessage = async (e) => {
         isGenerating = true;
         isAborted = false;
 
+<<<<<<< HEAD
         // CRITICAL: declare outside try so it is visible in the catch block
+=======
+>>>>>>> a00e78b3d5b6d4e9da416af0cd623235b1ec4b69
         let accumulatedResponse = '';
 
         try {
@@ -688,8 +765,13 @@ self.onmessage = async (e) => {
             const promptTokens = await chatbot.tokenizer(prompt);
             const promptTokenCount = promptTokens.input_ids.data.length;
 
+<<<<<<< HEAD
             let maxTokens = 1024;
             let temp = 1.0;
+=======
+            let maxTokens = CONFIG.worker.maxTokens;
+            let temp = CONFIG.worker.temperature;
+>>>>>>> a00e78b3d5b6d4e9da416af0cd623235b1ec4b69
 
             if (activePreset) {
                 if (activePreset.params < 1.0) {
@@ -705,16 +787,21 @@ self.onmessage = async (e) => {
                 max_new_tokens: maxTokens,
                 do_sample: true,
                 temperature: temp,
-                top_k: 20,
-                top_p: 0.9,
+                top_k: CONFIG.worker.topK,
+                top_p: CONFIG.worker.topP,
                 return_full_text: false,
                 callback_function: (beams) => {
+<<<<<<< HEAD
                     if (isAborted) throw new Error('AbortGeneration');
 
                     const tokenIds = beams?.[0]?.output_token_ids;
                     if (!tokenIds) return;
 
                     const allTokens = Array.from(tokenIds.data || tokenIds);
+=======
+                    if (isAborted) return true; // Attempt to cleanly stop generation
+                    const allTokens = Array.from(beams[0].output_token_ids.data || beams[0].output_token_ids);
+>>>>>>> a00e78b3d5b6d4e9da416af0cd623235b1ec4b69
                     if (allTokens.length > promptTokenCount) {
                         const newTokens = allTokens.slice(promptTokenCount);
                         const text = chatbot.tokenizer.decode(newTokens, { skip_special_tokens: true });
@@ -731,6 +818,11 @@ self.onmessage = async (e) => {
                 }
             });
 
+            if (isAborted) {
+                self.postMessage({ status: 'aborted', message: accumulatedResponse.trim(), targetId, chatId });
+                return;
+            }
+
             let finalResponse = Array.isArray(output)
                 ? (output[0]?.generated_text ?? output[0]?.text ?? '').trim()
                 : (output?.generated_text ?? output?.text ?? '').trim();
@@ -746,6 +838,7 @@ self.onmessage = async (e) => {
                 chatId
             });
         } catch (err) {
+<<<<<<< HEAD
             if (err.message === 'AbortGeneration') {
                 // Now safe: accumulatedResponse is in scope
                 self.postMessage({
@@ -757,8 +850,16 @@ self.onmessage = async (e) => {
             } else {
                 reportWorkerError(err, targetId);
             }
+=======
+            reportWorkerError(err, targetId);
+>>>>>>> a00e78b3d5b6d4e9da416af0cd623235b1ec4b69
         } finally {
             isGenerating = false;
         }
     }
 };
+
+
+
+
+

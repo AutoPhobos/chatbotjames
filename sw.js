@@ -1,23 +1,33 @@
-const CACHE_NAME = 'JAMES-v5.2';
+const CACHE_NAME = 'JAMES-v5.8';
 
-// Only cache truly static assets — NOT app logic files
+// Only cache truly static assets - NOT app logic files
 const STATIC_ASSETS = [
-    'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css'
+    'https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css'
 ];
 
 // App files: network-first but cached for offline PWA compliance
 const NETWORK_FIRST = [
+    '/',
+    'config.js',
+    'build.js',
+    'config.json',
+    'game-logic.js',
+    'game-ui.js',
     'app.js',
     'worker.js',
     'tools-worker.js',
+    'tools-bridge.js',
+    'tools-search.js',
     'python-worker.js',
     'orama.js',
     'index.html',
     'style.css',
-    'manifest.json'
+    'manifest.json',
+    'favicon.ico',
+    'preview.png'
 ];
 
-// ── Install: pre-cache only CDN static assets ─────────────────────────────
+// Install: pre-cache only CDN static assets
 self.addEventListener('install', (e) => {
     e.waitUntil(
         caches.open(CACHE_NAME).then(c => c.addAll(STATIC_ASSETS))
@@ -25,7 +35,7 @@ self.addEventListener('install', (e) => {
     self.skipWaiting();
 });
 
-// ── Activate: delete old caches ───────────────────────────────────────────
+// Activate: delete old caches
 self.addEventListener('activate', (e) => {
     e.waitUntil(
         caches.keys().then(keys =>
@@ -38,21 +48,24 @@ self.addEventListener('activate', (e) => {
     self.clients.claim();
 });
 
-// ── Fetch: network-first for app files, cache-first for CDN assets ────────
+// Fetch: network-first for app files, cache-first for CDN assets
 self.addEventListener('fetch', (event) => {
-    // Only cache GET requests (Transformers.js sends HEAD requests for file sizes)
+    // Only cache GET requests
     if (event.request.method !== 'GET') return;
+
+    // Do not cache extension requests
+    if (!event.request.url.startsWith('http')) return;
 
     const url = new URL(event.request.url);
     const filename = url.pathname.split('/').pop();
 
-    // Always bypass SW for model weight files (large .bin / .onnx fetches)
+    // Always bypass SW for model weight files
     if (url.pathname.includes('.onnx') || url.pathname.includes('.bin')) {
-        return; // Let browser handle directly
+        return; 
     }
 
-    // Network-first for app files (caches them for offline PWA installability)
-    if (NETWORK_FIRST.some(f => filename === f || url.pathname.endsWith(f))) {
+    // Network-first for app files
+    if (url.pathname === '/' || NETWORK_FIRST.some(f => filename === f || url.pathname.endsWith(f))) {
         event.respondWith(
             fetch(event.request)
                 .then(res => {
@@ -60,12 +73,16 @@ self.addEventListener('fetch', (event) => {
                     caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
                     return res;
                 })
-                .catch(() => caches.match(event.request))
+                .catch(async () => {
+                    const cached = await caches.match(event.request);
+                    if (cached) return cached;
+                    return new Response('Network error in app file', { status: 503 });
+                })
         );
         return;
     }
 
-    // CDN assets: cache-first (they're versioned and never change)
+    // CDN assets: cache-first
     if (url.hostname.includes('jsdelivr.net') || url.hostname.includes('cdn.')) {
         event.respondWith(
             caches.match(event.request).then(cached =>
@@ -73,7 +90,7 @@ self.addEventListener('fetch', (event) => {
                     const clone = res.clone();
                     caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
                     return res;
-                })
+                }).catch(() => new Response('Network error in CDN fetch', { status: 503 }))
             )
         );
         return;
@@ -81,6 +98,15 @@ self.addEventListener('fetch', (event) => {
 
     // Everything else: network with cache fallback
     event.respondWith(
-        fetch(event.request).catch(() => caches.match(event.request))
+        fetch(event.request).catch(async () => {
+            const cached = await caches.match(event.request);
+            if (cached) return cached;
+            return new Response('Network error', { status: 503 });
+        })
     );
 });
+
+
+
+
+
