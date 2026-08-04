@@ -455,7 +455,12 @@ async function detectGpu() {
     if (!navigator.gpu) return noGpu('WebGPU API not available in this browser');
 
     let adapter = null;
-    try { adapter = await navigator.gpu.requestAdapter(); }
+    try { 
+        adapter = await Promise.race([
+            navigator.gpu.requestAdapter(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+        ]);
+    }
     catch (e) { return noGpu('requestAdapter() threw: ' + e.message); }
     if (!adapter) return noGpu('No WebGPU adapter found (no GPU or driver missing)');
 
@@ -572,7 +577,8 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
     if (forcePresetId) {
         const preset = MODEL_PRESETS.find(p => p.id === forcePresetId);
         if (!preset) throw new Error(`Unknown preset id: ${forcePresetId}`);
-        console.log(`⚡ Loading user-selected preset: ${preset.label} (${preset.backend}/${preset.dtype})`);
+        console.log(`🚀 Loading user-selected preset: ${preset.label} (${preset.backend}/${preset.dtype})`);
+        self.postMessage({ status: 'warm-start', preset: preset });
         try {
             chatbot = await initializeModel(preset.backend, preset.dtype, preset.model);
             activePreset = preset;
@@ -611,7 +617,8 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
 
     for (const preset of ranked) {
         try {
-            console.log(`⏳ Trying: ${preset.label}`);
+            console.log(`🚀 Trying: ${preset.label}`);
+            self.postMessage({ status: 'warm-start', preset: preset });
             chatbot = await initializeModel(preset.backend, preset.dtype, preset.model);
             activePreset = preset;
             console.log(`✅ Loaded: ${preset.label}`);
@@ -629,7 +636,8 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
         .sort((a, b) => (a.sizeMB || 0) - (b.sizeMB || 0));
     for (const preset of litePresets) {
         try {
-            console.log(`⏳ Last-resort lite: ${preset.label}`);
+            console.log(`⚠️ Last-resort lite: ${preset.label}`);
+            self.postMessage({ status: 'warm-start', preset: preset });
             chatbot = await initializeModel(preset.backend, preset.dtype, preset.model);
             activePreset = preset;
             console.log(`✅ Loaded lite: ${preset.label}`);
