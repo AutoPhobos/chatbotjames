@@ -45,18 +45,14 @@ export class ChessGame {
             const move = this.game.move(san.trim());
             return move ? [move] : null;
         } catch (e) {
-            // Fallback: search for SAN-like tokens in the text
-            const sanRegex = /\b(?:[NQKBR]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NQKBR])?[+#]?|O-O(?:-O)?)\b/g;
-            const matches = san.match(sanRegex);
-            if (matches) {
-                const applied = [];
-                for (const match of matches) {
-                    try {
-                        const m = this.game.move(match);
-                        if (m) applied.push(m);
-                    } catch(err) {}
-                }
-                return applied.length > 0 ? applied : null;
+            // Fallback: search for strict SAN intent
+            const intentRegex = /(?:i (?:will )?(?:play|move)|my move is|move:|playing|^)\s*([NQKBR]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NQKBR])?[+#]?|O-O(?:-O)?)\b/i;
+            const match = san.match(intentRegex);
+            if (match && match[1]) {
+                try {
+                    const m = this.game.move(match[1]);
+                    if (m) return [m];
+                } catch(err) {}
             }
             return null;
         }
@@ -426,5 +422,18 @@ export function parseUserMove(text, game) {
         }
     }
 
+    return null;
+}
+
+export function extractAIMove(text, game) {
+    if (!game) return null;
+    if (game.type === 'chess') {
+        const intentRegex = /(?:i (?:will )?(?:play|move)|my move is|move:|playing|^)\s*([NQKBR]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NQKBR])?[+#]?|O-O(?:-O)?)\b/i;
+        const match = text.match(intentRegex);
+        if (match && match[1]) return match[1];
+    } else if (game.type === 'checkers') {
+        const match = text.match(/(\d+)\s*[,:]?\s*(\d+)\s*(?:to|->|-|→|\s+)\s*(\d+)\s*[,:]?\s*(\d+)/i);
+        if (match) return match[0];
+    }
     return null;
 }

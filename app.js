@@ -1,6 +1,6 @@
 import { smallTalk } from './smalltalk.js';
 import { toolRouter } from './tool-router.js';
-import { ChessGame, CheckersGame, parseUserMove } from './game-logic.js';
+import { ChessGame, CheckersGame, parseUserMove, extractAIMove } from './game-logic.js';
 import { renderGameBoard } from './game-ui.js';
 import { CONFIG } from './config.js';
 import {
@@ -516,6 +516,13 @@ function handleStopGeneration() {
 // Tool Execution Handler
 async function handleToolCalls(message, targetId, originChatId) {
     const toolCalls = parseToolCalls(message);
+
+    if (toolCalls.length === 0 && activeGame && originChatId === currentChatId) {
+        const extracted = extractAIMove(message, activeGame);
+        if (extracted) {
+            toolCalls.push({ tool: 'make_move', params: { move: extracted } });
+        }
+    }
 
     if (toolCalls.length === 0) {
         _toolCallDepth = 0;
