@@ -237,11 +237,10 @@ function drainStreamQueue(targetId) {
     state.running = true;
 
     const from = state.displayed.length;
-    const nextSpace = state.pending.indexOf(' ', from + 1);
-    state.displayed = state.pending.slice(0, nextSpace === -1 ? state.pending.length : nextSpace + 1);
+    state.displayed = state.pending.slice(0, from + 1);
     updateLiveBubble(state.displayed, targetId);
 
-    setTimeout(() => drainStreamQueue(targetId), 35);
+    setTimeout(() => drainStreamQueue(targetId), 15);
 }
 
 function flushStreamQueue(targetId) {
