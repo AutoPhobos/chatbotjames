@@ -23,7 +23,7 @@
  *   { status: 'stdout',   execId, text }       ← streamed during install
  */
 
-importScripts('https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js');
+importScripts('https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js');
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -40,7 +40,7 @@ async function initPyodide() {
 
     try {
         pyodide = await loadPyodide({
-            indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/',
+            indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/',
         });
 
         // Install micropip so the worker can fetch arbitrary wheels.

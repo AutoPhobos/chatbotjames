@@ -2,7 +2,7 @@ const CACHE_NAME = 'JAMES-v5.2';
 
 // Only cache truly static assets — NOT app logic files
 const STATIC_ASSETS = [
-    'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css'
+    'https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css'
 ];
 
 // App files: network-first but cached for offline PWA compliance
