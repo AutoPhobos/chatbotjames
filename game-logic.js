@@ -42,17 +42,21 @@ export class ChessGame {
 
     makeSanMove(san) {
         try {
-            return this.game.move(san.trim());
+            const move = this.game.move(san.trim());
+            return move ? [move] : null;
         } catch (e) {
             // Fallback: search for SAN-like tokens in the text
             const sanRegex = /\b(?:[NQKBR]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NQKBR])?[+#]?|O-O(?:-O)?)\b/g;
             const matches = san.match(sanRegex);
             if (matches) {
+                const applied = [];
                 for (const match of matches) {
                     try {
-                        return this.game.move(match);
+                        const m = this.game.move(match);
+                        if (m) applied.push(m);
                     } catch(err) {}
                 }
+                return applied.length > 0 ? applied : null;
             }
             return null;
         }
@@ -344,11 +348,17 @@ export class CheckersGame {
      *   "(5,2) -> (4,3)"  |  "5,2-4,3"
      */
     makeSanMove(san) {
-        const match = san.match(/(\d+)\s*[,:]?\s*(\d+)\s*(?:to|->|-|→|\s+)\s*(\d+)\s*[,:]?\s*(\d+)/i);
-        if (match) {
-            const sr = parseInt(match[1]), sc = parseInt(match[2]);
-            const tr = parseInt(match[3]), tc = parseInt(match[4]);
-            return this.move(sr, sc, tr, tc);
+        const regex = /(\d+)\s*[,:]?\s*(\d+)\s*(?:to|->|-|→|\s+)\s*(\d+)\s*[,:]?\s*(\d+)/gi;
+        const matches = [...san.matchAll(regex)];
+        if (matches.length > 0) {
+            const applied = [];
+            for (const match of matches) {
+                const sr = parseInt(match[1]), sc = parseInt(match[2]);
+                const tr = parseInt(match[3]), tc = parseInt(match[4]);
+                const res = this.move(sr, sc, tr, tc);
+                if (res) applied.push(res);
+            }
+            return applied.length > 0 ? applied : null;
         }
         return null;
     }

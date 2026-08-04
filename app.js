@@ -501,17 +501,19 @@ async function handleToolCalls(message, targetId, originChatId) {
         _toolCallDepth = 0;
 
         let interceptedGameMove = false;
-        if (activeGame && originChatId === currentChatId && activeGame.getTurn() === 'b') {
-            const moveMade = activeGame.makeSanMove(message);
-            if (moveMade) {
-                let notation = null;
-                if (activeGame.type === 'chess') {
-                    notation = moveMade.san || message.trim();
-                } else {
-                    const m = message.match(/(\d+)\s*[,:]?\s*(\d+)\s*(?:to|->|-|→|\s+)\s*(\d+)\s*[,:]?\s*(\d+)/i);
-                    notation = m ? `(${m[1]},${m[2]})→(${m[3]},${m[4]})` : message.trim();
+        if (activeGame && originChatId === currentChatId) {
+            const movesMade = activeGame.makeSanMove(message);
+            if (movesMade) {
+                const moves = Array.isArray(movesMade) ? movesMade : [movesMade];
+                for (const move of moves) {
+                    let notation = null;
+                    if (activeGame.type === 'chess') {
+                        notation = move.san || move.trim();
+                    } else {
+                        notation = `(${move.from.r},${move.from.c})→(${move.to.r},${move.to.c})`;
+                    }
+                    if (activeGameUI) activeGameUI.update(notation);
                 }
-                if (activeGameUI) activeGameUI.update(notation);
                 interceptedGameMove = true;
             }
         }
@@ -520,6 +522,7 @@ async function handleToolCalls(message, targetId, originChatId) {
             updateLiveBubble(message, targetId);
             chatHistory.push({ role: 'assistant', content: message });
             persistCurrentChat();
+            if (interceptedGameMove) refreshGameBoardUI();
         } else {
             const bgChat = allChats.find(c => c.id === originChatId);
             if (bgChat) {
