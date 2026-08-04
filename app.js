@@ -566,6 +566,7 @@ async function handleToolCalls(message, targetId, originChatId) {
     }
     if (originChatId === currentChatId) {
         persistCurrentChat();
+        if (isGameTool) refreshGameBoardUI();
     } else {
         const bgChatToSave = allChats.find(c => c.id === originChatId);
         if (bgChatToSave) dbSaveChat(bgChatToSave);
@@ -655,6 +656,28 @@ function callWorkerRPC(targetWorker, messageData, timeoutMs = 30000) {
     });
 }
 
+function refreshGameBoardUI() {
+    if (activeGame) {
+        const idx = chatHistory.findIndex(m => m.type === 'game_board');
+        if (idx !== -1 && idx !== chatHistory.length - 1) {
+            const [msg] = chatHistory.splice(idx, 1);
+            chatHistory.push(msg);
+        }
+    }
+    
+    renderChatLog();
+    
+    if (activeGame) {
+        setTimeout(() => {
+            const placeholders = document.querySelectorAll('.game-board-message');
+            if (placeholders.length > 0) {
+                const container = placeholders[placeholders.length - 1];
+                activeGameUI = renderGameBoard(activeGame, container, handleGameMove);
+            }
+        }, 50);
+    }
+}
+
 function handleGameMove(moveInfo) {
     const gameOver = activeGame.isGameOver();
 
@@ -687,8 +710,8 @@ function handleGameMove(moveInfo) {
     chatHistory.push({ role: 'system', content: `[Moved piece: ${moveNotation || 'done'}]` });
     persistCurrentChat();
     
-    // Refresh chat log to show the new system message
-    renderChatLog();
+    // Refresh chat log and board to show the new system message
+    refreshGameBoardUI();
 
     setIdleState(false);
     const messagesForModel = getMessagesWindow(chatHistory);
@@ -708,15 +731,8 @@ function handleStartGame(params) {
     
     chatHistory.push({ role: 'assistant', type: 'game_board', content: '' });
     persistCurrentChat();
-    renderChatLog();
-
-    setTimeout(() => {
-        const placeholders = document.querySelectorAll('.game-board-message');
-        if (placeholders.length > 0) {
-            const container = placeholders[placeholders.length - 1];
-            activeGameUI = renderGameBoard(activeGame, container, handleGameMove);
-        }
-    }, 50);
+    
+    refreshGameBoardUI();
 
     return { status: "game_started", game: gameType };
 }
@@ -901,18 +917,8 @@ function loadChatHistory(chatId) {
         activeGameUI = null;
     }
 
-    renderChatLog();
+    refreshGameBoardUI();
     updateChatListActive(currentChatId);
-
-    if (activeGame) {
-        setTimeout(() => {
-            const placeholders = document.querySelectorAll('.game-board-message');
-            if (placeholders.length > 0) {
-                const container = placeholders[placeholders.length - 1];
-                activeGameUI = renderGameBoard(activeGame, container, handleGameMove);
-            }
-        }, 50);
-    }
     
     if (activeGenerations.has(chatId)) {
         const tId = activeGenerations.get(chatId);
