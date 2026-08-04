@@ -435,8 +435,11 @@ function handleStopGeneration() {
         worker.postMessage({ type: 'abort' });
     }
     
-    // Do NOT call setIdleState here. Let the worker process the abort and reply with status: 'aborted'
-    // which will be handled in workerMessageHandler to gracefully reset the UI.
+    // Immediately set UI to idle state to stop thinking animation
+    setIdleState(true);
+    updateStatusLight('idle');
+    const statusText = document.getElementById('statusText');
+    if (statusText) statusText.textContent = 'READY';
     
     streamQueues.forEach((_, targetId) => flushStreamQueue(targetId));
 }

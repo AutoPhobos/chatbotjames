@@ -654,8 +654,8 @@ self.onmessage = async (e) => {
                     maxTokens = 512;
                     temp = 0.8;
                 } else if (activePreset.params >= 3.0) {
-                    maxTokens = 2048; // 3B models can generate much longer, coherent responses
-                    temp = 0.7;       // Lower temp helps the 3B models reliably format ```tool:run blocks
+                    maxTokens = 2048;
+                    temp = 0.7;
                 }
             }
 
@@ -667,7 +667,7 @@ self.onmessage = async (e) => {
                 top_p: 0.9,
                 return_full_text: false,
                 callback_function: (beams) => {
-                    if (isAborted) throw new Error('AbortGeneration');
+                    if (isAborted) return true; // Attempt to cleanly stop generation
                     const allTokens = Array.from(beams[0].output_token_ids.data || beams[0].output_token_ids);
                     if (allTokens.length > promptTokenCount) {
                         const newTokens = allTokens.slice(promptTokenCount);
@@ -680,6 +680,11 @@ self.onmessage = async (e) => {
                 }
             });
 
+            if (isAborted) {
+                self.postMessage({ status: 'aborted', message: accumulatedResponse.trim(), targetId, chatId });
+                return;
+            }
+
             let finalResponse = Array.isArray(output)
                 ? (output[0]?.generated_text ?? output[0]?.text ?? '').trim()
                 : (output?.generated_text ?? output?.text ?? '').trim();
@@ -690,11 +695,7 @@ self.onmessage = async (e) => {
 
             self.postMessage({ status: 'complete', message: finalResponse.trim(), targetId, chatId });
         } catch (err) {
-            if (err.message === 'AbortGeneration') {
-                self.postMessage({ status: 'aborted', message: accumulatedResponse.trim(), targetId, chatId });
-            } else {
-                reportWorkerError(err, targetId);
-            }
+            reportWorkerError(err, targetId);
         } finally {
             isGenerating = false;
         }
