@@ -3,7 +3,7 @@ import { toolRouter } from './tool-router.js';
 import { ChessGame, CheckersGame } from './game-logic.js';
 import { renderGameBoard } from './game-ui.js';
 import { CONFIG } from './config.js';
-import { BUILD_NUMBER } from './build.js';
+import { BUILD_NUMBER } from './build.js?v=2';
 
 let activeGame = null;
 let activeGameUI = null;
@@ -1532,6 +1532,7 @@ applyModelBtn?.addEventListener('click', () => {
 
     worker.postMessage({ type: 'init', forcePresetId: _selectedPresetId });
 });
+
 
 
 
