@@ -101,6 +101,13 @@ async function getWikipedia(params) {
         };
     }
     const data = await res.json();
+    if (data.type === 'disambiguation') {
+        return {
+            type: 'fallback',
+            query,
+            url: `https://duckduckgo.com/?q=${encodeURIComponent(query)}`
+        };
+    }
     return {
         type: 'wiki',
         title: data.title,
