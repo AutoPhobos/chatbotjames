@@ -728,7 +728,6 @@ function handleGameMove(moveInfo) {
         playGameMoveSound();
     }
 
-    const aiColor = activeGame.type === 'chess' ? 'Black' : 'Black (b/B)';
     const result = activeGame.type === 'checkers' && activeGame.getWinner
         ? (activeGame.getWinner() === 'w' ? 'White wins!' : 'Black wins!')
         : 'Game over!';
