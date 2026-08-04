@@ -380,6 +380,13 @@ function sendMessage() {
         fullPrompt = (text ? text + "\n" : "Please analyze the attached file(s):") + fileContext;
     }
 
+    if (activeGame) {
+        const turnColor = activeGame.getTurn() === 'w' ? 'White' : 'Black';
+        const aiColor = 'Black';
+        const gameTypeLabel = activeGame.type === 'chess' ? 'FEN' : 'Checkers Board';
+        fullPrompt += `\n\n[Game State] Current ${gameTypeLabel}: ${activeGame.getFen()}. You are playing ${aiColor}. It is currently ${turnColor}'s turn. If the user provided a move in text, you MUST use the make_move tool to apply their move first, then (after seeing the result) use make_move again to play your own move.`;
+    }
+
     const displayMessage = text + (attachedFiles.length > 0 ? ` [Attached: ${attachedFiles.map(f => f.name).join(', ')}]` : '');
 
     chatHistory.push({ role: 'user', content: fullPrompt });
@@ -910,7 +917,7 @@ function loadChatHistory(chatId) {
         if (chat.gameState.type === 'checkers') {
             activeGame = new CheckersGame(chat.gameState.state);
         } else {
-            activeGame = new ChessGame(chat.gameState.state.fen);
+            activeGame = new ChessGame(chat.gameState.state.fen, chat.gameState.state.moveHistory);
         }
     } else {
         activeGame = null;
