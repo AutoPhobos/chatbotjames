@@ -3,185 +3,64 @@ import { toolRouter } from './tool-router.js';
 import { ChessGame, CheckersGame } from './game-logic.js';
 import { renderGameBoard } from './game-ui.js';
 import { CONFIG } from './config.js';
-import { BUILD_NUMBER } from './build.js?v=2';
-
-// Safe LocalStorage wrapper to prevent UI crash in strict privacy modes
-const safeLocalStorage = {
-    getItem: (key) => { try { return localStorage.getItem(key); } catch (e) { return null; } },
-    setItem: (key, val) => { try { localStorage.setItem(key, val); } catch (e) { } },
-    removeItem: (key) => { try { localStorage.removeItem(key); } catch (e) { } }
-};
+import {
+    safeLocalStorage,
+    dbSaveChat,
+    dbDeleteChat,
+    dbLoadAllChats,
+    migrateFromLocalStorage
+} from './chat-db.js';
+import {
+    acquireWakeLock,
+    releaseWakeLock,
+    playSendSound,
+    playDoneSound
+} from './audio-wakelock.js';
+import {
+    streamQueues,
+    getNextTargetId,
+    queueStreamText,
+    flushStreamQueue
+} from './stream-manager.js';
+import {
+    setupMessageRenderer,
+    updateStatusLight,
+    escapeHTML,
+    appendUserMessage,
+    updateLiveBubble,
+    appendErrorToChat,
+    renderChatLog
+} from './message-renderer.js';
+import {
+    setupModelPanel,
+    updateModelInfo,
+    refreshPresetCards
+} from './model-panel.js';
 
 let activeGame = null;
 let activeGameUI = null;
 
-// ─── IndexedDB Chat Storage ──────────────────────────────────────────────────
-// Replaces safeLocalStorage for chat history — no 5 MB limit, async, fast.
+// UI State Locks
+let _isGeneratingUI = false;
+let lastUpdate = 0;
+let _gpuInfo = null;
+let _presets = [];
+let _activePresetId = null;
+let _selectedPresetId = null;
+let _deviceRamGB = 4;
+let attachedFiles = [];
 
-const IDB_NAME = 'james-chats-db';
-const IDB_STORE = 'chats';
-let _idb = null;
-let _idbPromise = null; // Prevents concurrent open() races — callers share one promise
+// Window Memory Helper
+const MAX_HISTORY = CONFIG.ui.maxHistory;
+const MAX_TOOL_DEPTH = CONFIG.ui.maxToolDepth;
+let _toolCallDepth = 0;
 
-async function openChatDB() {
-    if (_idb) return _idb;
-    if (_idbPromise) return _idbPromise; // Return the in-progress open to any concurrent caller
-    _idbPromise = new Promise((resolve, reject) => {
-        const req = indexedDB.open(IDB_NAME, 1);
-        req.onupgradeneeded = (e) => {
-            const db = e.target.result;
-            if (!db.objectStoreNames.contains(IDB_STORE)) {
-                db.createObjectStore(IDB_STORE, { keyPath: 'id' });
-            }
-        };
-        req.onsuccess = (e) => { _idb = e.target.result; resolve(_idb); };
-        req.onerror = (e) => { _idbPromise = null; reject(e.target.error); };
-    });
-    return _idbPromise;
-}
+// Chat History State
+let chatHistory = [];
+let allChats = [];
+let currentChatId = null;
 
-/** Fire-and-forget: persist a single chat to IndexedDB. */
-function dbSaveChat(chat) {
-    if (!chat) return;
-    openChatDB()
-        .then(db => {
-            try {
-                const tx = db.transaction(IDB_STORE, 'readwrite');
-                tx.objectStore(IDB_STORE).put(chat);
-            } catch (e) {
-                console.warn('IDB save transaction failed:', e);
-            }
-        })
-        .catch(e => console.warn('IDB save failed:', e));
-}
-
-/** Fire-and-forget: delete a chat from IndexedDB by id. */
-function dbDeleteChat(id) {
-    openChatDB()
-        .then(db => {
-            try {
-                const tx = db.transaction(IDB_STORE, 'readwrite');
-                tx.objectStore(IDB_STORE).delete(id);
-            } catch (e) {
-                console.warn('IDB delete transaction failed:', e);
-            }
-        })
-        .catch(e => console.warn('IDB delete failed:', e));
-}
-
-/** Load all chats, sorted newest-first (id is a timestamp). */
-async function dbLoadAllChats() {
-    try {
-        const db = await openChatDB();
-        return new Promise((resolve, reject) => {
-            const tx = db.transaction(IDB_STORE, 'readonly');
-            const req = tx.objectStore(IDB_STORE).getAll();
-            req.onsuccess = (e) => {
-                const chats = (e.target.result || []).sort((a, b) => b.id - a.id);
-                resolve(chats);
-            };
-            req.onerror = (e) => reject(e.target.error);
-        });
-    } catch (e) {
-        console.warn('IDB load failed, falling back to empty state:', e);
-        return [];
-    }
-}
-
-/**
- * One-time migration: move existing safeLocalStorage chats into IndexedDB,
- * then clear the old key so this only runs once.
- */
-async function migrateFromLocalStorage() {
-    const raw = safeLocalStorage.getItem('chatbot-chats');
-    if (!raw) return;
-    try {
-        const chats = JSON.parse(raw);
-        if (Array.isArray(chats) && chats.length > 0) {
-            console.log(`📦 Migrating ${chats.length} chat(s) from safeLocalStorage → IndexedDB…`);
-            await openChatDB();
-            for (const chat of chats) dbSaveChat(chat);
-            safeLocalStorage.removeItem('chatbot-chats');
-            console.log('✅ Migration complete');
-        }
-    } catch (e) {
-        console.warn('safeLocalStorage migration failed:', e);
-    }
-}
-
-// ─── Screen Wake Lock ───────────────────────────────────────────────────
-// Keeps the screen on during model downloads, which can take several minutes.
-
-let _wakeLock = null;
-
-async function acquireWakeLock() {
-    if (!('wakeLock' in navigator) || _wakeLock) return;
-    try {
-        _wakeLock = await navigator.wakeLock.request('screen');
-        // Browser may release it on tab-switch; re-acquire on return
-        _wakeLock.addEventListener('release', () => { _wakeLock = null; });
-        document.addEventListener('visibilitychange', _onWakeLockVisibilityChange);
-        console.log('🔆 Screen Wake Lock acquired');
-    } catch (e) {
-        console.warn('Wake Lock unavailable:', e.message);
-    }
-}
-
-function _onWakeLockVisibilityChange() {
-    if (document.visibilityState === 'visible') acquireWakeLock();
-}
-
-function releaseWakeLock() {
-    if (_wakeLock) {
-        _wakeLock.release().catch(() => { });
-        _wakeLock = null;
-        document.removeEventListener('visibilitychange', _onWakeLockVisibilityChange);
-        console.log('🔅 Screen Wake Lock released');
-    }
-}
-
-// ─── Virtual Scroll State ───────────────────────────────────────────────
-const RENDER_WINDOW = CONFIG.ui.renderWindowMessages;  // max DOM-rendered messages at a time
-let _renderOffset = 0;     // chatHistory index where the render window begins
-let _chatObserver = null;  // IntersectionObserver watching the top sentinel
-
-// ─── Sound Engine (Web Audio API, no external files) ─────────────────────────
-const _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-document.addEventListener('DOMContentLoaded', () => {
-    setupEventListeners();
-    setupFileAttachment();
-});
-
-function _playTone({ freq = 440, type = 'sine', gainPeak = 0.18, duration = 0.12, rampUp = 0.01, rampDown = 0.10 } = {}) {
-    try {
-        const osc = _audioCtx.createOscillator();
-        const gain = _audioCtx.createGain();
-        osc.connect(gain);
-        gain.connect(_audioCtx.destination);
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, _audioCtx.currentTime);
-        gain.gain.setValueAtTime(0, _audioCtx.currentTime);
-        gain.gain.linearRampToValueAtTime(gainPeak, _audioCtx.currentTime + rampUp);
-        gain.gain.exponentialRampToValueAtTime(0.0001, _audioCtx.currentTime + duration);
-        osc.start(_audioCtx.currentTime);
-        osc.stop(_audioCtx.currentTime + duration + 0.02);
-    } catch (e) { /* silently ignore if AudioContext not ready */ }
-}
-
-function playSendSound() {
-    if (_audioCtx.state === 'suspended') _audioCtx.resume();
-    _playTone({ freq: 880, type: 'sine', gainPeak: 0.10, duration: 0.10, rampUp: 0.005, rampDown: 0.09 });
-}
-
-function playDoneSound() {
-    if (_audioCtx.state === 'suspended') _audioCtx.resume();
-    _playTone({ freq: 523.25, type: 'sine', gainPeak: 0.10, duration: 0.18, rampUp: 0.01 }); // C5
-    setTimeout(() => _playTone({ freq: 783.99, type: 'sine', gainPeak: 0.08, duration: 0.22, rampUp: 0.01 }), 120); // G5
-}
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Cached DOM elements for performance during tight rendering loops
+// Cached DOM elements
 let _progressFillEl = null;
 let _statusMetaEl = null;
 
@@ -189,7 +68,6 @@ let _statusMetaEl = null;
 let worker = new Worker('worker.js?v=2', { type: 'module' });
 const toolsWorker = new Worker('tools-worker.js', { type: 'module' });
 const pythonWorker = new Worker('python-worker.js');
-// Python execution results are handled by inline listeners inside executeTool() — no global map needed.
 
 // UI References
 const cmdInput = document.getElementById('cmdInput')
@@ -200,13 +78,45 @@ const sendBtn = document.getElementById('sendBtn')
     || document.getElementById('sendButton')
     || document.getElementById('send-button');
 
-/**
- * Modern UI Toggle
- * Manages the "Redesign" state and interaction locks
- */
-let _isGeneratingUI = false;
+// Wire up Message Renderer callbacks
+setupMessageRenderer({
+    getChatHistory: () => chatHistory,
+    getIsGenerating: () => _isGeneratingUI,
+    onEditUserMsg: (historyIdx) => {
+        if (historyIdx < 0 || historyIdx >= chatHistory.length) return;
+        const msg = chatHistory[historyIdx];
+        if (!msg || msg.role !== 'user') return;
+        let originalText = msg.content;
+        const fileMarker = '\n\n[Attached Files Content]:';
+        const markerIdx = originalText.indexOf(fileMarker);
+        if (markerIdx !== -1) originalText = originalText.substring(0, markerIdx).trim();
+        chatHistory = chatHistory.slice(0, historyIdx);
+        persistCurrentChat();
+        if (cmdInput) {
+            cmdInput.value = originalText;
+            cmdInput.focus();
+        }
+        renderChatLog();
+    }
+});
+
+// Wire up Model Panel callbacks
+setupModelPanel({
+    onApplyModel: (selectedId) => {
+        const fill = document.querySelector('.progress-fill');
+        if (fill) fill.style.width = '0%';
+        const meta = document.querySelector('.status-meta');
+        if (meta) meta.innerText = 'Loading selected model…';
+
+        setIdleState(false);
+        const statusTextEl = document.getElementById('statusText');
+        if (statusTextEl) statusTextEl.textContent = 'LOADING MODEL…';
+
+        worker.postMessage({ type: 'init', forcePresetId: selectedId });
+    }
+});
+
 function setIdleState(isIdle) {
-    // Explicit null guards instead of a blanket try/catch that swallows errors silently
     if (!cmdInput || !sendBtn) return;
     if (isIdle) {
         cmdInput.disabled = false;
@@ -229,63 +139,8 @@ function setIdleState(isIdle) {
     }
 }
 
-// Global State & Message Handlers
-let lastUpdate = 0;
-let _gpuInfo = null;
-let _presets = [];
-let _activePresetId = null;
-let _selectedPresetId = null;
-let _deviceRamGB = 4;
-let attachedFiles = [];
-
-// ─── Character-by-character Streaming Animation ──────────────────────────────
-const streamQueues = new Map();
-
-// Monotonically increasing bubble IDs — collision-free alternative to Date.now()
-let _nextTargetId = 0;
-const getNextTargetId = () => ++_nextTargetId;
-
-function queueStreamText(targetId, fullText) {
-    if (!streamQueues.has(targetId)) {
-        streamQueues.set(targetId, { pending: fullText, displayed: '', running: false });
-    } else {
-        streamQueues.get(targetId).pending = fullText;
-    }
-    const state = streamQueues.get(targetId);
-    if (!state.running) drainStreamQueue(targetId);
-}
-
-function drainStreamQueue(targetId) {
-    const state = streamQueues.get(targetId);
-    if (!state || state.displayed.length >= state.pending.length) {
-        if (state) state.running = false;
-        return;
-    }
-    state.running = true;
-
-    // Advance exactly one character
-    state.displayed = state.pending.slice(0, state.displayed.length + 1);
-    updateLiveBubble(state.displayed, targetId);
-
-    // Speed is controlled by CONFIG.ui.streamRenderIntervalMs (default 15 ms)
-    setTimeout(() => drainStreamQueue(targetId), CONFIG.ui.streamRenderIntervalMs);
-}
-
-function flushStreamQueue(targetId) {
-    const state = streamQueues.get(targetId);
-    if (state) updateLiveBubble(state.pending, targetId, true);
-    streamQueues.delete(targetId);
-}
-
-// ─── Window Memory Helper ───────────────────────────────────────────────────
-const MAX_HISTORY = CONFIG.ui.maxHistory;
-const MAX_TOOL_DEPTH = CONFIG.ui.maxToolDepth; // Max consecutive tool call cycles before breaking the loop
-let _toolCallDepth = 0;
-
 function getMessagesWindow(messages) {
     if (!messages || messages.length <= MAX_HISTORY) {
-        // Strip leading assistant message (e.g. welcome msg) so the model
-        // always receives a history that starts with a user turn.
         if (messages && messages.length > 0 && messages[0].role !== 'user') {
             return messages.slice(1);
         }
@@ -310,14 +165,12 @@ function workerMessageHandler(e) {
         if (status !== 'error' && status !== 'aborted') playDoneSound();
         if (status === 'done' || status === 'error') releaseWakeLock();
     } else {
-        // Guard: skip redundant DOM writes on every streaming packet (~15 ms intervals)
         if (!_isGeneratingUI) {
             setIdleState(false);
             updateStatusLight('thinking');
         }
         if (status === 'thinking' && statusText) statusText.textContent = 'THINKING...';
         if (status === 'streaming' && statusText) statusText.textContent = 'RESPONDING...';
-        // Acquire wake lock during model download / warm-start (can take minutes)
         if (status === 'downloading' || status === 'warm-start') acquireWakeLock();
     }
 
@@ -331,7 +184,7 @@ function workerMessageHandler(e) {
             _gpuInfo = e.data.gpuInfo;
             _presets = e.data.presets;
             _deviceRamGB = e.data.ramGB ?? 4;
-            renderModelPanel();
+            updateModelInfo({ gpuInfo: _gpuInfo, presets: _presets, ramGB: _deviceRamGB });
             break;
         }
 
@@ -379,6 +232,7 @@ function workerMessageHandler(e) {
                 _activePresetId = runningPreset.id;
                 _selectedPresetId = runningPreset.id;
                 safeLocalStorage.setItem('james-last-preset-id', runningPreset.id);
+                updateModelInfo({ activePresetId: _activePresetId, selectedPresetId: _selectedPresetId });
                 refreshPresetCards();
                 const lbl = document.getElementById('activeModelLabel');
                 if (lbl) lbl.textContent = `Active: ${runningPreset.label}`;
@@ -407,9 +261,7 @@ function workerMessageHandler(e) {
 
         case 'aborted': {
             flushStreamQueue(targetId);
-            // Use !== undefined/null: empty string '' is a valid (empty) partial response
             if (e.data.chatId === currentChatId && message !== undefined && message !== null) {
-                // If there's partial text generated before the abort, keep it in the history
                 updateLiveBubble(message, targetId);
                 chatHistory.push({ role: 'assistant', content: message });
                 persistCurrentChat();
@@ -444,22 +296,18 @@ function workerMessageHandler(e) {
 worker.onmessage = workerMessageHandler;
 worker.onerror = (e) => { console.error('WORKER ERROR:', e); const _sm = document.querySelector('.status-meta'); if (_sm) _sm.innerText = 'Worker failed to load: ' + e.message; };
 
-
 function initWorker() {
     if (worker) {
         worker.terminate();
     }
     worker = new Worker('worker.js?v=2', { type: 'module' });
-    // Re-attach the message handler so the new worker isn't silent
     worker.onmessage = workerMessageHandler;
     worker.onerror = (e) => { console.error('WORKER ERROR:', e); const _sm = document.querySelector('.status-meta'); if (_sm) _sm.innerText = 'Worker failed to load: ' + e.message; };
-    // Re-initialize the model so the new worker is fully operational
     const _lastPreset = safeLocalStorage.getItem('james-last-preset-id');
     worker.postMessage({ type: 'init', lastPresetId: _lastPreset || null });
 }
 
-// ─── File Attachment & Plaintext View ───────────────────────────────────────
-
+// File Attachment Setup
 function setupFileAttachment() {
     const attachButton = document.getElementById('attachButton') || document.getElementById('attach-button');
     const fileInput = document.getElementById('fileInput') || document.getElementById('file-input');
@@ -476,7 +324,6 @@ function setupFileAttachment() {
 function handleFilesSelected(files) {
     const TEXT_TYPES = /^(text\/|application\/(json|xml|javascript|x-httpd-php|x-sh|x-python|yaml|toml|csv|rtf|sql|typescript))/i;
     Array.from(files).forEach(file => {
-        // Warn if file is likely binary (not a recognisable text type)
         if (file.type && !TEXT_TYPES.test(file.type)) {
             appendErrorToChat(`⚠️ "${file.name}" appears to be a binary file (${file.type || 'unknown type'}). Only plain-text files can be attached. Try exporting as .txt or .csv.`);
             return;
@@ -485,14 +332,13 @@ function handleFilesSelected(files) {
         reader.onload = (e) => {
             attachedFiles.push({
                 name: file.name,
-                content: e.target.result // Read as plaintext string
+                content: e.target.result
             });
             renderAttachmentPreviews();
         };
         reader.readAsText(file);
     });
 }
-
 
 function renderAttachmentPreviews() {
     const previewContainer = document.getElementById('attachmentPreview');
@@ -515,8 +361,7 @@ window.removeAttachment = function (index) {
     renderAttachmentPreviews();
 };
 
-// ─── Message Sending & Archiving ────────────────────────────────────────────
-
+// Message Sending Logic
 function sendMessage() {
     const text = cmdInput.value.trim();
     if ((!text && attachedFiles.length === 0) || _isGeneratingUI) return;
@@ -532,9 +377,7 @@ function sendMessage() {
 
     const displayMessage = text + (attachedFiles.length > 0 ? ` [Attached: ${attachedFiles.map(f => f.name).join(', ')}]` : '');
 
-    // Store fullPrompt in history so the model actually receives file content
     chatHistory.push({ role: 'user', content: fullPrompt });
-    // Show only the display message in the UI (not raw file content)
     appendUserMessage(displayMessage, chatHistory.length - 1);
 
     cmdInput.value = '';
@@ -550,7 +393,6 @@ function sendMessage() {
     if (currentChatId) {
         const chat = allChats.find(c => c.id === currentChatId);
         if (chat && chat.name === 'New Chat') {
-            // Use filesToSend — attachedFiles was already cleared to [] above
             const titleSource = text || filesToSend.map(f => f.name).join(', ') || 'File upload';
             chat.name = titleSource.substring(0, 30) + (titleSource.length > 30 ? '...' : '');
             dbSaveChat(chat);
@@ -628,10 +470,7 @@ function handleStopGeneration() {
         worker.postMessage({ type: 'abort' });
     }
 
-    // Reset tool call depth so next conversation starts fresh
     _toolCallDepth = 0;
-
-    // Immediately set UI to idle state to stop thinking animation
     setIdleState(true);
     updateStatusLight('idle');
     const statusText = document.getElementById('statusText');
@@ -640,28 +479,17 @@ function handleStopGeneration() {
     streamQueues.forEach((_, targetId) => flushStreamQueue(targetId));
 }
 
-function scrollToBottom() {
-    const chatContainer = document.getElementById('chatLog') || document.getElementById('chat-messages');
-    if (chatContainer) {
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
-}
-
-// ─── Tool Execution Handler ─────────────────────────────────────────────────
-
+// Tool Execution Handler
 async function handleToolCalls(message, targetId, originChatId) {
     const toolCalls = parseToolCalls(message);
 
     if (toolCalls.length === 0) {
-        // Reset tool depth when we get a plain response (no tool calls)
         _toolCallDepth = 0;
 
         let interceptedGameMove = false;
         if (activeGame && originChatId === currentChatId && activeGame.getTurn() === 'b') {
-            // Try to parse the AI's response as a plain-text game move ONLY if it's currently Black's (the AI's) turn
             const moveMade = activeGame.makeSanMove(message);
             if (moveMade) {
-                // Extract notation for the panel (same logic as make_move handler)
                 let notation = null;
                 if (activeGame.type === 'chess') {
                     notation = moveMade.san || message.trim();
@@ -688,7 +516,6 @@ async function handleToolCalls(message, targetId, originChatId) {
         return;
     }
 
-    // Guard against infinite tool call loops
     _toolCallDepth++;
     if (_toolCallDepth > MAX_TOOL_DEPTH) {
         _toolCallDepth = 0;
@@ -721,8 +548,6 @@ async function handleToolCalls(message, targetId, originChatId) {
     ).join('\n');
 
     const assistantToolTurn = { role: 'assistant', content: message };
-    // Inject results as a 'user' turn with a system prefix so the model
-    // understands it should summarize the data — not echo the raw JSON back.
     const toolResultTurn = { role: 'user', content: '[SYSTEM: Tool results below. Interpret them and reply naturally to the user.]\n' + toolResultText };
 
     if (originChatId === currentChatId) {
@@ -731,7 +556,6 @@ async function handleToolCalls(message, targetId, originChatId) {
         const bgChat = allChats.find(c => c.id === originChatId);
         if (bgChat) bgChat.messages.push(assistantToolTurn, toolResultTurn);
     }
-    // Persist whichever chat was modified
     if (originChatId === currentChatId) {
         persistCurrentChat();
     } else {
@@ -744,12 +568,11 @@ async function handleToolCalls(message, targetId, originChatId) {
         : (allChats.find(c => c.id === originChatId)?.messages || []);
 
     if (originChatId === currentChatId) {
-        // Ensure the original message with the tool call block is visible
         updateLiveBubble(message, targetId);
     }
 
     const messagesForModel = getMessagesWindow(activeMessages);
-    const nextTargetId = getNextTargetId(); // Create a new bubble for the follow-up response
+    const nextTargetId = getNextTargetId();
 
     worker.postMessage({
         type: 'query',
@@ -777,12 +600,10 @@ function parseToolCalls(text) {
                         const key = line.substring(0, colonIdx).trim();
                         let value = line.substring(colonIdx + 1).trim();
 
-                        // 'code' is multi-line: collect ALL remaining lines as the value
-                        // so Python snippets with multiple lines are not truncated.
                         if (key === 'code') {
                             const restLines = lines.slice(i + 1);
                             params[key] = (value + (restLines.length ? '\n' + restLines.join('\n') : '')).trimEnd();
-                            break; // code consumes the rest of the block
+                            break;
                         }
 
                         if (value === 'true') value = true;
@@ -809,7 +630,6 @@ async function executeTool(toolName, params) {
         setTimeout(() => {
             const chatLog = document.getElementById('chatLog');
             activeGameUI = renderGameBoard(activeGame, chatLog, (moveInfo) => {
-                // Check if the player's move ended the game immediately
                 const gameOver = activeGame.isGameOver();
 
                 if (gameOver) {
@@ -858,19 +678,16 @@ async function executeTool(toolName, params) {
         const moveStr = String(params.move || '');
         const moveMade = activeGame.makeSanMove(moveStr);
         if (moveMade) {
-            // Extract notation for the UI panel
             let notation = null;
             if (activeGame.type === 'chess') {
                 notation = moveMade.san || moveStr;
             } else {
-                // For checkers, moveStr is e.g. "5,2 to 4,3"
                 const m = moveStr.match(/(\d+)\s*[,:]?\s*(\d+)\s*(?:to|->|-|→|\s+)\s*(\d+)\s*[,:]?\s*(\d+)/i);
                 if (m) notation = `(${m[1]},${m[2]})→(${m[3]},${m[4]})`;
                 else notation = moveStr;
             }
             if (activeGameUI) activeGameUI.update(notation);
             const newState = activeGame.getFen();
-            // Check if the AI's move ended the game
             const gameOver = activeGame.isGameOver();
             if (gameOver) {
                 const result = activeGame.type === 'checkers' && activeGame.getWinner
@@ -958,171 +775,16 @@ async function executeTool(toolName, params) {
     });
 }
 
-
 pythonWorker.onmessage = (e) => {
-    // 'ready' fires once when Pyodide finishes loading
     if (e.data.status === 'ready') { console.log('Python worker ready'); }
-    // Per-execution results are handled by inline addEventListener in executeTool()
 };
 
-function updateStatusLight(state) {
-    const led = document.querySelector('.status-led');
-    if (!led) return;
-    led.className = state === 'idle' ? 'status-led led-idle' : 'status-led led-thinking';
-}
-
-function escapeHTML(raw) {
-    return raw
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
-
-function formatAssistantMessage(text) {
-    // ── Step 1: Extract tool:run blocks BEFORE HTML escaping ──────────────────
-    // Doing it after escapeHTML would double-encode the tool names and params.
-    const toolBoxes = [];
-    const TOOL_PLACEHOLDER = '\x01TOOLBOX_'; // \x01 is not affected by escapeHTML
-    const textWithPlaceholders = text.replace(/```\s*tool:run\n?([\s\S]*?)```/g, (_, code) => {
-        const lines = code.trim().split('\n');
-        const toolName = escapeHTML(lines[0] || 'Unknown');
-        const params = lines.slice(1).map(l => escapeHTML(l)).join('<br>');
-        const html = `<div class="tool-usage-box" style="margin: 8px 0; padding: 10px; background: rgba(0,0,0,0.2); border-left: 3px solid #3b82f6; border-radius: 4px; font-family: monospace; font-size: 0.9em;">
-            <div style="color: #60a5fa; font-weight: bold; margin-bottom: 4px;">\uD83D\uDD27 Tool: ${toolName}</div>
-            <div style="color: #94a3b8;">${params}</div>
-        </div>`;
-        const idx = toolBoxes.push(html) - 1;
-        return `${TOOL_PLACEHOLDER}${idx}\x01`;
-    });
-
-    // ── Step 2: Escape HTML on remaining text ─────────────────────────────────
-    let html = escapeHTML(textWithPlaceholders);
-
-    // ── Step 3: Apply markdown formatting ────────────────────────────────────
-    html = html
-        .replace(/```([\s\S]*?)```/g, (_, code) => `<pre><code>${code.trim()}</code></pre>`)
-        .replace(/(^|\n)######\s*(.+)/g, '$1<h6>$2</h6>')
-        .replace(/(^|\n)#####\s*(.+)/g, '$1<h5>$2</h5>')
-        .replace(/(^|\n)####\s*(.+)/g, '$1<h4>$2</h4>')
-        .replace(/(^|\n)###\s*(.+)/g, '$1<h3>$2</h3>')
-        .replace(/(^|\n)##\s*(.+)/g, '$1<h2>$2</h2>')
-        .replace(/(^|\n)#\s*(.+)/g, '$1<h1>$2</h1>')
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.+?)\*/g, '<em>$1</em>')
-        .replace(/`([^`\n]+?)`/g, '<code>$1</code>')
-        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, linkText, url) => {
-            const rawUrl = url.trim();
-            const lowerUrl = rawUrl.toLowerCase();
-            const isUnsafe = lowerUrl.startsWith('javascript:') || lowerUrl.startsWith('data:') || lowerUrl.startsWith('vbscript:');
-            const cleanUrl = isUnsafe ? '#' : escapeHTML(rawUrl);
-            return `<a href="${cleanUrl}" target="_blank" rel="noreferrer noopener">${linkText}</a>`;
-        })
-        .replace(/\n/g, '<br>');
-
-    // ── Step 4: Restore tool blocks (placeholders survive escapeHTML intact) ──
-    toolBoxes.forEach((box, i) => { html = html.replace(`${TOOL_PLACEHOLDER}${i}\x01`, box); });
-
-    return html;
-}
-
-function appendUserMessage(text, historyIdx = -1) {
-    const chatLog = document.getElementById('chatLog');
-    if (!chatLog) return;
-    const messageWrap = document.createElement('div');
-    messageWrap.className = 'message-wrap user-msg';
-
-    const messageContent = document.createElement('div');
-    messageContent.className = 'message-content';
-    messageContent.textContent = text;
-
-    const editBtn = document.createElement('button');
-    editBtn.className = 'edit-msg-btn';
-    editBtn.innerHTML = '✏️';
-    editBtn.title = 'Edit this message';
-    editBtn.onclick = () => window.editUserMessage(historyIdx);
-
-    const container = document.createElement('div');
-    container.className = 'user-msg-container';
-    container.appendChild(editBtn);
-    container.appendChild(messageContent);
-
-    messageWrap.appendChild(container);
-    chatLog.appendChild(messageWrap);
-    chatLog.scrollTop = chatLog.scrollHeight;
-}
-
-window.editUserMessage = function (historyIdx) {
-    if (_isGeneratingUI) return;
-    if (historyIdx < 0 || historyIdx >= chatHistory.length) return;
-    const msg = chatHistory[historyIdx];
-    if (!msg || msg.role !== 'user') return;
-    let originalText = msg.content;
-    // Strip attached file content that was appended by sendMessage() —
-    // the user should only see the text they typed, not the raw file dump.
-    const fileMarker = '\n\n[Attached Files Content]:';
-    const markerIdx = originalText.indexOf(fileMarker);
-    if (markerIdx !== -1) originalText = originalText.substring(0, markerIdx).trim();
-    chatHistory = chatHistory.slice(0, historyIdx);
-    persistCurrentChat();
-    cmdInput.value = originalText;
-    cmdInput.focus();
-    renderChatLog();
-};
-
-let _lastRenderTime = 0;
-function updateLiveBubble(text, targetId, force = false) {
-    const chatLog = document.getElementById('chatLog');
-    if (!chatLog) return;
-    let bubble = document.getElementById(`bubble-${targetId}`);
-
-    if (!bubble) {
-        const messageWrap = document.createElement('div');
-        messageWrap.className = 'message-wrap assistant-msg';
-        bubble = document.createElement('div');
-        bubble.id = `bubble-${targetId}`;
-        bubble.className = 'message-content';
-        messageWrap.appendChild(bubble);
-        chatLog.appendChild(messageWrap);
-    }
-
-    if (text === '...') {
-        bubble.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
-        return;
-    }
-
-    const now = Date.now();
-    if (!force && now - _lastRenderTime < CONFIG.ui.throttleFpsMs) {
-        return; // Throttle heavy markdown regexes to ~30fps
-    }
-    _lastRenderTime = now;
-
-    bubble.innerHTML = formatAssistantMessage(text);
-    chatLog.scrollTop = chatLog.scrollHeight;
-}
-
-function appendErrorToChat(errorMessage) {
-    const chatLog = document.getElementById('chatLog');
-    if (!chatLog) return;
-    const messageWrap = document.createElement('div');
-    messageWrap.className = 'message-wrap assistant-msg';
-    const messageContent = document.createElement('div');
-    messageContent.className = 'message-content';
-    messageContent.style.borderColor = '#ef4444';
-    messageContent.style.color = '#dc2626';
-    messageContent.textContent = `⚠️ Error: ${errorMessage}`;
-    messageWrap.appendChild(messageContent);
-    chatLog.appendChild(messageWrap);
-    chatLog.scrollTop = chatLog.scrollHeight;
-}
-
-let _cannedGenId = 0; // Incremented per simulateCannedResponse call to detect superseded generations
+let _cannedGenId = 0;
 
 async function simulateCannedResponse(canned, targetId = null) {
     if (!targetId) targetId = getNextTargetId();
-    const myGenId = ++_cannedGenId;   // This generation's token
-    const myChatId = currentChatId;  // Capture to detect chat switches during awaits
+    const myGenId = ++_cannedGenId;
+    const myChatId = currentChatId;
     const statusText = document.getElementById('statusText');
 
     setIdleState(false);
@@ -1132,7 +794,6 @@ async function simulateCannedResponse(canned, targetId = null) {
 
     await new Promise(r => setTimeout(r, 400 + Math.random() * 500));
 
-    // Bail out if a newer generation started OR user stopped OR chat was switched
     if (myGenId !== _cannedGenId || !_isGeneratingUI || currentChatId !== myChatId) return;
 
     if (statusText) statusText.textContent = 'RESPONDING...';
@@ -1141,7 +802,6 @@ async function simulateCannedResponse(canned, targetId = null) {
     const wordCount = canned.split(/\s+/).length;
     await new Promise(r => setTimeout(r, wordCount * 35 + 300));
 
-    // Check again after stream delay
     if (myGenId !== _cannedGenId || !_isGeneratingUI || currentChatId !== myChatId) return;
 
     chatHistory.push({ role: 'assistant', content: canned });
@@ -1150,12 +810,6 @@ async function simulateCannedResponse(canned, targetId = null) {
     updateStatusLight('idle');
     if (statusText) statusText.textContent = 'READY';
 }
-
-// ─── Chat History Management ────────────────────────────────────────────────
-
-let chatHistory = [];
-let allChats = [];
-let currentChatId = null;
 
 function isMobileDevice() {
     const ua = navigator.userAgent;
@@ -1214,7 +868,7 @@ function persistCurrentChat() {
     const chat = allChats.find(c => c.id === currentChatId);
     if (chat) {
         chat.messages = [...chatHistory];
-        dbSaveChat(chat); // fire-and-forget async IDB write
+        dbSaveChat(chat);
     }
 }
 
@@ -1236,7 +890,6 @@ function startNewChat() {
     chatHistory = [welcome];
 
     const newChat = {
-        // Timestamp * 1000 + random fraction: collision-safe, still sortable, fits JS safe integer range
         id: Date.now() * 1000 + Math.floor(Math.random() * 1000),
         name: 'New Chat',
         messages: [...chatHistory],
@@ -1250,106 +903,6 @@ function startNewChat() {
     updateChatListActive(currentChatId);
     if (cmdInput) cmdInput.focus();
 }
-
-/** Build a single message DOM element (shared by renderChatLog and loadOlderMessages). */
-function createMessageElement(msg, historyIdx = -1) {
-    const messageWrap = document.createElement('div');
-    messageWrap.className = `message-wrap ${msg.role === 'user' ? 'user-msg' : 'assistant-msg'}`;
-    const messageContent = document.createElement('div');
-    messageContent.className = 'message-content';
-
-    if (msg.role === 'assistant') {
-        messageContent.innerHTML = formatAssistantMessage(msg.content);
-        messageWrap.appendChild(messageContent);
-    } else {
-        messageContent.textContent = msg.content;
-        const editBtn = document.createElement('button');
-        editBtn.className = 'edit-msg-btn';
-        editBtn.innerHTML = '\u270f\ufe0f';
-        editBtn.title = 'Edit this message';
-        editBtn.onclick = () => window.editUserMessage(historyIdx);
-        const container = document.createElement('div');
-        container.className = 'user-msg-container';
-        container.appendChild(editBtn);
-        container.appendChild(messageContent);
-        messageWrap.appendChild(container);
-    }
-    return messageWrap;
-}
-
-/**
- * Renders the chat log with IntersectionObserver-driven virtual scrolling.
- * Only the most recent RENDER_WINDOW messages are in the DOM at once.
- * Scrolling to the top auto-loads older batches (20 at a time).
- */
-function renderChatLog() {
-    const chatLog = document.getElementById('chatLog');
-    if (!chatLog) return;
-
-    if (_chatObserver) { _chatObserver.disconnect(); _chatObserver = null; }
-    chatLog.innerHTML = '';
-
-    _renderOffset = Math.max(0, chatHistory.length - RENDER_WINDOW);
-
-    if (_renderOffset > 0) {
-        const sentinel = _makeSentinel();
-        chatLog.appendChild(sentinel);
-        _attachSentinelObserver(chatLog, sentinel);
-    }
-
-    chatHistory.slice(_renderOffset).forEach((msg, i) => chatLog.appendChild(createMessageElement(msg, _renderOffset + i)));
-    chatLog.scrollTop = chatLog.scrollHeight;
-}
-
-/** Create the "N earlier messages" banner at the top of the chat log. */
-function _makeSentinel() {
-    const el = document.createElement('div');
-    el.id = 'chat-sentinel';
-    el.className = 'chat-sentinel';
-    el.textContent = `\u2191 ${_renderOffset} earlier message${_renderOffset !== 1 ? 's' : ''} — scroll up to load`;
-    return el;
-}
-
-function _attachSentinelObserver(chatLog, sentinel) {
-    _chatObserver = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting) window.loadOlderMessages();
-    }, { root: chatLog, rootMargin: '0px', threshold: 0.1 });
-    _chatObserver.observe(sentinel);
-}
-
-/** Load the next batch of older messages when the sentinel scrolls into view. */
-window.loadOlderMessages = function () {
-    const chatLog = document.getElementById('chatLog');
-    if (!chatLog || _renderOffset === 0) return;
-
-    const batchSize = Math.min(20, _renderOffset);
-    const newOffset = _renderOffset - batchSize;
-    const olderMsgs = chatHistory.slice(newOffset, _renderOffset);
-    _renderOffset = newOffset;
-
-    // Remove existing sentinel + observer before we mutate the DOM
-    if (_chatObserver) { _chatObserver.disconnect(); _chatObserver = null; }
-    document.getElementById('chat-sentinel')?.remove();
-
-    const prevScrollHeight = chatLog.scrollHeight;
-    const fragment = document.createDocumentFragment();
-
-    if (_renderOffset > 0) {
-        const newSentinel = _makeSentinel();
-        fragment.appendChild(newSentinel);
-    }
-    olderMsgs.forEach((msg, i) => fragment.appendChild(createMessageElement(msg, newOffset + i)));
-    chatLog.insertBefore(fragment, chatLog.firstChild);
-
-    // Keep the user's viewport stable (no jump)
-    chatLog.scrollTop = chatLog.scrollHeight - prevScrollHeight;
-
-    // Re-attach observer if more messages remain
-    if (_renderOffset > 0) {
-        const newSentinel = document.getElementById('chat-sentinel');
-        if (newSentinel) _attachSentinelObserver(chatLog, newSentinel);
-    }
-};
 
 function updateChatList() {
     const chatListEl = document.getElementById('chatList');
@@ -1388,7 +941,7 @@ function updateChatListActive(chatId) {
 
 function deleteChat(chatId) {
     allChats = allChats.filter(c => c.id !== chatId);
-    dbDeleteChat(chatId); // async remove from IndexedDB
+    dbDeleteChat(chatId);
 
     if (chatId === currentChatId) {
         currentChatId = null;
@@ -1404,14 +957,17 @@ function deleteChat(chatId) {
 }
 
 async function loadSavedChats() {
-    await migrateFromLocalStorage(); // no-op after first run
+    await migrateFromLocalStorage();
     allChats = await dbLoadAllChats();
     if (allChats.length > 0) updateChatList();
 }
 
-// ─── Bootstrap ──────────────────────────────────────────────────────────────
+// Bootstrap
+document.addEventListener('DOMContentLoaded', () => {
+    setupEventListeners();
+    setupFileAttachment();
+});
 
-// Bootstrap: load chats from IndexedDB before rendering anything
 (async () => {
     await loadSavedChats();
     if (allChats.length > 0) {
@@ -1440,8 +996,7 @@ if (statusTextEl) {
     statusTextEl.textContent = _savedLastPresetId ? 'RESUMING LAST MODEL…' : 'INITIALIZING...';
 }
 
-// ─── Sidebar & Panel Controls ───────────────────────────────────────────────
-
+// Sidebar Controls
 const newChatBtn = document.getElementById('newChatBtn');
 if (newChatBtn) newChatBtn.addEventListener('click', startNewChat);
 
@@ -1467,8 +1022,7 @@ import('./tools-bridge.js').then(module => {
     });
 }).catch(() => { });
 
-// ─── PWA Installation ────────────────────────────────────────────────────────
-
+// PWA Installation
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW registration failed:', err));
 }
@@ -1499,156 +1053,4 @@ installBtn?.addEventListener('click', async () => {
 dismissBtn?.addEventListener('click', () => {
     installBanner?.classList.add('hidden');
     safeLocalStorage.setItem('james-pwa-dismissed', 'true');
-});
-
-// ─── Model Selection Panel ────────────────────────────────────────────────────
-
-const modelPanel = document.getElementById('modelPanel');
-const modelPanelOverlay = document.getElementById('modelPanelOverlay');
-const modelPanelBtn = document.getElementById('modelPanelBtn');
-const modelPanelClose = document.getElementById('modelPanelClose');
-const applyModelBtn = document.getElementById('applyModelBtn');
-
-function openModelPanel() {
-    modelPanel?.classList.add('open');
-    modelPanelOverlay?.classList.add('visible');
-}
-
-function closeModelPanel() {
-    modelPanel?.classList.remove('open');
-    modelPanelOverlay?.classList.remove('visible');
-}
-
-modelPanelBtn?.addEventListener('click', openModelPanel);
-modelPanelClose?.addEventListener('click', closeModelPanel);
-modelPanelOverlay?.addEventListener('click', closeModelPanel);
-
-function renderModelPanel() {
-    const card = document.getElementById('gpuStatusCard');
-    const icon = document.getElementById('gpuStatusIcon');
-    const title = document.getElementById('gpuStatusTitle');
-    const detail = document.getElementById('gpuStatusDetail');
-    const badge = document.getElementById('gpuStatusBadge');
-
-    if (_gpuInfo && card) {
-        const { hasGpu, vendor, maxStorageMB, reason, isFallback } = _gpuInfo;
-
-        if (hasGpu) {
-            card.className = 'gpu-status-card gpu-ok';
-            if (icon) icon.textContent = '🚀';
-            if (title) title.textContent = 'GPU Acceleration Available';
-            if (badge) badge.textContent = 'WebGPU';
-        } else if (!navigator.gpu) {
-            card.className = 'gpu-status-card gpu-none';
-            if (icon) icon.textContent = '❌';
-            if (title) title.textContent = 'WebGPU Not Supported';
-            if (badge) badge.textContent = 'NO GPU';
-        } else if (isFallback) {
-            card.className = 'gpu-status-card gpu-warn';
-            if (icon) icon.textContent = '⚠️';
-            if (title) title.textContent = 'Software Adapter Only';
-            if (badge) badge.textContent = 'SW ONLY';
-        } else {
-            card.className = 'gpu-status-card gpu-warn';
-            if (icon) icon.textContent = '⚠️';
-            if (title) title.textContent = 'Integrated GPU — CPU Fallback';
-            if (badge) badge.textContent = 'CPU';
-        }
-
-        const vendorStr = vendor ? `Vendor: ${vendor}` : 'Vendor: hidden by browser';
-        const bufStr = maxStorageMB ? ` · Buffer: ${maxStorageMB.toFixed(0)} MB` : '';
-        const ramStr = `Device RAM: ~${_deviceRamGB} GB`;
-        if (detail) detail.textContent = `${reason}\n${vendorStr}${bufStr} · ${ramStr}`;
-    }
-
-    const list = document.getElementById('modelPresetList');
-    if (!list || !_presets.length) return;
-    list.innerHTML = '';
-
-    const GROUPS = [
-        { key: 'gpu', title: '⚡ GPU · WebGPU', filter: p => p.requires === 'gpu' },
-        { key: 'cpu', title: '🧠 CPU · WASM', filter: p => p.requires === 'cpu' && !p.id.startsWith('lite-') },
-        { key: 'lite', title: '🪶 Lite · Constrained', filter: p => p.id.startsWith('lite-') },
-    ];
-
-    GROUPS.forEach(group => {
-        const presets = _presets.filter(group.filter);
-        if (!presets.length) return;
-
-        const divider = document.createElement('div');
-        divider.className = 'preset-group-title';
-        divider.textContent = group.title;
-        list.appendChild(divider);
-
-        presets.forEach(preset => {
-            const isRunning = preset.id === _activePresetId;
-            const isSelected = preset.id === _selectedPresetId;
-
-            let pillClass = 'pill-cpu';
-            let pillText = 'CPU';
-            if (preset.requires === 'gpu') { pillClass = 'pill-gpu'; pillText = 'GPU'; }
-            if (preset.id.startsWith('lite-')) { pillClass = 'pill-lite'; pillText = 'LITE'; }
-            if (isRunning) { pillClass = 'pill-active'; pillText = 'ACTIVE'; }
-
-            const sizeStr = preset.sizeMB
-                ? preset.sizeMB >= 1000
-                    ? `${(preset.sizeMB / 1024).toFixed(1)} GB`
-                    : `${preset.sizeMB} MB`
-                : '';
-            const ramStr = preset.ram ? `${preset.ram} RAM` : '';
-            const metaStr = [preset.dtype.toUpperCase(), sizeStr, ramStr].filter(Boolean).join(' · ');
-            const autoTag = preset.autoSelect !== false ? ' <span class="preset-auto-tag">AUTO</span>' : '';
-
-            const el = document.createElement('div');
-            el.className = [
-                'preset-card',
-                isSelected && !isRunning ? 'preset-selected' : '',
-                isRunning ? 'preset-active-running' : '',
-            ].filter(Boolean).join(' ');
-            el.dataset.presetId = preset.id;
-
-            el.innerHTML = `
-            <div class="preset-info">
-                <div class="preset-label">${preset.label}${autoTag}</div>
-                <div class="preset-tags">${metaStr}</div>
-            </div>
-            <span class="preset-pill ${pillClass}">${pillText}</span>
-            <div class="preset-check"></div>`;
-
-            el.addEventListener('click', () => selectPreset(preset.id));
-            list.appendChild(el);
-        });
-    });
-}
-
-function selectPreset(id) {
-    _selectedPresetId = id;
-    document.querySelectorAll('.preset-card').forEach(el => {
-        const elId = el.dataset.presetId;
-        el.classList.toggle('preset-selected', elId === id && elId !== _activePresetId);
-        el.classList.toggle('preset-active-running', elId === _activePresetId);
-    });
-    if (applyModelBtn) applyModelBtn.disabled = (id === _activePresetId);
-}
-
-function refreshPresetCards() {
-    if (document.getElementById('modelPresetList')?.children.length > 0) {
-        renderModelPanel();
-    }
-}
-
-applyModelBtn?.addEventListener('click', () => {
-    if (!_selectedPresetId || _selectedPresetId === _activePresetId) return;
-    closeModelPanel();
-
-    const fill = document.querySelector('.progress-fill');
-    if (fill) fill.style.width = '0%';
-    const meta = document.querySelector('.status-meta');
-    if (meta) meta.innerText = 'Loading selected model…';
-
-    setIdleState(false);
-    const statusTextEl = document.getElementById('statusText');
-    if (statusTextEl) statusTextEl.textContent = 'LOADING MODEL…';
-
-    worker.postMessage({ type: 'init', forcePresetId: _selectedPresetId });
 });
