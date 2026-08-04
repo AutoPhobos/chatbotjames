@@ -522,11 +522,9 @@ function getDeviceRamGB() { return navigator.deviceMemory || 4; }
 function rankAutoPresets(gpuInfo, ramGB, isConstrained, wasmCaps = null) {
     const { hasGpu } = gpuInfo;
 
-    if (isConstrained) {
-        return MODEL_PRESETS
-            .filter(p => p.id.startsWith('lite-'))
-            .sort((a, b) => (b.params || 0) - (a.params || 0));
-    }
+    // We removed the hardcoded `isConstrained` filter that previously forced smartphones
+    // to only use `lite-` models. Now, high-end smartphones can dynamically select
+    // larger models (like 0.5B or 1B) depending on their actual RAM capacity!
 
     // A conservative estimate for VRAM capacity based on system RAM.
     // We NO LONGER clamp this to `maxStorageMB` because WebGPU splits large models
