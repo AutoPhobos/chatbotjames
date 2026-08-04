@@ -531,6 +531,24 @@ function sendMessage() {
             simulateCannedResponse(canned);
             return;
         }
+
+        const toolMatch = toolRouter.match(text);
+        if (toolMatch) {
+            const simulatedAssistantMessage = "```tool:run\n" + toolMatch.tool + "\n" + Object.entries(toolMatch.params).map(([k,v]) => `${k}: ${v}`).join('\n') + "\n```";
+            setIdleState(false);
+            updateStatusLight('thinking');
+            const statusText = document.getElementById('statusText');
+            if (statusText) statusText.textContent = 'ROUTING...';
+            
+            const targetId = Date.now();
+            updateLiveBubble('...', targetId);
+            
+            setTimeout(() => {
+                const toolCalls = [{ tool: toolMatch.tool, params: toolMatch.params }];
+                handleToolCalls(toolCalls, simulatedAssistantMessage, currentChatId, targetId);
+            }, 300);
+            return;
+        }
     }
 
     setIdleState(false);
