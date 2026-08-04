@@ -424,6 +424,7 @@ function workerMessageHandler(e) {
     }
 }
 worker.onmessage = workerMessageHandler;
+worker.onerror = (e) => { console.error('WORKER ERROR:', e); document.querySelector('.status-meta').innerText = 'Worker failed to load: ' + e.message; };
 
 
 function initWorker() {
@@ -433,6 +434,7 @@ function initWorker() {
     worker = new Worker('worker.js?v=2', { type: 'module' });
     // Re-attach the message handler so the new worker isn't silent
     worker.onmessage = workerMessageHandler;
+worker.onerror = (e) => { console.error('WORKER ERROR:', e); document.querySelector('.status-meta').innerText = 'Worker failed to load: ' + e.message; };
     // Re-initialize the model so the new worker is fully operational
     const _lastPreset = safeLocalStorage.getItem('james-last-preset-id');
     worker.postMessage({ type: 'init', lastPresetId: _lastPreset || null });
@@ -1539,6 +1541,7 @@ applyModelBtn?.addEventListener('click', () => {
 
     worker.postMessage({ type: 'init', forcePresetId: _selectedPresetId });
 });
+
 
 
 
