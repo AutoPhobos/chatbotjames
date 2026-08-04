@@ -67,6 +67,13 @@ Since JAMES is a client-side application, running it locally is incredibly simpl
 
 Because JAMES runs locally, it inherently respects your privacy. Chat histories, tool outputs, and generated text are stored strictly on your local disk using standard browser storage APIs. 
 
+## Contributing
+
+Contributions are very welcome! If you have an idea, found a bug, or want to add a new tool or feature:
+1. Check the [Issues](https://github.com/tripping-alien/chatbotjames/issues) tab to see if it's already being discussed.
+2. To report a bug or request a feature, please [open a new Issue](https://github.com/tripping-alien/chatbotjames/issues/new).
+3. To submit code, fork the repository, create a branch, make your changes, and [submit a Pull Request](https://github.com/tripping-alien/chatbotjames/pulls).
+
 ## License
 
 MIT License
