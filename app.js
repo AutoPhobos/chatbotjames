@@ -544,8 +544,7 @@ function sendMessage() {
             updateLiveBubble('...', targetId);
             
             setTimeout(() => {
-                const toolCalls = [{ tool: toolMatch.tool, params: toolMatch.params }];
-                handleToolCalls(toolCalls, simulatedAssistantMessage, currentChatId, targetId);
+                handleToolCalls(simulatedAssistantMessage, targetId, currentChatId);
             }, 300);
             return;
         }
