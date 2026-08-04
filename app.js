@@ -550,7 +550,7 @@ async function handleToolCalls(message, targetId, originChatId) {
 
     const isGameTool = toolCalls.some(call => call.tool === 'make_move' || call.tool === 'start_game');
     const assistantToolTurn = { role: 'assistant', content: message, hidden: isGameTool };
-    const toolResultTurn = { role: 'user', content: '[SYSTEM: Tool results below. Interpret them and reply naturally to the user.]\n' + toolResultText, hidden: isGameTool };
+    const toolResultTurn = { role: 'user', type: 'tool_result', content: '[SYSTEM: Tool results below. Interpret them and reply naturally to the user.]\n' + toolResultText, hidden: isGameTool };
 
     if (originChatId === currentChatId) {
         chatHistory.push(assistantToolTurn, toolResultTurn);

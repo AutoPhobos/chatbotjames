@@ -168,6 +168,26 @@ export function createMessageElement(msg, historyIdx = -1) {
     }
 
     const messageWrap = document.createElement('div');
+    if (msg.type === 'tool_result') {
+        messageWrap.className = 'message-wrap tool-result-msg';
+        const displayContent = msg.content.replace('[SYSTEM: Tool results below. Interpret them and reply naturally to the user.]\n', '');
+        
+        const details = document.createElement('details');
+        details.style.cssText = 'background: rgba(0, 0, 0, 0.1); border-left: 3px solid #10b981; padding: 8px 12px; border-radius: 4px; margin: 8px 0; font-family: monospace; font-size: 0.85em; cursor: pointer; color: #94a3b8;';
+        
+        const summary = document.createElement('summary');
+        summary.style.cssText = 'color: #34d399; font-weight: bold; margin-bottom: 4px; list-style: none; display: flex; align-items: center; gap: 6px; user-select: none;';
+        summary.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> <span>Tool Result (Click to expand)</span>';
+        
+        const pre = document.createElement('pre');
+        pre.style.cssText = 'margin: 8px 0 0 0; white-space: pre-wrap; word-break: break-all; color: #cbd5e1; max-height: 300px; overflow-y: auto;';
+        pre.textContent = displayContent;
+        
+        details.appendChild(summary);
+        details.appendChild(pre);
+        messageWrap.appendChild(details);
+        return messageWrap;
+    }
     if (msg.role === 'system') {
         messageWrap.className = 'message-wrap system-msg';
         messageWrap.style.cssText = 'text-align: center; color: #888; font-size: 12px; margin: 8px 0; font-family: monospace; opacity: 0.8;';
