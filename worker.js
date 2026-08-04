@@ -3,7 +3,7 @@ import { CONFIG } from './config.js';
 
 // --- CONFIGURATION ---
 env.allowLocalModels = false;
-env.useBrowserCache = false;
+env.useBrowserCache = true;
 const DOWNLOAD_CACHE = 'JAMES-model-cache-v2';
 const CHUNK_SIZE = CONFIG.worker.chunkSizeMb * 1024 * 1024;
 const MAX_DOWNLOAD_CONCURRENCY = CONFIG.worker.maxDownloadConcurrency;
@@ -770,6 +770,7 @@ self.onmessage = async (e) => {
         }
     }
 };
+
 
 
 
