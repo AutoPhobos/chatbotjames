@@ -73,6 +73,39 @@ async function downloadChunk(url, range) {
     return response.arrayBuffer();
 }
 
+async function fetchWithProgress(url, total = 0) {
+    const response = await nativeFetch(
+        new Request(url, { method: 'GET', mode: 'cors', credentials: 'omit' })
+    );
+    if (!response.ok) throw new Error(`Download failed: ${response.status}`);
+    
+    total = total || Number(response.headers.get('content-length')) || 0;
+    const contentType = response.headers.get('content-type') || 'application/octet-stream';
+    
+    if (!response.body) {
+        const buf = await response.arrayBuffer();
+        reportProgress(buf.byteLength, total || buf.byteLength, url);
+        return cachePut(url, new Response(buf, { headers: { 'Content-Type': contentType, 'Content-Length': String(buf.byteLength) } }));
+    }
+
+    const reader = response.body.getReader();
+    let loaded = 0;
+    const chunks = [];
+    
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        loaded += value.byteLength;
+        reportProgress(loaded, total || loaded, url); // Ensure it reports *something*
+    }
+    
+    const blob = new Blob(chunks, { type: contentType });
+    return cachePut(url, new Response(blob, {
+        headers: { 'Content-Type': contentType, 'Content-Length': String(blob.size) },
+    }));
+}
+
 async function downloadAndCache(url) {
     const cached = await cacheMatch(url);
     if (cached) return cached;
@@ -81,11 +114,7 @@ async function downloadAndCache(url) {
     try {
         head = await fetchHead(url);
     } catch {
-        const response = await nativeFetch(
-            new Request(url, { method: 'GET', mode: 'cors', credentials: 'omit' })
-        );
-        if (!response.ok) throw new Error(`Download failed: ${response.status}`);
-        return cachePut(url, response);
+        return fetchWithProgress(url);
     }
 
     const total = Number(head.headers.get('content-length')) || 0;
@@ -93,16 +122,7 @@ async function downloadAndCache(url) {
     const acceptRanges = (head.headers.get('accept-ranges') || '').toLowerCase();
 
     if (!total || !acceptRanges.includes('bytes')) {
-        const response = await nativeFetch(
-            new Request(url, { method: 'GET', mode: 'cors', credentials: 'omit' })
-        );
-        if (!response.ok) throw new Error(`Download failed: ${response.status}`);
-        const buf = await response.arrayBuffer();
-        const ct = response.headers.get('content-type') || 'application/octet-stream';
-        const sized = new Response(buf, {
-            headers: { 'Content-Type': ct, 'Content-Length': String(buf.byteLength) },
-        });
-        return cachePut(url, sized);
+        return fetchWithProgress(url, total);
     }
 
     const ranges = [];
