@@ -505,9 +505,9 @@ async function handleToolCalls(message, targetId, originChatId) {
         _toolCallDepth = 0;
 
         if (originChatId === currentChatId) {
-            updateLiveBubble(message, targetId);
             chatHistory.push({ role: 'assistant', content: message });
             persistCurrentChat();
+            refreshGameBoardUI();
         } else {
             const bgChat = allChats.find(c => c.id === originChatId);
             if (bgChat) {
@@ -561,7 +561,7 @@ async function handleToolCalls(message, targetId, originChatId) {
     }
     if (originChatId === currentChatId) {
         persistCurrentChat();
-        if (isGameTool) refreshGameBoardUI();
+        refreshGameBoardUI();
     } else {
         const bgChatToSave = allChats.find(c => c.id === originChatId);
         if (bgChatToSave) dbSaveChat(bgChatToSave);
@@ -570,10 +570,6 @@ async function handleToolCalls(message, targetId, originChatId) {
     const activeMessages = originChatId === currentChatId
         ? chatHistory
         : (allChats.find(c => c.id === originChatId)?.messages || []);
-
-    if (originChatId === currentChatId) {
-        updateLiveBubble(message, targetId);
-    }
 
     const messagesForModel = getMessagesWindow(activeMessages);
     const nextTargetId = getNextTargetId();
@@ -941,6 +937,7 @@ function loadChatHistory(chatId) {
 
     persistCurrentChat();
     currentChatId = chatId;
+    safeLocalStorage.setItem('james-last-chat-id', currentChatId);
     chatHistory = [...chat.messages];
     
     if (chat.gameState) {
@@ -978,6 +975,7 @@ function startNewChat() {
         messages: [...chatHistory],
     };
     currentChatId = newChat.id;
+    safeLocalStorage.setItem('james-last-chat-id', currentChatId);
     allChats.unshift(newChat);
     dbSaveChat(newChat);
 
@@ -1053,7 +1051,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 (async () => {
     await loadSavedChats();
-    if (allChats.length > 0) {
+    const lastChatId = Number(safeLocalStorage.getItem('james-last-chat-id'));
+    const lastChat = allChats.find(c => c.id === lastChatId);
+    
+    if (lastChat) {
+        loadChatHistory(lastChatId);
+    } else if (allChats.length > 0) {
         loadChatHistory(allChats[0].id);
     } else {
         startNewChat();
@@ -1063,8 +1066,14 @@ document.addEventListener('DOMContentLoaded', () => {
 if (isTVDevice()) {
     document.body.classList.add('tv-mode');
     document.getElementById('sidebar')?.classList.add('collapsed');
+} else {
+    const savedSidebar = safeLocalStorage.getItem('james-sidebar-collapsed');
+    if (savedSidebar === 'true' || window.innerWidth <= 768) {
+        document.getElementById('sidebar')?.classList.add('collapsed');
+    } else if (savedSidebar === 'false') {
+        document.getElementById('sidebar')?.classList.remove('collapsed');
+    }
 }
-if (window.innerWidth <= 768) document.getElementById('sidebar')?.classList.add('collapsed');
 
 setIdleState(false);
 const _savedLastPresetId = safeLocalStorage.getItem('james-last-preset-id');
@@ -1093,6 +1102,7 @@ document.getElementById('sidebarToggle')?.addEventListener('click', () => {
     const overlay = document.getElementById('sidebarOverlay');
     const nowCollapsed = sidebar?.classList.toggle('collapsed');
     overlay?.classList.toggle('visible', !nowCollapsed);
+    safeLocalStorage.setItem('james-sidebar-collapsed', nowCollapsed);
 });
 
 document.getElementById('sidebarOverlay')?.addEventListener('click', closeSidebar);
