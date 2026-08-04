@@ -240,6 +240,7 @@ AVAILABLE TOOLS (use only when essential):
 - color (params: mode, hex) → inspect or convert color formats
 - hash (params: algorithm, value) → hash string with md5, sha256, etc.
 - random (params: mode) → roll dice, flip coin, or generate random numbers
+- ascii_art (params: text, font) → generate ASCII art text
 - start_game (params: game) → Starts a game of "chess" or "checkers" with the user in the UI. MANDATORY tool call whenever the user expresses ANY request or intent to play chess or checkers, regardless of phrasing (e.g. "chess game please", "let's play chess", "can we play chess", "chess please", "play checkers").
 - make_move (params: move) → Make a move in the active game. (Chess: SAN like "e5", Checkers: "r,c to r,c")
 - python (params: code) → Execute Python code in-browser (Pyodide). Use for complex maths, data processing, algorithms, or anything that benefits from running real code. The output is the printed stdout.

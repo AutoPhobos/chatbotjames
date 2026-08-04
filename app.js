@@ -831,7 +831,7 @@ function isTVDevice() {
 
 function getLightweightWelcomeMessage(showTools = true) {
     const toolsBlock = showTools
-        ? `\n───────────────\n🧰 **Tools available**\n───────────────\n🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia · 🔍 search\n🔑 uuid · 🔐 password · 🎨 palette · ⏳ timer · 📋 clipboard\n♟️ chess · 🔴 checkers · 🐍 python\n───────────────\n`
+        ? `\n───────────────\n🧰 **Tools available**\n───────────────\n🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia · 🌐 web search\n🔑 uuid · 🔐 password · ⏳ timer · 📋 clipboard · 🔤 ascii\n♟️ chess · 🔴 checkers · 🐍 python\n───────────────\n`
         : '';
 
     return {
@@ -842,7 +842,7 @@ function getLightweightWelcomeMessage(showTools = true) {
 
 function getFullWelcomeMessage(showTools = true) {
     const toolsBlock = showTools
-        ? `───────────────\n\n🧰 **Tools available**\n───────────────\n🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia · 🔍 search\n🔑 uuid · 🔐 password · 🎨 palette · ⏳ timer · 📋 clipboard\n♟️ chess · 🔴 checkers · 🐍 python\n───────────────\n\n`
+        ? `───────────────\n\n🧰 **Tools available**\n───────────────\n🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia · 🌐 web search\n🔑 uuid · 🔐 password · ⏳ timer · 📋 clipboard · 🔤 ascii\n♟️ chess · 🔴 checkers · 🐍 python\n───────────────\n\n`
         : '';
 
     return {
@@ -853,7 +853,7 @@ function getFullWelcomeMessage(showTools = true) {
 
 function getTVWelcomeMessage(showTools = true) {
     const toolsBlock = showTools
-        ? `\n───────────────\n🧰 **Tools available**\n───────────────\n🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia · 🔍 search\n🔑 uuid · 🔐 password · 🎨 palette · ⏳ timer · 📋 clipboard\n♟️ chess · 🔴 checkers · 🐍 python\n───────────────\n`
+        ? `\n───────────────\n🧰 **Tools available**\n───────────────\n🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia · 🌐 web search\n🔑 uuid · 🔐 password · ⏳ timer · 📋 clipboard · 🔤 ascii\n♟️ chess · 🔴 checkers · 🐍 python\n───────────────\n`
         : '';
 
     return {
