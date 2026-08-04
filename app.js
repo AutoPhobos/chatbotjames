@@ -810,9 +810,10 @@ async function executeTool(toolName, params) {
                     return;
                 }
 
+                const moveNotation = moveInfo.notation || '';
                 const aiPrompt = activeGame.type === 'chess'
-                    ? `[Game State] Current FEN: ${activeGame.getFen()}. You are playing Black. The user just moved. What is your next move in standard algebraic notation (e.g. e5, Nf6)? Use the make_move tool.`
-                    : `[Game State] Current Checkers Board: ${activeGame.getFen()}. You are playing Black (b/B). The user just moved. What is your next move in 'from_r,from_c to to_r,to_c' format? Use the make_move tool.`;
+                    ? `[Game State] Current FEN: ${activeGame.getFen()}. You are playing Black. The user just moved${moveNotation ? ` (${moveNotation})` : ''}. It is NOW YOUR TURN. You MUST immediately use the make_move tool to play your move in standard algebraic notation (e.g. e5, Nf6). Do NOT say 'your turn' — it is your turn right now.`
+                    : `[Game State] Current Checkers Board: ${activeGame.getFen()}. You are playing Black (b/B). The user just moved${moveNotation ? ` (${moveNotation})` : ''}. It is NOW YOUR TURN. You MUST immediately use the make_move tool with 'from_r,from_c to to_r,to_c' format. Do NOT say 'your turn' — it is your turn right now.`;
 
                 chatHistory.push({ role: 'user', content: aiPrompt });
                 appendUserMessage(`[Moved piece]`, chatHistory.length - 1);
@@ -837,7 +838,17 @@ async function executeTool(toolName, params) {
         const moveStr = String(params.move || '');
         const moveMade = activeGame.makeSanMove(moveStr);
         if (moveMade) {
-            if (activeGameUI) activeGameUI.update();
+            // Extract notation for the UI panel
+            let notation = null;
+            if (activeGame.type === 'chess') {
+                notation = moveMade.san || moveStr;
+            } else {
+                // For checkers, moveStr is e.g. "5,2 to 4,3"
+                const m = moveStr.match(/(\d+)\D+?(\d+)\s*(?:to|->|→)\s*(\d+)\D+?(\d+)/i);
+                if (m) notation = `(${m[1]},${m[2]})→(${m[3]},${m[4]})`;
+                else notation = moveStr;
+            }
+            if (activeGameUI) activeGameUI.update(notation);
             const newState = activeGame.getFen();
             // Check if the AI's move ended the game
             const gameOver = activeGame.isGameOver();

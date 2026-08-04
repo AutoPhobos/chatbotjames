@@ -11,6 +11,46 @@
  *  - game-over banner shown inside the board container.
  */
 export function renderGameBoard(game, chatLog, onMove) {
+    // ── Wrapper: board + notation panel ────────────────────────────────────────
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
+
+    // ── Board with coordinate labels ──────────────────────────────────────────
+    // Layout: [ rank-labels (20px) ] [ 8×8 board (352px) ]
+    //                                [ file-labels row   ]
+    const boardWithLabels = document.createElement('div');
+    boardWithLabels.style.cssText = `
+        display: grid;
+        grid-template-columns: 20px 352px;
+        grid-template-rows: 352px 20px;
+        user-select: none;
+    `;
+
+    // Left rank-label column
+    const rankLabels = document.createElement('div');
+    rankLabels.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        justify-content: space-around;
+        align-items: center;
+        height: 352px;
+        font-family: 'Courier New', monospace;
+        font-size: 10px;
+        color: #aaa;
+        padding: 0;
+    `;
+
+    // Bottom file-label row (corner spacer + 8 labels)
+    const fileLabelsRow = document.createElement('div');
+    fileLabelsRow.style.cssText = `
+        grid-column: 1 / 3;
+        display: grid;
+        grid-template-columns: 20px repeat(8, 44px);
+        height: 20px;
+    `;
+    // corner spacer
+    fileLabelsRow.appendChild(document.createElement('div'));
+
     const boardContainer = document.createElement('div');
     boardContainer.className = 'game-board-container';
     boardContainer.style.cssText = `
@@ -21,13 +61,99 @@ export function renderGameBoard(game, chatLog, onMove) {
         height: 352px;
         border: 2px solid #555;
         border-radius: 4px;
-        margin: 10px 0;
-        user-select: none;
+        margin: 0;
         position: relative;
         box-shadow: 0 4px 16px rgba(0,0,0,0.4);
     `;
 
+    const LABEL_STYLE = `
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Courier New', monospace;
+        font-size: 10px;
+        color: #aaa;
+        width: 44px;
+        height: 20px;
+    `;
+
+    // Populate rank labels (left side) and file labels (bottom row)
+    for (let r = 0; r < 8; r++) {
+        const lbl = document.createElement('div');
+        lbl.style.cssText = 'line-height: 44px; font-family: "Courier New",monospace; font-size:10px; color:#aaa; text-align:center; width:20px; height:44px;';
+        lbl.textContent = game.type === 'chess' ? String(8 - r) : String(r);
+        rankLabels.appendChild(lbl);
+    }
+    for (let c = 0; c < 8; c++) {
+        const lbl = document.createElement('div');
+        lbl.style.cssText = LABEL_STYLE;
+        lbl.textContent = game.type === 'chess'
+            ? String.fromCharCode('a'.charCodeAt(0) + c)
+            : String(c);
+        fileLabelsRow.appendChild(lbl);
+    }
+
+    boardWithLabels.appendChild(rankLabels);
+    boardWithLabels.appendChild(boardContainer);
+    boardWithLabels.appendChild(fileLabelsRow);
+
+    // ── Notation panel ──────────────────────────────────────────────────────────
+    const notationPanel = document.createElement('div');
+    notationPanel.style.cssText = `
+        width: 372px;
+        max-height: 100px;
+        overflow-y: auto;
+        background: rgba(0,0,0,0.25);
+        border-radius: 4px;
+        padding: 6px 8px;
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+        color: #ddd;
+        line-height: 1.6;
+        box-sizing: border-box;
+    `;
+    notationPanel.textContent = 'No moves yet.';
+
+    wrapper.appendChild(boardWithLabels);
+    wrapper.appendChild(notationPanel);
+
+    // Move history: array of { moveNumber, white, black }
+    const moveHistory = []; // { moveNumber, white?: string, black?: string }
+    let halfMoveCount = 0; // incremented per full side-move applied
+
+    function addNotation(san) {
+        halfMoveCount++;
+        if (halfMoveCount % 2 === 1) {
+            // White/first-player move
+            moveHistory.push({ moveNumber: Math.ceil(halfMoveCount / 2), white: san });
+        } else {
+            // Black/second-player move
+            if (moveHistory.length > 0) {
+                moveHistory[moveHistory.length - 1].black = san;
+            } else {
+                moveHistory.push({ moveNumber: 1, black: san });
+            }
+        }
+        renderNotation();
+    }
+
+    function renderNotation() {
+        if (moveHistory.length === 0) {
+            notationPanel.textContent = 'No moves yet.';
+            return;
+        }
+        notationPanel.textContent = moveHistory.map(m =>
+            `${m.moveNumber}. ${m.white || '...'}${m.black ? '  ' + m.black : ''}`
+        ).join('   ');
+        notationPanel.scrollTop = notationPanel.scrollHeight;
+    }
+
     let selectedSquare = null; // chess: algebraic string; checkers: {r,c}
+    let multiJumpChain = null;  // checkers: accumulates "(r,c)→(r,c)→..." during a multi-jump
+
+    function scrollChat() {
+        chatLog.scrollTop = chatLog.scrollHeight;
+    }
 
     // ── Chess piece symbols ─────────────────────────────────────────────────────
     const CHESS_SYMBOLS = {
@@ -173,16 +299,35 @@ export function renderGameBoard(game, chatLog, onMove) {
                         }
 
                         if (moveResult) {
-                            // Successful move
+                            // Successful move — record notation
+                            let notationStr = null;
+                            if (game.type === 'chess') {
+                                notationStr = moveResult.san || `${moveResult.from}-${moveResult.to}`;
+                            } else {
+                                // Build / extend the multi-jump chain
+                                const step = `(${selectedSquare.r},${selectedSquare.c})→(${r},${c})`;
+                                if (multiJumpChain === null) {
+                                    multiJumpChain = step;
+                                } else {
+                                    // Append only the new destination (chain already has the source)
+                                    multiJumpChain += `→(${r},${c})`;
+                                }
+                                notationStr = multiJumpChain;
+                            }
+
                             if (game.type === 'checkers' && moveResult.multiJump) {
-                                // Stay in multi-jump: keep selection on the jumping piece
+                                // Mid-sequence: update selection, do NOT flush notation yet
                                 selectedSquare = { r, c };
                             } else {
+                                // Turn complete — flush notation and reset chain
                                 selectedSquare = null;
+                                multiJumpChain = null;
+                                if (notationStr) addNotation(notationStr);
                             }
                             render();
+                            scrollChat();
                             if (!moveResult.multiJump) {
-                                onMove(moveResult); // notify app.js only when the full turn is done
+                                onMove({ ...moveResult, notation: notationStr });
                             }
                         } else {
                             // Invalid move → try to select the clicked square instead
@@ -192,6 +337,7 @@ export function renderGameBoard(game, chatLog, onMove) {
                                 selectedSquare = boardState[r][c] !== 0 ? { r, c } : null;
                             }
                             render();
+                            scrollChat();
                         }
                     } else {
                         // Nothing selected — select clicked square (only own pieces)
@@ -256,10 +402,17 @@ export function renderGameBoard(game, chatLog, onMove) {
     messageWrap.className = 'message-wrap assistant-msg';
     const messageContent = document.createElement('div');
     messageContent.className = 'message-content game-board-message';
-    messageContent.appendChild(boardContainer);
+    messageContent.appendChild(wrapper);
     messageWrap.appendChild(messageContent);
     chatLog.appendChild(messageWrap);
     chatLog.scrollTop = chatLog.scrollHeight;
 
-    return { update: render };
+    return {
+        update: (notation) => {
+            // Called by app.js when AI makes a move; notation is the SAN/coord string
+            if (notation) addNotation(notation);
+            render();
+            scrollChat();
+        }
+    };
 }
