@@ -16,4 +16,4 @@ Disallow: /tools-worker.js
 # Prevent indexing of model weight cache if exposed
 Disallow: /models/
 
-Sitemap: https://psydrey.github.io/james/sitemap.xml
+Sitemap: https://chatbotjames.onrender.com/sitemap.xml
