@@ -1,5 +1,10 @@
 import { smallTalk } from './smalltalk.js';
 import { toolRouter } from './tool-router.js';
+import { ChessGame, CheckersGame } from './game-logic.js';
+import { renderGameBoard } from './game-ui.js';
+
+let activeGame = null;
+let activeGameUI = null;
 
 // ─── IndexedDB Chat Storage ──────────────────────────────────────────────────
 // Replaces localStorage for chat history — no 5 MB limit, async, fast.
@@ -600,6 +605,19 @@ async function handleToolCalls(message, targetId, originChatId) {
     if (toolCalls.length === 0) {
         // Reset tool depth when we get a plain response (no tool calls)
         _toolCallDepth = 0;
+
+        let interceptedGameMove = false;
+        if (activeGame && originChatId === currentChatId) {
+            // Try to parse the AI's response as a game move
+            const moveMade = activeGame.makeSanMove(message);
+            if (moveMade) {
+                if (activeGameUI) activeGameUI.update();
+                interceptedGameMove = true;
+            } else if (message.includes('[Game State]')) {
+               // AI failed to make a valid move. We could auto-retry, but for now just let the user see the text.
+            }
+        }
+
         if (originChatId === currentChatId) {
             updateLiveBubble(message, targetId);
             chatHistory.push({ role: 'assistant', content: message });
@@ -718,6 +736,35 @@ function parseToolCalls(text) {
 }
 
 async function executeTool(toolName, params) {
+    if (toolName === 'start_game') {
+        const gameType = params.game;
+        activeGame = gameType === 'checkers' ? new CheckersGame() : new ChessGame();
+        
+        setTimeout(() => {
+            const chatLog = document.getElementById('chatLog');
+            activeGameUI = renderGameBoard(activeGame, chatLog, (moveInfo) => {
+                const aiPrompt = activeGame.type === 'chess' 
+                    ? `[Game State] Current FEN: ${activeGame.getFen()}. You are playing Black. The user just moved. What is your next move in standard algebraic notation (e.g. e5, Nf6)? Output ONLY the move.`
+                    : `[Game State] Current Checkers Board: ${activeGame.getFen()}. You are playing Black (b/B). The user just moved. What is your next move in 'from_r,from_c to to_r,to_c' format? Output ONLY the move coordinates.`;
+                
+                chatHistory.push({ role: 'user', content: aiPrompt });
+                appendUserMessage(`[Moved piece]`);
+                persistCurrentChat();
+                
+                setIdleState(false);
+                const messagesForModel = getMessagesWindow(chatHistory);
+                worker.postMessage({
+                    type: 'query',
+                    messages: messagesForModel,
+                    targetId: Date.now(),
+                    chatId: currentChatId
+                });
+            });
+        }, 500);
+
+        return { status: "game_started", game: gameType };
+    }
+
     if (toolName === 'search_web' || toolName === 'web_search') {
         try {
             return await import('./tools-search.js').then(m => m.performWebSearch(params.query || params.q));
