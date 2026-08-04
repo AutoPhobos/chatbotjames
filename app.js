@@ -245,7 +245,7 @@ function drainStreamQueue(targetId) {
 
 function flushStreamQueue(targetId) {
     const state = streamQueues.get(targetId);
-    if (state) updateLiveBubble(state.pending, targetId);
+    if (state) updateLiveBubble(state.pending, targetId, true);
     streamQueues.delete(targetId);
 }
 
@@ -888,7 +888,10 @@ function formatAssistantMessage(text) {
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.+?)\*/g, '<em>$1</em>')
         .replace(/`([^`\n]+?)`/g, '<code>$1</code>')
-        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer noopener">$1</a>')
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, url) => {
+            const cleanUrl = url.trim().toLowerCase().startsWith('javascript:') ? '#' : url.trim();
+            return `<a href="${cleanUrl}" target="_blank" rel="noreferrer noopener">${text}</a>`;
+        })
         .replace(/\n/g, '<br>');
 }
 
@@ -930,7 +933,8 @@ window.editUserMessage = function (text) {
     }
 };
 
-function updateLiveBubble(text, targetId) {
+let _lastRenderTime = 0;
+function updateLiveBubble(text, targetId, force = false) {
     const chatLog = document.getElementById('chatLog');
     if (!chatLog) return;
     let bubble = document.getElementById(`bubble-${targetId}`);
@@ -947,9 +951,16 @@ function updateLiveBubble(text, targetId) {
 
     if (text === '...') {
         bubble.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
-    } else {
-        bubble.innerHTML = formatAssistantMessage(text);
+        return;
     }
+    
+    const now = Date.now();
+    if (!force && now - _lastRenderTime < 33) {
+        return; // Throttle heavy markdown regexes to ~30fps
+    }
+    _lastRenderTime = now;
+
+    bubble.innerHTML = formatAssistantMessage(text);
     chatLog.scrollTop = chatLog.scrollHeight;
 }
 

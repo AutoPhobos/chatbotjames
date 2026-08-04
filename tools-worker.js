@@ -338,15 +338,16 @@ function calculatorTool(params) {
     let { expression, result } = params;
 
     if (result === undefined) {
-        // Safety: only allow numbers, operators, parens, dots, spaces, ** and %
-        const safe = expression
+        const processed = expression
             .replace(/\^/g, '**')
             .replace(/\bmod\b/gi, '%')
-            .replace(/\bx\b/gi, '*')
-            .replace(/[^0-9+\-*/%.() ]/g, '');
-        if (!safe.trim()) throw new Error(`Invalid expression: ${expression}`);
+            .replace(/\bx\b/gi, '*');
+            
+        if (!/^[0-9+\-*/%.() ]+$/.test(processed)) {
+            throw new Error(`Invalid characters in expression: ${expression}`);
+        }
         // eslint-disable-next-line no-new-func
-        result = Function('"use strict"; return (' + safe + ')')();
+        result = Function('"use strict"; return (' + processed + ')')();
     }
 
     if (typeof result !== 'number' || isNaN(result)) {
