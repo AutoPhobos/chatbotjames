@@ -487,21 +487,12 @@ async function detectGpu() {
     if (!navigator.gpu) return noGpu('WebGPU API not available in this browser');
 
     let adapter = null;
-<<<<<<< HEAD
     try {
-        adapter = await navigator.gpu.requestAdapter();
-    } catch (e) {
-        return noGpu('requestAdapter() threw: ' + e.message);
-    }
-=======
-    try { 
         adapter = await Promise.race([
             navigator.gpu.requestAdapter(),
             new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
         ]);
-    }
-    catch (e) { return noGpu('requestAdapter() threw: ' + e.message); }
->>>>>>> a00e78b3d5b6d4e9da416af0cd623235b1ec4b69
+    } catch (e) { return noGpu('requestAdapter() threw: ' + e.message); }
     if (!adapter) return noGpu('No WebGPU adapter found (no GPU or driver missing)');
 
     let vendor = '', architecture = '', device = '', description = '';
@@ -742,10 +733,7 @@ self.onmessage = async (e) => {
         isGenerating = true;
         isAborted = false;
 
-<<<<<<< HEAD
         // CRITICAL: declare outside try so it is visible in the catch block
-=======
->>>>>>> a00e78b3d5b6d4e9da416af0cd623235b1ec4b69
         let accumulatedResponse = '';
 
         try {
@@ -765,13 +753,8 @@ self.onmessage = async (e) => {
             const promptTokens = await chatbot.tokenizer(prompt);
             const promptTokenCount = promptTokens.input_ids.data.length;
 
-<<<<<<< HEAD
-            let maxTokens = 1024;
-            let temp = 1.0;
-=======
             let maxTokens = CONFIG.worker.maxTokens;
             let temp = CONFIG.worker.temperature;
->>>>>>> a00e78b3d5b6d4e9da416af0cd623235b1ec4b69
 
             if (activePreset) {
                 if (activePreset.params < 1.0) {
@@ -791,17 +774,12 @@ self.onmessage = async (e) => {
                 top_p: CONFIG.worker.topP,
                 return_full_text: false,
                 callback_function: (beams) => {
-<<<<<<< HEAD
                     if (isAborted) throw new Error('AbortGeneration');
 
                     const tokenIds = beams?.[0]?.output_token_ids;
                     if (!tokenIds) return;
 
                     const allTokens = Array.from(tokenIds.data || tokenIds);
-=======
-                    if (isAborted) return true; // Attempt to cleanly stop generation
-                    const allTokens = Array.from(beams[0].output_token_ids.data || beams[0].output_token_ids);
->>>>>>> a00e78b3d5b6d4e9da416af0cd623235b1ec4b69
                     if (allTokens.length > promptTokenCount) {
                         const newTokens = allTokens.slice(promptTokenCount);
                         const text = chatbot.tokenizer.decode(newTokens, { skip_special_tokens: true });
@@ -838,7 +816,6 @@ self.onmessage = async (e) => {
                 chatId
             });
         } catch (err) {
-<<<<<<< HEAD
             if (err.message === 'AbortGeneration') {
                 // Now safe: accumulatedResponse is in scope
                 self.postMessage({
@@ -850,9 +827,6 @@ self.onmessage = async (e) => {
             } else {
                 reportWorkerError(err, targetId);
             }
-=======
-            reportWorkerError(err, targetId);
->>>>>>> a00e78b3d5b6d4e9da416af0cd623235b1ec4b69
         } finally {
             isGenerating = false;
         }
