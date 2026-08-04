@@ -21,7 +21,7 @@ Your conversations never leave your device.
 - 🐍 **In-Browser Python Execution:** Run Python code securely in the browser via Pyodide for data processing, math, and algorithms.
 - 🌐 **Web Search Capabilities:** Live web search across Google, DuckDuckGo, and Bing for up-to-date information.
 - ♟️ **Interactive Games:** Play full games of Chess and Checkers directly against the AI in the chat interface.
-- 🛠️ **Rich Tool Ecosystem:** Built-in utilities for weather, currency conversion, calculators, timezone lookups, uuid generation, and more.
+- 🛠️ **Rich Tool Ecosystem:** Over 15 built-in utilities including weather, currency conversion, calculator, timezone lookups, UUID and password generation, ASCII art, Base64 encoding, hashing (MD5/SHA), color conversions, IP lookups, and more.
 - 💾 **Persistent History:** Chats are saved seamlessly and instantly to your browser's IndexedDB.
 - 🎨 **Robust Markdown Rendering:** Beautiful syntax highlighting, tables, and rich text powered by `marked.js` and secured by `DOMPurify`.
 - 📱 **PWA Ready:** Install JAMES as an app for full offline access.

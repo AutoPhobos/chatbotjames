@@ -1,1 +1,1 @@
-export const BUILD_NUMBER = 723;
+export const BUILD_NUMBER = 724;
