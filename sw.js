@@ -8,6 +8,10 @@ const STATIC_ASSETS = [
 // App files: network-first but cached for offline PWA compliance
 const NETWORK_FIRST = [
     '/',
+    'config.js',
+    'config.json',
+    'game-logic.js',
+    'game-ui.js',
     'app.js',
     'worker.js',
     'tools-worker.js',
@@ -49,7 +53,11 @@ self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return;
 
     const url = new URL(event.request.url);
-    const filename = url.pathname.split('/').pop();
+    const filename = url.pathname.split('/',
+    'config.js',
+    'config.json',
+    'game-logic.js',
+    'game-ui.js').pop();
 
     // Always bypass SW for model weight files (large .bin / .onnx fetches)
     if (url.pathname.includes('.onnx') || url.pathname.includes('.bin')) {
@@ -57,7 +65,11 @@ self.addEventListener('fetch', (event) => {
     }
 
     // Network-first for app files (caches them for offline PWA installability)
-    if (url.pathname === '/' || NETWORK_FIRST.some(f => filename === f || url.pathname.endsWith(f))) {
+    if (url.pathname === '/',
+    'config.js',
+    'config.json',
+    'game-logic.js',
+    'game-ui.js' || NETWORK_FIRST.some(f => filename === f || url.pathname.endsWith(f))) {
         event.respondWith(
             fetch(event.request)
                 .then(res => {
@@ -97,3 +109,5 @@ self.addEventListener('fetch', (event) => {
         })
     );
 });
+
+

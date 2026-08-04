@@ -8,7 +8,7 @@ let activeGame = null;
 let activeGameUI = null;
 
 // ─── IndexedDB Chat Storage ──────────────────────────────────────────────────
-// Replaces localStorage for chat history — no 5 MB limit, async, fast.
+// Replaces safeLocalStorage for chat history — no 5 MB limit, async, fast.
 
 const IDB_NAME = 'james-chats-db';
 const IDB_STORE = 'chats';
@@ -70,23 +70,23 @@ async function dbLoadAllChats() {
 }
 
 /**
- * One-time migration: move existing localStorage chats into IndexedDB,
+ * One-time migration: move existing safeLocalStorage chats into IndexedDB,
  * then clear the old key so this only runs once.
  */
 async function migrateFromLocalStorage() {
-    const raw = localStorage.getItem('chatbot-chats');
+    const raw = safeLocalStorage.getItem('chatbot-chats');
     if (!raw) return;
     try {
         const chats = JSON.parse(raw);
         if (Array.isArray(chats) && chats.length > 0) {
-            console.log(`📦 Migrating ${chats.length} chat(s) from localStorage → IndexedDB…`);
+            console.log(`📦 Migrating ${chats.length} chat(s) from safeLocalStorage → IndexedDB…`);
             await openChatDB();
             for (const chat of chats) dbSaveChat(chat);
-            localStorage.removeItem('chatbot-chats');
+            safeLocalStorage.removeItem('chatbot-chats');
             console.log('✅ Migration complete');
         }
     } catch (e) {
-        console.warn('localStorage migration failed:', e);
+        console.warn('safeLocalStorage migration failed:', e);
     }
 }
 
@@ -161,6 +161,13 @@ function playDoneSound() {
     setTimeout(() => _playTone({ freq: 783.99, type: 'sine', gainPeak: 0.08, duration: 0.22, rampUp: 0.01 }), 120); // G5
 }
 // ─────────────────────────────────────────────────────────────────────────────
+
+//let isGenerating = false;
+let currentChatId = null;
+
+// Cached DOM elements for performance during tight rendering loops
+let _progressFillEl = null;
+let _statusMetaEl = null;
 
 // Initialize Workers
 let worker = new Worker('worker.js', { type: 'module' });
@@ -294,7 +301,7 @@ function workerMessageHandler(e) {
 
     switch (status) {
         case 'clear-last-preset':
-            localStorage.removeItem('james-last-preset-id');
+            safeLocalStorage.removeItem('james-last-preset-id');
             console.log('🗑️ Cleared stale last-preset cache');
             break;
 
@@ -320,27 +327,27 @@ function workerMessageHandler(e) {
             lastUpdate = now;
 
             const percent = total ? (loaded / total * 100) : 0;
-            const fill = document.querySelector('.progress-fill');
-            const meta = document.querySelector('.status-meta');
+            _progressFillEl = _progressFillEl || document.querySelector('.progress-fill');
+            _statusMetaEl = _statusMetaEl || document.querySelector('.status-meta');
 
-            if (fill) fill.style.width = `${percent}%`;
-            if (meta) {
+            if (_progressFillEl) _progressFillEl.style.width = `${percent}%`;
+            if (_statusMetaEl) {
                 const mbLoaded = (loaded / 1024 / 1024).toFixed(1);
                 const mbTotal = (total / 1024 / 1024).toFixed(1);
-                meta.innerText = `Downloading: ${file || 'weights'} (${mbLoaded}/${mbTotal} MB)`;
+                _statusMetaEl.innerText = `Downloading: ${file || 'weights'} (${mbLoaded}/${mbTotal} MB)`;
             }
             if (statusText) statusText.textContent = `DOWNLOADING (${Math.round(percent)}%)...`;
             break;
         }
 
         case 'done': {
-            const metaDone = document.querySelector('.status-meta');
+            _statusMetaEl = _statusMetaEl || document.querySelector('.status-meta');
             const backend = e.data.backend === 'webgpu' ? 'WebGPU' : 'WASM (CPU)';
             const deviceTag = e.data.isTV ? ' · TV Mode' : e.data.isMobile ? ' · Lightweight Mode' : '';
-            if (metaDone) metaDone.innerText = `JAMES is online (${backend}${deviceTag})`;
+            if (_statusMetaEl) _statusMetaEl.innerText = `JAMES is online (${backend}${deviceTag})`;
 
-            const fillDone = document.querySelector('.progress-fill');
-            if (fillDone) fillDone.style.width = "100%";
+            _progressFillEl = _progressFillEl || document.querySelector('.progress-fill');
+            if (_progressFillEl) _progressFillEl.style.width = "100%";
             if (statusText) statusText.textContent = 'READY';
 
             const runningPreset = _presets.find(
@@ -349,7 +356,7 @@ function workerMessageHandler(e) {
             if (runningPreset) {
                 _activePresetId = runningPreset.id;
                 _selectedPresetId = runningPreset.id;
-                localStorage.setItem('james-last-preset-id', runningPreset.id);
+                safeLocalStorage.setItem('james-last-preset-id', runningPreset.id);
                 refreshPresetCards();
                 const lbl = document.getElementById('activeModelLabel');
                 if (lbl) lbl.textContent = `Active: ${runningPreset.label}`;
@@ -422,7 +429,7 @@ function initWorker() {
     // Re-attach the message handler so the new worker isn't silent
     worker.onmessage = workerMessageHandler;
     // Re-initialize the model so the new worker is fully operational
-    const _lastPreset = localStorage.getItem('james-last-preset-id');
+    const _lastPreset = safeLocalStorage.getItem('james-last-preset-id');
     worker.postMessage({ type: 'init', lastPresetId: _lastPreset || null });
 }
 
@@ -1303,7 +1310,7 @@ if (isTVDevice()) {
 if (window.innerWidth <= 768) document.getElementById('sidebar')?.classList.add('collapsed');
 
 setIdleState(false);
-const _savedLastPresetId = localStorage.getItem('james-last-preset-id');
+const _savedLastPresetId = safeLocalStorage.getItem('james-last-preset-id');
 worker.postMessage({
     type: 'init',
     lastPresetId: _savedLastPresetId || null,
@@ -1357,7 +1364,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
 
-    if (!localStorage.getItem('james-pwa-dismissed')) {
+    if (!safeLocalStorage.getItem('james-pwa-dismissed')) {
         installBanner?.classList.remove('hidden');
     }
 });
@@ -1373,7 +1380,7 @@ installBtn?.addEventListener('click', async () => {
 
 dismissBtn?.addEventListener('click', () => {
     installBanner?.classList.add('hidden');
-    localStorage.setItem('james-pwa-dismissed', 'true');
+    safeLocalStorage.setItem('james-pwa-dismissed', 'true');
 });
 
 // ─── Model Selection Panel ────────────────────────────────────────────────────
@@ -1527,3 +1534,4 @@ applyModelBtn?.addEventListener('click', () => {
 
     worker.postMessage({ type: 'init', forcePresetId: _selectedPresetId });
 });
+
