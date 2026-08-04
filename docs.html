@@ -329,6 +329,7 @@
                 <a class="sidebar-link sub" href="#tools-info">Info Tools</a>
                 <a class="sidebar-link sub" href="#tools-util">Utility Tools</a>
                 <a class="sidebar-link sub" href="#tools-device">Device Tools</a>
+                <a class="sidebar-link sub" href="#tools-games">Games</a>
             </div>
             <div class="sidebar-section">
                 <p class="sidebar-section-label">Architecture</p>
@@ -601,6 +602,31 @@ query: browser inference</pre>
                         </div>
                     </div>
                 </div>
+            </section>
+            <section class="doc-section" id="tools-games">
+                <h2>Games ♟️</h2>
+                <p>JAMES has two fully playable games built into the chat. Just say <em>"let's play chess"</em> or <em>"start a game of checkers"</em> — a live board appears right in the conversation.</p>
+                <div class="tool-grid">
+                    <div class="tool-card"><span class="tool-name">start_game</span>
+                        <div class="tool-body">
+                            <p>Starts an interactive Chess or Checkers board inside the chat. JAMES plays as Black; you play as White by clicking pieces.</p>
+                            <pre>start_game
+game: chess</pre>
+                            <pre>start_game
+game: checkers</pre>
+                        </div>
+                    </div>
+                    <div class="tool-card"><span class="tool-name">make_move</span>
+                        <div class="tool-body">
+                            <p>Used internally by JAMES to play its own move after you move. Fires automatically — you do not call this directly.</p>
+                            <pre>make_move
+move: e5          &lt;!-- Chess SAN --&gt;</pre>
+                            <pre>make_move
+move: 5,2 to 4,3  &lt;!-- Checkers row,col --&gt;</pre>
+                        </div>
+                    </div>
+                </div>
+                <div class="callout"><strong>Chess:</strong> Full standard rules via chess.js — en passant, castling, auto-queen promotion, check &amp; checkmate. Click a piece to see its legal moves highlighted.<br><br><strong>Checkers (English draughts):</strong> Forced captures, multi-jump sequences, king promotion (♛), and game-over detection with a winner banner.</div>
             </section>
             <section class="doc-section" id="architecture">
                 <h2>Architecture</h2>
