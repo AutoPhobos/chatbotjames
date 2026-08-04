@@ -10,6 +10,10 @@ export class ChessGame {
         return this.game.fen();
     }
 
+    getState() {
+        return { fen: this.game.fen() };
+    }
+
     getBoard() {
         return this.game.board(); // 2D array
     }

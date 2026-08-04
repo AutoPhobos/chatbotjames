@@ -1128,3 +1128,32 @@ a:hover {
         border-radius: var(--radius-lg);
     }
 }
+
+.copy-msg-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: inherit;
+    border-radius: 4px;
+    padding: 4px;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+    z-index: 5;
+}
+
+.copy-msg-btn:hover {
+    opacity: 1;
+    background: rgba(255,255,255,0.2);
+}
+
+.console-font {
+    font-family: 'Courier New', Courier, monospace;
+    white-space: pre-wrap;
+    background: rgba(0,0,0,0.3);
+    color: #00ff00;
+    padding: 10px;
+    border-radius: 4px;
+}

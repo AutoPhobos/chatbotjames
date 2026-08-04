@@ -140,13 +140,14 @@ function setIdleState(isIdle) {
 }
 
 function getMessagesWindow(messages) {
-    if (!messages || messages.length <= MAX_HISTORY) {
-        if (messages && messages.length > 0 && messages[0].role !== 'user') {
-            return messages.slice(1);
+    let filtered = messages ? messages.filter(m => m.role !== 'system') : [];
+    if (filtered.length <= MAX_HISTORY) {
+        if (filtered.length > 0 && filtered[0].role !== 'user') {
+            return filtered.slice(1);
         }
-        return messages;
+        return filtered;
     }
-    let sliced = messages.slice(-MAX_HISTORY);
+    let sliced = filtered.slice(-MAX_HISTORY);
     if (sliced.length > 0 && sliced[0].role !== 'user') {
         sliced = sliced.slice(1);
     }
@@ -547,8 +548,9 @@ async function handleToolCalls(message, targetId, originChatId) {
             : `[${r.tool} result]:${JSON.stringify(r.result)}`
     ).join('\n');
 
-    const assistantToolTurn = { role: 'assistant', content: message };
-    const toolResultTurn = { role: 'user', content: '[SYSTEM: Tool results below. Interpret them and reply naturally to the user.]\n' + toolResultText };
+    const isGameTool = toolCalls.some(call => call.tool === 'make_move' || call.tool === 'start_game');
+    const assistantToolTurn = { role: 'assistant', content: message, hidden: isGameTool };
+    const toolResultTurn = { role: 'user', content: '[SYSTEM: Tool results below. Interpret them and reply naturally to the user.]\n' + toolResultText, hidden: isGameTool };
 
     if (originChatId === currentChatId) {
         chatHistory.push(assistantToolTurn, toolResultTurn);
@@ -646,52 +648,64 @@ function callWorkerRPC(targetWorker, messageData, timeoutMs = 30000) {
     });
 }
 
+function handleGameMove(moveInfo) {
+    const gameOver = activeGame.isGameOver();
+
+    if (gameOver) {
+        const result = activeGame.type === 'checkers' && activeGame.getWinner
+            ? (activeGame.getWinner() === 'w' ? 'White wins!' : 'Black wins!')
+            : 'Game over!';
+        const msg = `[Game Over] ${result} The board has been updated.`;
+        chatHistory.push({ role: 'user', content: msg, hidden: true });
+        chatHistory.push({ role: 'system', content: `[Game Over] ${result}` });
+        persistCurrentChat();
+        setIdleState(false);
+        worker.postMessage({
+            type: 'query',
+            messages: getMessagesWindow(chatHistory),
+            targetId: getNextTargetId(),
+            chatId: currentChatId
+        });
+        return;
+    }
+
+    const moveNotation = moveInfo.notation || '';
+    const aiPrompt = activeGame.type === 'chess'
+        ? `[Game State] Current FEN: ${activeGame.getFen()}. You are playing Black. The user just moved${moveNotation ? ` (${moveNotation})` : ''}. It is NOW YOUR TURN. You MUST immediately use the make_move tool to play your move in standard algebraic notation (e.g. e5, Nf6). Do NOT say 'your turn' — it is your turn right now.`
+        : `[Game State] Current Checkers Board: ${activeGame.getFen()}. You are playing Black (b/B). The user just moved${moveNotation ? ` (${moveNotation})` : ''}. It is NOW YOUR TURN. You MUST immediately use the make_move tool with 'from_r,from_c to to_r,to_c' format. Do NOT say 'your turn' — it is your turn right now.`;
+
+    chatHistory.push({ role: 'user', content: aiPrompt, hidden: true });
+    chatHistory.push({ role: 'system', content: `[Moved piece: ${moveNotation || 'done'}]` });
+    persistCurrentChat();
+    
+    // Refresh chat log to show the new system message
+    renderChatLog();
+
+    setIdleState(false);
+    const messagesForModel = getMessagesWindow(chatHistory);
+    worker.postMessage({
+        type: 'query',
+        messages: messagesForModel,
+        targetId: getNextTargetId(),
+        chatId: currentChatId
+    });
+}
+
 function handleStartGame(params) {
     const gameType = params.game;
     activeGame = gameType === 'checkers' ? new CheckersGame() : new ChessGame();
+    
+    chatHistory.push({ role: 'assistant', type: 'game_board' });
+    persistCurrentChat();
+    renderChatLog();
 
     setTimeout(() => {
-        const chatLog = document.getElementById('chatLog');
-        activeGameUI = renderGameBoard(activeGame, chatLog, (moveInfo) => {
-            const gameOver = activeGame.isGameOver();
-
-            if (gameOver) {
-                const result = activeGame.type === 'checkers' && activeGame.getWinner
-                    ? (activeGame.getWinner() === 'w' ? 'White wins!' : 'Black wins!')
-                    : 'Game over!';
-                const msg = `[Game Over] ${result} The board has been updated.`;
-                chatHistory.push({ role: 'user', content: msg });
-                appendUserMessage(`[Game Over — ${result}]`, chatHistory.length - 1);
-                persistCurrentChat();
-                setIdleState(false);
-                worker.postMessage({
-                    type: 'query',
-                    messages: getMessagesWindow(chatHistory),
-                    targetId: getNextTargetId(),
-                    chatId: currentChatId
-                });
-                return;
-            }
-
-            const moveNotation = moveInfo.notation || '';
-            const aiPrompt = activeGame.type === 'chess'
-                ? `[Game State] Current FEN: ${activeGame.getFen()}. You are playing Black. The user just moved${moveNotation ? ` (${moveNotation})` : ''}. It is NOW YOUR TURN. You MUST immediately use the make_move tool to play your move in standard algebraic notation (e.g. e5, Nf6). Do NOT say 'your turn' — it is your turn right now.`
-                : `[Game State] Current Checkers Board: ${activeGame.getFen()}. You are playing Black (b/B). The user just moved${moveNotation ? ` (${moveNotation})` : ''}. It is NOW YOUR TURN. You MUST immediately use the make_move tool with 'from_r,from_c to to_r,to_c' format. Do NOT say 'your turn' — it is your turn right now.`;
-
-            chatHistory.push({ role: 'user', content: aiPrompt });
-            appendUserMessage(`[Moved piece]`, chatHistory.length - 1);
-            persistCurrentChat();
-
-            setIdleState(false);
-            const messagesForModel = getMessagesWindow(chatHistory);
-            worker.postMessage({
-                type: 'query',
-                messages: messagesForModel,
-                targetId: getNextTargetId(),
-                chatId: currentChatId
-            });
-        });
-    }, 500);
+        const placeholders = document.querySelectorAll('.game-board-message');
+        if (placeholders.length > 0) {
+            const container = placeholders[placeholders.length - 1];
+            activeGameUI = renderGameBoard(activeGame, container, handleGameMove);
+        }
+    }, 50);
 
     return { status: "game_started", game: gameType };
 }
@@ -848,6 +862,11 @@ function persistCurrentChat() {
     const chat = allChats.find(c => c.id === currentChatId);
     if (chat) {
         chat.messages = [...chatHistory];
+        if (activeGame) {
+            chat.gameState = { type: activeGame.type, state: activeGame.getState() };
+        } else {
+            chat.gameState = null;
+        }
         dbSaveChat(chat);
     }
 }
@@ -859,8 +878,30 @@ function loadChatHistory(chatId) {
     persistCurrentChat();
     currentChatId = chatId;
     chatHistory = [...chat.messages];
+    
+    if (chat.gameState) {
+        if (chat.gameState.type === 'checkers') {
+            activeGame = new CheckersGame(chat.gameState.state);
+        } else {
+            activeGame = new ChessGame(chat.gameState.state.fen);
+        }
+    } else {
+        activeGame = null;
+        activeGameUI = null;
+    }
+
     renderChatLog();
     updateChatListActive(currentChatId);
+
+    if (activeGame) {
+        setTimeout(() => {
+            const placeholders = document.querySelectorAll('.game-board-message');
+            if (placeholders.length > 0) {
+                const container = placeholders[placeholders.length - 1];
+                activeGameUI = renderGameBoard(activeGame, container, handleGameMove);
+            }
+        }, 50);
+    }
 }
 
 function startNewChat() {

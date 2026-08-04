@@ -726,6 +726,24 @@ async function ipTool(params) {
     };
 }
 
+// ── ASCII Art ─────────────────────────────────────────────────────────────
+async function asciiArtTool(params) {
+    const { text, font = 'standard' } = params;
+    if (!text) throw new Error('ascii_art requires a text parameter');
+    
+    // We try asciified first, fallback to basic text if it fails
+    try {
+        const url = new URL('https://asciified.thelicato.io/api/v2/ascii');
+        url.searchParams.append('text', text);
+        url.searchParams.append('font', font);
+        const res = await fetch(url);
+        if (res.ok) return await res.text();
+    } catch (e) {
+        console.warn('ASCII art failed:', e);
+    }
+    throw new Error('Failed to generate ASCII art. Service might be down.');
+}
+
 // ── Main message handler ──────────────────────────────────────────────────
 const TOOL_HANDLERS = {
     help: helpTool,
@@ -753,6 +771,7 @@ const TOOL_HANDLERS = {
     hash: hashTool,
     random: randomTool,
     ip: ipTool,
+    ascii_art: asciiArtTool,
 };
 
 self.onmessage = async (e) => {

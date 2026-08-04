@@ -10,7 +10,7 @@
  *  - Better checkers piece symbols: regular piece = ⬤, king = ♛.
  *  - game-over banner shown inside the board container.
  */
-export function renderGameBoard(game, chatLog, onMove) {
+export function renderGameBoard(game, container, onMove) {
     // ── Wrapper: board + notation panel ────────────────────────────────────────
     const wrapper = document.createElement('div');
     wrapper.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
@@ -152,7 +152,8 @@ export function renderGameBoard(game, chatLog, onMove) {
     let multiJumpChain = null;  // checkers: accumulates "(r,c)→(r,c)→..." during a multi-jump
 
     function scrollChat() {
-        chatLog.scrollTop = chatLog.scrollHeight;
+        const chatLog = document.getElementById('chatLog');
+        if (chatLog) chatLog.scrollTop = chatLog.scrollHeight;
     }
 
     // ── Chess piece symbols ─────────────────────────────────────────────────────
@@ -397,15 +398,10 @@ export function renderGameBoard(game, chatLog, onMove) {
 
     render();
 
-    // Wrap and append to chat
-    const messageWrap = document.createElement('div');
-    messageWrap.className = 'message-wrap assistant-msg';
-    const messageContent = document.createElement('div');
-    messageContent.className = 'message-content game-board-message';
-    messageContent.appendChild(wrapper);
-    messageWrap.appendChild(messageContent);
-    chatLog.appendChild(messageWrap);
-    chatLog.scrollTop = chatLog.scrollHeight;
+    // Mount to the provided container
+    container.innerHTML = '';
+    container.appendChild(wrapper);
+    scrollChat();
 
     return {
         update: (notation) => {

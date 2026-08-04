@@ -161,14 +161,46 @@ export function scrollToBottom() {
 
 /** Build a single message DOM element (shared by renderChatLog and loadOlderMessages). */
 export function createMessageElement(msg, historyIdx = -1) {
+    if (msg.hidden) {
+        const el = document.createElement('div');
+        el.style.display = 'none';
+        return el;
+    }
+
     const messageWrap = document.createElement('div');
+    if (msg.role === 'system') {
+        messageWrap.className = 'message-wrap system-msg';
+        messageWrap.style.cssText = 'text-align: center; color: #888; font-size: 12px; margin: 8px 0; font-family: monospace; opacity: 0.8;';
+        messageWrap.textContent = msg.content;
+        return messageWrap;
+    }
     messageWrap.className = `message-wrap ${msg.role === 'user' ? 'user-msg' : 'assistant-msg'}`;
+    if (msg.type === 'game_board') {
+        messageWrap.classList.add('game-board-placeholder');
+        const messageContent = document.createElement('div');
+        messageContent.className = 'message-content game-board-message';
+        messageContent.id = `game-board-container`;
+        messageWrap.appendChild(messageContent);
+        return messageWrap;
+    }
+
     const messageContent = document.createElement('div');
     messageContent.className = 'message-content';
 
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'copy-msg-btn';
+    copyBtn.innerHTML = '📋';
+    copyBtn.title = 'Copy message';
+    copyBtn.onclick = () => navigator.clipboard.writeText(msg.content);
+
     if (msg.role === 'assistant') {
         messageContent.innerHTML = formatAssistantMessage(msg.content);
-        messageWrap.appendChild(messageContent);
+        const container = document.createElement('div');
+        container.className = 'assistant-msg-container';
+        container.style.position = 'relative';
+        container.appendChild(messageContent);
+        container.appendChild(copyBtn);
+        messageWrap.appendChild(container);
     } else {
         messageContent.textContent = msg.content;
         const editBtn = document.createElement('button');
@@ -178,7 +210,9 @@ export function createMessageElement(msg, historyIdx = -1) {
         editBtn.onclick = () => window.editUserMessage(historyIdx);
         const container = document.createElement('div');
         container.className = 'user-msg-container';
+        container.style.position = 'relative';
         container.appendChild(editBtn);
+        container.appendChild(copyBtn);
         container.appendChild(messageContent);
         messageWrap.appendChild(container);
     }
