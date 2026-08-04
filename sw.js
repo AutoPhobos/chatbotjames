@@ -1,4 +1,4 @@
-const CACHE_NAME = 'JAMES-v5.6';
+const CACHE_NAME = 'JAMES-v5.7';
 
 // Only cache truly static assets - NOT app logic files
 const STATIC_ASSETS = [
@@ -105,6 +105,7 @@ self.addEventListener('fetch', (event) => {
         })
     );
 });
+
 
 
 
