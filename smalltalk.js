@@ -524,7 +524,7 @@ export class SmallTalkHandler {
             .toLowerCase()
             .normalize('NFD')
             .replace(/[\u0300-\u036f]/g, '') // Strip diacritics/accents safely (e.g. café -> cafe)
-            .replace(/[^\w\s']/g, ' ')
+            .replace(/[^\p{L}\p{N}\s']/gu, ' ')  // Strip punctuation but keep all Unicode letters/digits
             .replace(/\s+/g, ' ')
             .trim();
     }

@@ -21,10 +21,12 @@ let activeGameUI = null;
 const IDB_NAME = 'james-chats-db';
 const IDB_STORE = 'chats';
 let _idb = null;
+let _idbPromise = null; // Prevents concurrent open() races — callers share one promise
 
 async function openChatDB() {
     if (_idb) return _idb;
-    return new Promise((resolve, reject) => {
+    if (_idbPromise) return _idbPromise; // Return the in-progress open to any concurrent caller
+    _idbPromise = new Promise((resolve, reject) => {
         const req = indexedDB.open(IDB_NAME, 1);
         req.onupgradeneeded = (e) => {
             const db = e.target.result;
@@ -33,8 +35,9 @@ async function openChatDB() {
             }
         };
         req.onsuccess = (e) => { _idb = e.target.result; resolve(_idb); };
-        req.onerror = (e) => reject(e.target.error);
+        req.onerror = (e) => { _idbPromise = null; reject(e.target.error); };
     });
+    return _idbPromise;
 }
 
 /** Fire-and-forget: persist a single chat to IndexedDB. */
@@ -178,7 +181,7 @@ let _statusMetaEl = null;
 let worker = new Worker('worker.js?v=2', { type: 'module' });
 const toolsWorker = new Worker('tools-worker.js', { type: 'module' });
 const pythonWorker = new Worker('python-worker.js');
-const pythonCallbacks = new Map();
+// Python execution results are handled by inline listeners inside executeTool() — no global map needed.
 
 // UI References
 const cmdInput = document.getElementById('cmdInput')
@@ -195,28 +198,27 @@ const sendBtn = document.getElementById('sendBtn')
  */
 let _isGeneratingUI = false;
 function setIdleState(isIdle) {
-    try {
-        if (isIdle) {
-            cmdInput.disabled = false;
-            sendBtn.innerHTML = '➔';
-            sendBtn.classList.remove('stop-btn');
-            _isGeneratingUI = false;
+    // Explicit null guards instead of a blanket try/catch that swallows errors silently
+    if (!cmdInput || !sendBtn) return;
+    if (isIdle) {
+        cmdInput.disabled = false;
+        sendBtn.innerHTML = '➔';
+        sendBtn.classList.remove('stop-btn');
+        _isGeneratingUI = false;
 
-            cmdInput.classList.remove('loading-state');
-            cmdInput.placeholder = "Message JAMES...";
-            cmdInput.focus();
-        } else {
-            cmdInput.disabled = true;
-            sendBtn.innerHTML = '⏹';
-            sendBtn.classList.add('stop-btn');
-            sendBtn.disabled = false;
-            _isGeneratingUI = true;
+        cmdInput.classList.remove('loading-state');
+        cmdInput.placeholder = "Message JAMES...";
+        cmdInput.focus();
+    } else {
+        cmdInput.disabled = true;
+        sendBtn.innerHTML = '⏹';
+        sendBtn.classList.add('stop-btn');
+        sendBtn.disabled = false;
+        _isGeneratingUI = true;
 
-            cmdInput.classList.add('loading-state');
-            cmdInput.placeholder = "JAMES is busy...";
-        }
+        cmdInput.classList.add('loading-state');
+        cmdInput.placeholder = "JAMES is busy...";
     }
-    catch (err) { console.log(err); }
 }
 
 // Global State & Message Handlers
@@ -230,6 +232,10 @@ let attachedFiles = [];
 
 // ─── Character-by-character Streaming Animation ──────────────────────────────
 const streamQueues = new Map();
+
+// Monotonically increasing bubble IDs — collision-free alternative to Date.now()
+let _nextTargetId = 0;
+const getNextTargetId = () => ++_nextTargetId;
 
 function queueStreamText(targetId, fullText) {
     if (!streamQueues.has(targetId)) {
@@ -253,8 +259,8 @@ function drainStreamQueue(targetId) {
     state.displayed = state.pending.slice(0, state.displayed.length + 1);
     updateLiveBubble(state.displayed, targetId);
 
-    // ~18–25 ms per character feels natural; adjust to taste
-    setTimeout(() => drainStreamQueue(targetId), 20);
+    // Speed is controlled by CONFIG.ui.streamRenderIntervalMs (default 15 ms)
+    setTimeout(() => drainStreamQueue(targetId), CONFIG.ui.streamRenderIntervalMs);
 }
 
 function flushStreamQueue(targetId) {
@@ -294,11 +300,13 @@ function workerMessageHandler(e) {
         updateStatusLight('idle');
         if (statusText) statusText.textContent = 'READY';
         if (status !== 'error' && status !== 'aborted') playDoneSound();
-        // Release wake lock once the model finishes loading (success or failure)
         if (status === 'done' || status === 'error') releaseWakeLock();
     } else {
-        setIdleState(false);
-        updateStatusLight('thinking');
+        // Guard: skip redundant DOM writes on every streaming packet (~15 ms intervals)
+        if (!_isGeneratingUI) {
+            setIdleState(false);
+            updateStatusLight('thinking');
+        }
         if (status === 'thinking' && statusText) statusText.textContent = 'THINKING...';
         if (status === 'streaming' && statusText) statusText.textContent = 'RESPONDING...';
         // Acquire wake lock during model download / warm-start (can take minutes)
@@ -391,7 +399,8 @@ function workerMessageHandler(e) {
 
         case 'aborted': {
             flushStreamQueue(targetId);
-            if (e.data.chatId === currentChatId && message) {
+            // Use !== undefined/null: empty string '' is a valid (empty) partial response
+            if (e.data.chatId === currentChatId && message !== undefined && message !== null) {
                 // If there's partial text generated before the abort, keep it in the history
                 updateLiveBubble(message, targetId);
                 chatHistory.push({ role: 'assistant', content: message });
@@ -425,7 +434,7 @@ function workerMessageHandler(e) {
     }
 }
 worker.onmessage = workerMessageHandler;
-worker.onerror = (e) => { console.error('WORKER ERROR:', e); document.querySelector('.status-meta').innerText = 'Worker failed to load: ' + e.message; };
+worker.onerror = (e) => { console.error('WORKER ERROR:', e); const _sm = document.querySelector('.status-meta'); if (_sm) _sm.innerText = 'Worker failed to load: ' + e.message; };
 
 
 function initWorker() {
@@ -435,7 +444,7 @@ function initWorker() {
     worker = new Worker('worker.js?v=2', { type: 'module' });
     // Re-attach the message handler so the new worker isn't silent
     worker.onmessage = workerMessageHandler;
-    worker.onerror = (e) => { console.error('WORKER ERROR:', e); document.querySelector('.status-meta').innerText = 'Worker failed to load: ' + e.message; };
+    worker.onerror = (e) => { console.error('WORKER ERROR:', e); const _sm = document.querySelector('.status-meta'); if (_sm) _sm.innerText = 'Worker failed to load: ' + e.message; };
     // Re-initialize the model so the new worker is fully operational
     const _lastPreset = safeLocalStorage.getItem('james-last-preset-id');
     worker.postMessage({ type: 'init', lastPresetId: _lastPreset || null });
@@ -518,7 +527,7 @@ function sendMessage() {
     // Store fullPrompt in history so the model actually receives file content
     chatHistory.push({ role: 'user', content: fullPrompt });
     // Show only the display message in the UI (not raw file content)
-    appendUserMessage(displayMessage);
+    appendUserMessage(displayMessage, chatHistory.length - 1);
 
     cmdInput.value = '';
     const filesToSend = [...attachedFiles];
@@ -533,7 +542,8 @@ function sendMessage() {
     if (currentChatId) {
         const chat = allChats.find(c => c.id === currentChatId);
         if (chat && chat.name === 'New Chat') {
-            const titleSource = text || attachedFiles.map(f => f.name).join(', ') || 'File upload';
+            // Use filesToSend — attachedFiles was already cleared to [] above
+            const titleSource = text || filesToSend.map(f => f.name).join(', ') || 'File upload';
             chat.name = titleSource.substring(0, 30) + (titleSource.length > 30 ? '...' : '');
             dbSaveChat(chat);
             updateChatList();
@@ -556,7 +566,7 @@ function sendMessage() {
             const statusText = document.getElementById('statusText');
             if (statusText) statusText.textContent = 'ROUTING...';
 
-            const targetId = Date.now();
+            const targetId = getNextTargetId();
             updateLiveBubble('...', targetId);
 
             setTimeout(() => {
@@ -572,7 +582,7 @@ function sendMessage() {
     worker.postMessage({
         type: 'query',
         messages: messagesForModel,
-        targetId: Date.now(),
+        targetId: getNextTargetId(),
         chatId: currentChatId
     });
 }
@@ -697,7 +707,10 @@ async function handleToolCalls(message, targetId, originChatId) {
     ).join('\n');
 
     const assistantToolTurn = { role: 'assistant', content: message };
-    const toolResultTurn = { role: 'user', content: toolResultText };
+    // Inject results as a 'user' turn with a system prefix so the model
+    // understands it should summarize the data — not echo the raw JSON back.
+    const toolResultTurn = { role: 'user', content: '[SYSTEM: Tool results below. Interpret them and reply naturally to the user.]
+' + toolResultText };
 
     if (originChatId === currentChatId) {
         chatHistory.push(assistantToolTurn, toolResultTurn);
@@ -723,7 +736,7 @@ async function handleToolCalls(message, targetId, originChatId) {
     }
 
     const messagesForModel = getMessagesWindow(activeMessages);
-    const nextTargetId = Date.now(); // Create a new bubble for the follow-up response
+    const nextTargetId = getNextTargetId(); // Create a new bubble for the follow-up response
 
     worker.postMessage({
         type: 'query',
@@ -780,7 +793,7 @@ async function executeTool(toolName, params) {
                     : `[Game State] Current Checkers Board: ${activeGame.getFen()}. You are playing Black (b/B). The user just moved. What is your next move in 'from_r,from_c to to_r,to_c' format? Use the make_move tool.`;
 
                 chatHistory.push({ role: 'user', content: aiPrompt });
-                appendUserMessage(`[Moved piece]`);
+                appendUserMessage(`[Moved piece]`, chatHistory.length - 1);
                 persistCurrentChat();
 
                 setIdleState(false);
@@ -788,7 +801,7 @@ async function executeTool(toolName, params) {
                 worker.postMessage({
                     type: 'query',
                     messages: messagesForModel,
-                    targetId: Date.now(),
+                    targetId: getNextTargetId(),
                     chatId: currentChatId
                 });
             });
@@ -876,12 +889,9 @@ async function executeTool(toolName, params) {
 
 
 pythonWorker.onmessage = (e) => {
-    const { status, output, error, execId } = e.data;
-    if (status === 'ready') { console.log('Python worker ready'); return; }
-    const callback = pythonCallbacks.get(execId);
-    if (!callback) return;
-    pythonCallbacks.delete(execId);
-    status === 'done' ? callback.resolve(output) : callback.reject(new Error(error || 'Python execution failed'));
+    // 'ready' fires once when Pyodide finishes loading
+    if (e.data.status === 'ready') { console.log('Python worker ready'); }
+    // Per-execution results are handled by inline addEventListener in executeTool()
 };
 
 function updateStatusLight(state) {
@@ -900,17 +910,27 @@ function escapeHTML(raw) {
 }
 
 function formatAssistantMessage(text) {
-    const escaped = escapeHTML(text);
-    return escaped
-        .replace(/```\s*tool:run\n?([\s\S]*?)```/g, (_, code) => {
-            const lines = code.trim().split('\n');
-            const toolName = lines[0] || 'Unknown';
-            const params = lines.slice(1).join('<br>');
-            return `<div class="tool-usage-box" style="margin: 8px 0; padding: 10px; background: rgba(0,0,0,0.2); border-left: 3px solid #3b82f6; border-radius: 4px; font-family: monospace; font-size: 0.9em;">
-            <div style="color: #60a5fa; font-weight: bold; margin-bottom: 4px;">🔧 Tool: ${toolName}</div>
+    // ── Step 1: Extract tool:run blocks BEFORE HTML escaping ──────────────────
+    // Doing it after escapeHTML would double-encode the tool names and params.
+    const toolBoxes = [];
+    const TOOL_PLACEHOLDER = '\x01TOOLBOX_'; // \x01 is not affected by escapeHTML
+    const textWithPlaceholders = text.replace(/```\s*tool:run\n?([\s\S]*?)```/g, (_, code) => {
+        const lines = code.trim().split('\n');
+        const toolName = escapeHTML(lines[0] || 'Unknown');
+        const params = lines.slice(1).map(l => escapeHTML(l)).join('<br>');
+        const html = `<div class="tool-usage-box" style="margin: 8px 0; padding: 10px; background: rgba(0,0,0,0.2); border-left: 3px solid #3b82f6; border-radius: 4px; font-family: monospace; font-size: 0.9em;">
+            <div style="color: #60a5fa; font-weight: bold; margin-bottom: 4px;">\uD83D\uDD27 Tool: ${toolName}</div>
             <div style="color: #94a3b8;">${params}</div>
         </div>`;
-        })
+        const idx = toolBoxes.push(html) - 1;
+        return `${TOOL_PLACEHOLDER}${idx}\x01`;
+    });
+
+    // ── Step 2: Escape HTML on remaining text ─────────────────────────────────
+    let html = escapeHTML(textWithPlaceholders);
+
+    // ── Step 3: Apply markdown formatting ────────────────────────────────────
+    html = html
         .replace(/```([\s\S]*?)```/g, (_, code) => `<pre><code>${code.trim()}</code></pre>`)
         .replace(/(^|\n)######\s*(.+)/g, '$1<h6>$2</h6>')
         .replace(/(^|\n)#####\s*(.+)/g, '$1<h5>$2</h5>')
@@ -921,14 +941,19 @@ function formatAssistantMessage(text) {
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.+?)\*/g, '<em>$1</em>')
         .replace(/`([^`\n]+?)`/g, '<code>$1</code>')
-        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, url) => {
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, linkText, url) => {
             const cleanUrl = url.trim().toLowerCase().startsWith('javascript:') ? '#' : url.trim();
-            return `<a href="${cleanUrl}" target="_blank" rel="noreferrer noopener">${text}</a>`;
+            return `<a href="${cleanUrl}" target="_blank" rel="noreferrer noopener">${linkText}</a>`;
         })
         .replace(/\n/g, '<br>');
+
+    // ── Step 4: Restore tool blocks (placeholders survive escapeHTML intact) ──
+    toolBoxes.forEach((box, i) => { html = html.replace(`${TOOL_PLACEHOLDER}${i}\x01`, box); });
+
+    return html;
 }
 
-function appendUserMessage(text) {
+function appendUserMessage(text, historyIdx = -1) {
     const chatLog = document.getElementById('chatLog');
     if (!chatLog) return;
     const messageWrap = document.createElement('div');
@@ -942,7 +967,7 @@ function appendUserMessage(text) {
     editBtn.className = 'edit-msg-btn';
     editBtn.innerHTML = '✏️';
     editBtn.title = 'Edit this message';
-    editBtn.onclick = () => window.editUserMessage(text);
+    editBtn.onclick = () => window.editUserMessage(historyIdx);
 
     const container = document.createElement('div');
     container.className = 'user-msg-container';
@@ -954,16 +979,17 @@ function appendUserMessage(text) {
     chatLog.scrollTop = chatLog.scrollHeight;
 }
 
-window.editUserMessage = function (text) {
+window.editUserMessage = function (historyIdx) {
     if (_isGeneratingUI) return;
-    const idx = chatHistory.findLastIndex(m => m.role === 'user' && m.content === text);
-    if (idx !== -1) {
-        chatHistory = chatHistory.slice(0, idx);
-        persistCurrentChat();
-        cmdInput.value = text;
-        cmdInput.focus();
-        renderChatLog();
-    }
+    if (historyIdx < 0 || historyIdx >= chatHistory.length) return;
+    const msg = chatHistory[historyIdx];
+    if (!msg || msg.role !== 'user') return;
+    const originalText = msg.content;
+    chatHistory = chatHistory.slice(0, historyIdx);
+    persistCurrentChat();
+    cmdInput.value = originalText;
+    cmdInput.focus();
+    renderChatLog();
 };
 
 let _lastRenderTime = 0;
@@ -1012,8 +1038,12 @@ function appendErrorToChat(errorMessage) {
     chatLog.scrollTop = chatLog.scrollHeight;
 }
 
+let _cannedGenId = 0; // Incremented per simulateCannedResponse call to detect superseded generations
+
 async function simulateCannedResponse(canned, targetId = null) {
-    if (!targetId) targetId = Date.now();
+    if (!targetId) targetId = getNextTargetId();
+    const myGenId = ++_cannedGenId;   // This generation's token
+    const myChatId = currentChatId;  // Capture to detect chat switches during awaits
     const statusText = document.getElementById('statusText');
 
     setIdleState(false);
@@ -1023,8 +1053,8 @@ async function simulateCannedResponse(canned, targetId = null) {
 
     await new Promise(r => setTimeout(r, 400 + Math.random() * 500));
 
-    // If the user stopped before we finished the thinking delay, bail out
-    if (!_isGeneratingUI) return;
+    // Bail out if a newer generation started OR user stopped OR chat was switched
+    if (myGenId !== _cannedGenId || !_isGeneratingUI || currentChatId !== myChatId) return;
 
     if (statusText) statusText.textContent = 'RESPONDING...';
     queueStreamText(targetId, canned);
@@ -1032,8 +1062,8 @@ async function simulateCannedResponse(canned, targetId = null) {
     const wordCount = canned.split(/\s+/).length;
     await new Promise(r => setTimeout(r, wordCount * 35 + 300));
 
-    // Check again — user may have stopped during the stream animation
-    if (!_isGeneratingUI) return;
+    // Check again after stream delay
+    if (myGenId !== _cannedGenId || !_isGeneratingUI || currentChatId !== myChatId) return;
 
     chatHistory.push({ role: 'assistant', content: canned });
     persistCurrentChat();
@@ -1127,7 +1157,8 @@ function startNewChat() {
     chatHistory = [welcome];
 
     const newChat = {
-        id: Date.now(),
+        // Timestamp * 1000 + random fraction: collision-safe, still sortable, fits JS safe integer range
+        id: Date.now() * 1000 + Math.floor(Math.random() * 1000),
         name: 'New Chat',
         messages: [...chatHistory],
     };
@@ -1142,7 +1173,7 @@ function startNewChat() {
 }
 
 /** Build a single message DOM element (shared by renderChatLog and loadOlderMessages). */
-function createMessageElement(msg) {
+function createMessageElement(msg, historyIdx = -1) {
     const messageWrap = document.createElement('div');
     messageWrap.className = `message-wrap ${msg.role === 'user' ? 'user-msg' : 'assistant-msg'}`;
     const messageContent = document.createElement('div');
@@ -1157,7 +1188,7 @@ function createMessageElement(msg) {
         editBtn.className = 'edit-msg-btn';
         editBtn.innerHTML = '\u270f\ufe0f';
         editBtn.title = 'Edit this message';
-        editBtn.onclick = () => window.editUserMessage(msg.content);
+        editBtn.onclick = () => window.editUserMessage(historyIdx);
         const container = document.createElement('div');
         container.className = 'user-msg-container';
         container.appendChild(editBtn);
@@ -1187,7 +1218,7 @@ function renderChatLog() {
         _attachSentinelObserver(chatLog, sentinel);
     }
 
-    chatHistory.slice(_renderOffset).forEach(msg => chatLog.appendChild(createMessageElement(msg)));
+    chatHistory.slice(_renderOffset).forEach((msg, i) => chatLog.appendChild(createMessageElement(msg, _renderOffset + i)));
     chatLog.scrollTop = chatLog.scrollHeight;
 }
 
@@ -1228,7 +1259,7 @@ window.loadOlderMessages = function () {
         const newSentinel = _makeSentinel();
         fragment.appendChild(newSentinel);
     }
-    olderMsgs.forEach(msg => fragment.appendChild(createMessageElement(msg)));
+    olderMsgs.forEach((msg, i) => fragment.appendChild(createMessageElement(msg, newOffset + i)));
     chatLog.insertBefore(fragment, chatLog.firstChild);
 
     // Keep the user's viewport stable (no jump)
