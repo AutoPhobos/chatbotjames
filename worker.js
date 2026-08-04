@@ -192,6 +192,7 @@ AVAILABLE TOOLS (use only when essential):
 - time (params: timezone) → current time in a specified timezone
 - calculator (params: expr) → evaluate math expressions
 - convert (params: value, from, to) → standard unit conversion
+- start_game (params: game) → Starts a game of "chess" or "checkers" with the user in the UI
 
 BEHAVIOR RULES:
 1. DEFAULT: Always reply conversationally without tools. Only use tools for real-time, external, or non-static knowledge.
@@ -254,6 +255,17 @@ amount: 100
 
 Then:
 "100 USD is approximately [result] EUR at current rates."
+
+User: "Let's play a game of chess"
+→ Use start_game tool.
+
+\`\`\`tool:run
+start_game
+game: chess
+\`\`\`
+
+Then:
+"I have started a game of chess. Your move!"
 
 User: "What's 25 * 4?"
 → No tool needed.
