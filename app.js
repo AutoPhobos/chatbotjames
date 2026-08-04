@@ -1,6 +1,6 @@
 import { smallTalk } from './smalltalk.js';
 import { toolRouter } from './tool-router.js';
-import { ChessGame, CheckersGame } from './game-logic.js';
+import { ChessGame, CheckersGame, parseUserMove } from './game-logic.js';
 import { renderGameBoard } from './game-ui.js';
 import { CONFIG } from './config.js';
 import {
@@ -384,11 +384,27 @@ function sendMessage() {
         fullPrompt = (text ? text + "\n" : "Please analyze the attached file(s):") + fileContext;
     }
 
+    let userMovePlayed = null;
     if (activeGame) {
+        userMovePlayed = parseUserMove(text, activeGame);
+        if (userMovePlayed) {
+            if (activeGameUI) activeGameUI.update(userMovePlayed.notation);
+            if (userMovePlayed.move.promotion || userMovePlayed.move.jump || userMovePlayed.move.multiJump) {
+                playGameBuffSound();
+            } else {
+                playGameMoveSound();
+            }
+        }
+
         const turnColor = activeGame.getTurn() === 'w' ? 'White' : 'Black';
         const aiColor = 'Black';
         const gameTypeLabel = activeGame.type === 'chess' ? 'FEN' : 'Checkers Board';
-        fullPrompt += `\n\n[Game State] Current ${gameTypeLabel}: ${activeGame.getFen()}. You are playing ${aiColor}. It is currently ${turnColor}'s turn. If the user provided a move in text, you MUST use the make_move tool to apply their move first, then (after seeing the result) use make_move again to play your own move.`;
+        
+        if (userMovePlayed) {
+            fullPrompt += `\n\n[Game State] Current ${gameTypeLabel}: ${activeGame.getFen()}. You are playing ${aiColor}. The user just played ${userMovePlayed.notation}. It is NOW YOUR TURN. You MUST use the make_move tool immediately to play your move. Do NOT ask the user for their move—they just played it!`;
+        } else {
+            fullPrompt += `\n\n[Game State] Current ${gameTypeLabel}: ${activeGame.getFen()}. You are playing ${aiColor}. It is currently ${turnColor}'s turn. If the user provided a move in text, you MUST use the make_move tool to apply their move first, then (after seeing the result) use make_move again to play your own move.`;
+        }
     }
 
     const displayMessage = text + (attachedFiles.length > 0 ? ` [Attached: ${attachedFiles.map(f => f.name).join(', ')}]` : '');

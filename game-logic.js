@@ -363,3 +363,68 @@ export class CheckersGame {
         return null;
     }
 }
+
+export function parseUserMove(text, game) {
+    if (!game) return null;
+    
+    if (game.type === 'chess') {
+        // e2 to e4, e2-e4, e2e4
+        const sqMatch = text.match(/\b([a-h][1-8])\s*(?:to|->|-|→|\s+)?\s*([a-h][1-8])\b/i);
+        if (sqMatch) {
+            const m = game.move(sqMatch[1].toLowerCase(), sqMatch[2].toLowerCase());
+            if (m) return { notation: m.san, move: m };
+        }
+
+        // Standard SAN (e4, Nf3, O-O, etc.)
+        const sanMatches = text.match(/\b(?:[NQKBR]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NQKBR])?[+#]?|O-O(?:-O)?)\b/g);
+        if (sanMatches) {
+            for (const san of sanMatches) {
+                try {
+                    const m = game.game.move(san);
+                    if (m) return { notation: m.san, move: m };
+                } catch(e) {}
+            }
+        }
+
+        // Natural language phrases
+        const lower = text.toLowerCase();
+        let fromSq = null, toSq = null;
+        const turn = game.getTurn();
+        
+        // King's pawn 2 steps / pawn in front of king 2 steps / pawn above king 2 steps
+        if (/(?:pawn\s+(?:in\s+front\s+of|above|before)\s+(?:the\s+)?king|king'?s?\s+pawn).*(?:2|two)/.test(lower)) {
+            fromSq = turn === 'w' ? 'e2' : 'e7';
+            toSq = turn === 'w' ? 'e4' : 'e5';
+        }
+        // Queen's pawn 2 steps
+        else if (/(?:pawn\s+(?:in\s+front\s+of|above|before)\s+(?:the\s+)?queen|queen'?s?\s+pawn).*(?:2|two)/.test(lower)) {
+            fromSq = turn === 'w' ? 'd2' : 'd7';
+            toSq = turn === 'w' ? 'd4' : 'd5';
+        }
+        // King's pawn 1 step
+        else if (/(?:pawn\s+(?:in\s+front\s+of|above|before)\s+(?:the\s+)?king|king'?s?\s+pawn)/.test(lower)) {
+            fromSq = turn === 'w' ? 'e2' : 'e7';
+            toSq = turn === 'w' ? 'e3' : 'e6';
+        }
+        // Queen's pawn 1 step
+        else if (/(?:pawn\s+(?:in\s+front\s+of|above|before)\s+(?:the\s+)?queen|queen'?s?\s+pawn)/.test(lower)) {
+            fromSq = turn === 'w' ? 'd2' : 'd7';
+            toSq = turn === 'w' ? 'd3' : 'd6';
+        }
+
+        if (fromSq && toSq) {
+            const m = game.move(fromSq, toSq);
+            if (m) return { notation: m.san, move: m };
+        }
+    } else if (game.type === 'checkers') {
+        const match = text.match(/(\d+)\s*[,:]?\s*(\d+)\s*(?:to|->|-|→|\s+)\s*(\d+)\s*[,:]?\s*(\d+)/i);
+        if (match) {
+            const sr = parseInt(match[1]), sc = parseInt(match[2]);
+            const tr = parseInt(match[3]), tc = parseInt(match[4]);
+            const res = game.move(sr, sc, tr, tc);
+            if (res) return { notation: `(${sr},${sc})→(${tr},${tc})`, move: res };
+        }
+    }
+
+    return null;
+}
