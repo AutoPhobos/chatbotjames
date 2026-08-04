@@ -7,9 +7,9 @@ import { BUILD_NUMBER } from './build.js?v=2';
 
 // Safe LocalStorage wrapper to prevent UI crash in strict privacy modes
 const safeLocalStorage = {
-    getItem: (key) => { try { return localStorage.getItem(key); } catch(e) { return null; } },
-    setItem: (key, val) => { try { localStorage.setItem(key, val); } catch(e) {} },
-    removeItem: (key) => { try { localStorage.removeItem(key); } catch(e) {} }
+    getItem: (key) => { try { return localStorage.getItem(key); } catch (e) { return null; } },
+    setItem: (key, val) => { try { localStorage.setItem(key, val); } catch (e) { } },
+    removeItem: (key) => { try { localStorage.removeItem(key); } catch (e) { } }
 };
 
 let activeGame = null;
@@ -122,7 +122,7 @@ function _onWakeLockVisibilityChange() {
 
 function releaseWakeLock() {
     if (_wakeLock) {
-        _wakeLock.release().catch(() => {});
+        _wakeLock.release().catch(() => { });
         _wakeLock = null;
         document.removeEventListener('visibilitychange', _onWakeLockVisibilityChange);
         console.log('🔅 Screen Wake Lock released');
@@ -434,7 +434,7 @@ function initWorker() {
     worker = new Worker('worker.js?v=2', { type: 'module' });
     // Re-attach the message handler so the new worker isn't silent
     worker.onmessage = workerMessageHandler;
-worker.onerror = (e) => { console.error('WORKER ERROR:', e); document.querySelector('.status-meta').innerText = 'Worker failed to load: ' + e.message; };
+    worker.onerror = (e) => { console.error('WORKER ERROR:', e); document.querySelector('.status-meta').innerText = 'Worker failed to load: ' + e.message; };
     // Re-initialize the model so the new worker is fully operational
     const _lastPreset = safeLocalStorage.getItem('james-last-preset-id');
     worker.postMessage({ type: 'init', lastPresetId: _lastPreset || null });
@@ -549,15 +549,15 @@ function sendMessage() {
 
         const toolMatch = toolRouter.match(text);
         if (toolMatch) {
-            const simulatedAssistantMessage = "```tool:run\n" + toolMatch.tool + "\n" + Object.entries(toolMatch.params).map(([k,v]) => `${k}: ${v}`).join('\n') + "\n```";
+            const simulatedAssistantMessage = "```tool:run\n" + toolMatch.tool + "\n" + Object.entries(toolMatch.params).map(([k, v]) => `${k}: ${v}`).join('\n') + "\n```";
             setIdleState(false);
             updateStatusLight('thinking');
             const statusText = document.getElementById('statusText');
             if (statusText) statusText.textContent = 'ROUTING...';
-            
+
             const targetId = Date.now();
             updateLiveBubble('...', targetId);
-            
+
             setTimeout(() => {
                 handleToolCalls(simulatedAssistantMessage, targetId, currentChatId);
             }, 300);
@@ -608,7 +608,7 @@ function handleStopGeneration() {
     if (worker) {
         worker.postMessage({ type: 'abort' });
     }
-    
+
     // Reset tool call depth so next conversation starts fresh
     _toolCallDepth = 0;
 
@@ -617,7 +617,7 @@ function handleStopGeneration() {
     updateStatusLight('idle');
     const statusText = document.getElementById('statusText');
     if (statusText) statusText.textContent = 'READY';
-    
+
     streamQueues.forEach((_, targetId) => flushStreamQueue(targetId));
 }
 
@@ -645,7 +645,7 @@ async function handleToolCalls(message, targetId, originChatId) {
                 if (activeGameUI) activeGameUI.update();
                 interceptedGameMove = true;
             } else if (message.includes('[Game State]')) {
-               // AI failed to make a valid move. We could auto-retry, but for now just let the user see the text.
+                // AI failed to make a valid move. We could auto-retry, but for now just let the user see the text.
             }
         }
 
@@ -770,18 +770,18 @@ async function executeTool(toolName, params) {
     if (toolName === 'start_game') {
         const gameType = params.game;
         activeGame = gameType === 'checkers' ? new CheckersGame() : new ChessGame();
-        
+
         setTimeout(() => {
             const chatLog = document.getElementById('chatLog');
             activeGameUI = renderGameBoard(activeGame, chatLog, (moveInfo) => {
-                const aiPrompt = activeGame.type === 'chess' 
+                const aiPrompt = activeGame.type === 'chess'
                     ? `[Game State] Current FEN: ${activeGame.getFen()}. You are playing Black. The user just moved. What is your next move in standard algebraic notation (e.g. e5, Nf6)? Use the make_move tool.`
                     : `[Game State] Current Checkers Board: ${activeGame.getFen()}. You are playing Black (b/B). The user just moved. What is your next move in 'from_r,from_c to to_r,to_c' format? Use the make_move tool.`;
-                
+
                 chatHistory.push({ role: 'user', content: aiPrompt });
                 appendUserMessage(`[Moved piece]`);
                 persistCurrentChat();
-                
+
                 setIdleState(false);
                 const messagesForModel = getMessagesWindow(chatHistory);
                 worker.postMessage({
@@ -985,7 +985,7 @@ function updateLiveBubble(text, targetId, force = false) {
         bubble.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
         return;
     }
-    
+
     const now = Date.now();
     if (!force && now - _lastRenderTime < CONFIG.ui.throttleFpsMs) {
         return; // Throttle heavy markdown regexes to ~30fps
@@ -1541,12 +1541,3 @@ applyModelBtn?.addEventListener('click', () => {
 
     worker.postMessage({ type: 'init', forcePresetId: _selectedPresetId });
 });
-<<<<<<< HEAD
-=======
-
-
-
-
-
-
->>>>>>> a00e78b3d5b6d4e9da416af0cd623235b1ec4b69
