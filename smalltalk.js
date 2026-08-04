@@ -204,8 +204,8 @@ export class SmallTalkHandler {
                     'que puedes hacer', "qu'est-ce que tu peux faire",
                 ],
                 responses: [
-                    "I can chat, answer questions, look up weather, convert currencies, fetch Wikipedia summaries, generate passwords and UUIDs, tell time in any timezone, set timers, read your clipboard, and more. Just ask!",
-                    "I can help with general questions plus real-time tools: 🌤️ weather, 💱 currency, 📚 Wikipedia, ⏰ time, 🔑 passwords, 🎨 color palettes, ⏳ timers, and more. What do you need?",
+                    "I can chat, answer questions, and use real-time tools: 🌤️ weather, ⏰ time, 💱 currency, 📚 Wikipedia, 🔍 web search, 🐍 Python, ♟️ chess, 🔴 checkers, 🔑 passwords/UUIDs, 🎨 color palettes, ⏳ timers, 📋 clipboard, 🎲 dice, 🌐 IP lookup, 🔐 hash, 🔢 base64, and more. Just ask!",
+                    "Here's what I can do:\n🌤️ weather · ⏰ time · 💱 currency · 📚 Wikipedia · 🔍 search\n🐍 Python · ♟️ chess · 🔴 checkers · 🎲 dice/coin · 🌐 IP lookup\n🔑 passwords · 🔢 UUIDs · 🎨 palettes · ⏳ timers · 📋 clipboard\n🔐 hash (MD5/SHA) · 🔢 base64 · 📐 unit convert · ⏳ countdown\nWhat do you need?",
                 ],
             },
             {

@@ -9,8 +9,8 @@ const CHUNK_SIZE = CONFIG.worker.chunkSizeMb * 1024 * 1024;
 const MAX_DOWNLOAD_CONCURRENCY = CONFIG.worker.maxDownloadConcurrency;
 
 const nativeFetch = self.fetch.bind(self);
-// // self.fetch = customFetch;
-// // env.fetch = customFetch;
+self.fetch = customFetch;
+env.fetch = customFetch;
 
 function shouldUseDownloadCache(url) {
     if (url.endsWith('.wasm')) return false;

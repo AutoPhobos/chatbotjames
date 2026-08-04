@@ -650,13 +650,19 @@ async function handleToolCalls(message, targetId, originChatId) {
 
         let interceptedGameMove = false;
         if (activeGame && originChatId === currentChatId) {
-            // Try to parse the AI's response as a game move
+            // Try to parse the AI's response as a plain-text game move (no tool:run block)
             const moveMade = activeGame.makeSanMove(message);
             if (moveMade) {
-                if (activeGameUI) activeGameUI.update();
+                // Extract notation for the panel (same logic as make_move handler)
+                let notation = null;
+                if (activeGame.type === 'chess') {
+                    notation = moveMade.san || message.trim();
+                } else {
+                    const m = message.match(/(\d+)\D+?(\d+)\s*(?:to|->|→)\s*(\d+)\D+?(\d+)/i);
+                    notation = m ? `(${m[1]},${m[2]})→(${m[3]},${m[4]})` : message.trim();
+                }
+                if (activeGameUI) activeGameUI.update(notation);
                 interceptedGameMove = true;
-            } else if (message.includes('[Game State]')) {
-                // AI failed to make a valid move. We could auto-retry, but for now just let the user see the text.
             }
         }
 
@@ -763,6 +769,14 @@ function parseToolCalls(text) {
                         const key = line.substring(0, colonIdx).trim();
                         let value = line.substring(colonIdx + 1).trim();
 
+                        // 'code' is multi-line: collect ALL remaining lines as the value
+                        // so Python snippets with multiple lines are not truncated.
+                        if (key === 'code') {
+                            const restLines = lines.slice(i + 1);
+                            params[key] = (value + (restLines.length ? '\n' + restLines.join('\n') : '')).trimEnd();
+                            break; // code consumes the rest of the block
+                        }
+
                         if (value === 'true') value = true;
                         else if (value === 'false') value = false;
                         else if (!isNaN(Number(value)) && value !== '') value = Number(value);
@@ -788,9 +802,7 @@ async function executeTool(toolName, params) {
             const chatLog = document.getElementById('chatLog');
             activeGameUI = renderGameBoard(activeGame, chatLog, (moveInfo) => {
                 // Check if the player's move ended the game immediately
-                const gameOver = activeGame.type === 'chess'
-                    ? activeGame.isGameOver()
-                    : activeGame.isGameOver();
+                const gameOver = activeGame.isGameOver();
 
                 if (gameOver) {
                     const result = activeGame.type === 'checkers' && activeGame.getWinner
@@ -864,7 +876,7 @@ async function executeTool(toolName, params) {
         }
     }
 
-    if (toolName === 'search_web' || toolName === 'web_search') {
+    if (toolName === 'search_web' || toolName === 'web_search' || toolName === 'websearch') {
         try {
             return await import('./tools-search.js').then(m => m.performWebSearch(params.query || params.q));
         } catch (error) {
@@ -1026,7 +1038,12 @@ window.editUserMessage = function (historyIdx) {
     if (historyIdx < 0 || historyIdx >= chatHistory.length) return;
     const msg = chatHistory[historyIdx];
     if (!msg || msg.role !== 'user') return;
-    const originalText = msg.content;
+    let originalText = msg.content;
+    // Strip attached file content that was appended by sendMessage() —
+    // the user should only see the text they typed, not the raw file dump.
+    const fileMarker = '\n\n[Attached Files Content]:';
+    const markerIdx = originalText.indexOf(fileMarker);
+    if (markerIdx !== -1) originalText = originalText.substring(0, markerIdx).trim();
     chatHistory = chatHistory.slice(0, historyIdx);
     persistCurrentChat();
     cmdInput.value = originalText;
@@ -1135,7 +1152,7 @@ function isTVDevice() {
 
 function getLightweightWelcomeMessage(showTools = true) {
     const toolsBlock = showTools
-        ? `\n───────────────\n🧰 **Tools available**\n───────────────\n🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia · 🔍 search\n🔑 uuid · 🔐 password · 🎨 palette · ⏳ timer · 📋 clipboard\n♟️ chess · 🔴 checkers\n───────────────\n`
+        ? `\n───────────────\n🧰 **Tools available**\n───────────────\n🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia · 🔍 search\n🔑 uuid · 🔐 password · 🎨 palette · ⏳ timer · 📋 clipboard\n♟️ chess · 🔴 checkers · 🐍 python\n───────────────\n`
         : '';
 
     return {
@@ -1146,7 +1163,7 @@ function getLightweightWelcomeMessage(showTools = true) {
 
 function getFullWelcomeMessage(showTools = true) {
     const toolsBlock = showTools
-        ? `───────────────\n\n🧰 **Tools available**\n───────────────\n🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia · 🔍 search\n🔑 uuid · 🔐 password · 🎨 palette · ⏳ timer · 📋 clipboard\n♟️ chess · 🔴 checkers\n───────────────\n\n`
+        ? `───────────────\n\n🧰 **Tools available**\n───────────────\n🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia · 🔍 search\n🔑 uuid · 🔐 password · 🎨 palette · ⏳ timer · 📋 clipboard\n♟️ chess · 🔴 checkers · 🐍 python\n───────────────\n\n`
         : '';
 
     return {
@@ -1157,7 +1174,7 @@ function getFullWelcomeMessage(showTools = true) {
 
 function getTVWelcomeMessage(showTools = true) {
     const toolsBlock = showTools
-        ? `\n───────────────\n🧰 **Tools available**\n───────────────\n🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia · 🔍 search\n🔑 uuid · 🔐 password · 🎨 palette · ⏳ timer · 📋 clipboard\n♟️ chess · 🔴 checkers\n───────────────\n`
+        ? `\n───────────────\n🧰 **Tools available**\n───────────────\n🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia · 🔍 search\n🔑 uuid · 🔐 password · 🎨 palette · ⏳ timer · 📋 clipboard\n♟️ chess · 🔴 checkers · 🐍 python\n───────────────\n`
         : '';
 
     return {
