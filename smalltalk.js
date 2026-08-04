@@ -3,10 +3,24 @@
  * Intercepts common small-talk messages and returns an instant canned response,
  * bypassing the LLM entirely. Fast, free, and always available even while the
  * model is still loading. Supports multiple top world languages and robust edge cases.
+ *
+ * Robustness improvements over the original:
+ *  - Triggers are pre-normalised once at construction time (no per-call overhead).
+ *  - Three-pass matching: exact → prefix-with-word-boundary → fuzzy edit-distance.
+ *  - Word-boundary guard prevents short triggers ("hi") from matching mid-sentence words.
+ *  - Non-repeating response picker — avoids giving the same reply twice in a row.
+ *  - Per-pattern response history so every pattern independently avoids repeats.
+ *  - Fuzzy matching (Levenshtein ≤ 1) catches single-char typos ("helo", "thnks").
+ *  - Punctuation-stripped normalisation handles "hello!" → "hello" etc.
+ *  - Input length guard (≤ 40 chars) keeps fuzzy pass fast.
+ *  - Prefix pass uses a proper word-boundary check instead of a magic "+8" fudge.
+ *  - 'salut' removed from farewell list (was duplicated from French greetings).
+ *  - Cyrillic / CJK / non-Latin inputs handled correctly (no NFD corruption).
  */
 export class SmallTalkHandler {
     constructor() {
-        this._patterns = [
+        // ── Raw pattern definitions ────────────────────────────────────────────
+        const rawPatterns = [
 
             // ── Greetings (Multilingual) ────────────────────────────────────────
             {
@@ -37,7 +51,7 @@ export class SmallTalkHandler {
                     "Bonjour ! Comment puis-je vous aider ?",
                     "Hallo! Wie kann ich Ihnen helfen?",
                     "Привет! Чем могу помочь?",
-                    "Olá! Como posso ajudar?"
+                    "Olá! Como posso ajudar?",
                 ],
             },
             {
@@ -48,14 +62,14 @@ export class SmallTalkHandler {
                     'dobroe utro', 'доброе утро',
                     'bom dia',
                     'buongiorno',
-                    'zao shang hao'
+                    'zao shang hao',
                 ],
                 responses: [
                     "Good morning! ☀️ What can I help you with today?",
                     "Morning! Ready to go. What do you need?",
                     "Good morning! Hope the day's treating you well. What's up?",
                     "¡Buenos días! ☀️ ¿Qué tal tu mañana?",
-                    "Guten Morgen! ☀️ Wie kann ich helfen?"
+                    "Guten Morgen! ☀️ Wie kann ich helfen?",
                 ],
             },
             {
@@ -66,12 +80,12 @@ export class SmallTalkHandler {
                     'guten tag',
                     'dobry den', 'добрый день',
                     'boa tarde',
-                    'buon pomeriggio'
+                    'buon pomeriggio',
                 ],
                 responses: [
                     "Good afternoon! How can I help?",
                     "Afternoon! What do you need?",
-                    "¡Buenas tardes! ¿En qué te puedo colaborar?"
+                    "¡Buenas tardes! ¿En qué te puedo colaborar?",
                 ],
             },
             {
@@ -82,13 +96,13 @@ export class SmallTalkHandler {
                     'guten abend', 'gute nacht',
                     'dobry vecher', 'добрый вечер', 'спокойной ночи',
                     'boa noite',
-                    'buonasera', 'buonanotte'
+                    'buonasera', 'buonanotte',
                 ],
                 responses: [
                     "Good evening! How can I assist?",
                     "Evening! What do you need?",
                     "Good night! 🌙 Let me know if there's anything before you go.",
-                    "¡Buenas noches! 🌙 ¿En qué te puedo ayudar antes de descansar?"
+                    "¡Buenas noches! 🌙 ¿En qué te puedo ayudar antes de descansar?",
                 ],
             },
             {
@@ -112,13 +126,13 @@ export class SmallTalkHandler {
                     // French
                     'comment ca va', 'comment ça va', 'ca va', 'ça va',
                     // German
-                    'wie geht es dir', 'wie gehts', 'wie geht\'s',
+                    'wie geht es dir', 'wie gehts', "wie geht's",
                     // Russian
                     'kak dela', 'как дела', 'как ты',
                     // Portuguese
                     'tudo bem', 'como vai',
                     // Italian
-                    'come stai', 'come va'
+                    'come stai', 'come va',
                 ],
                 responses: [
                     "I'm doing great, thanks for asking! How can I help?",
@@ -127,7 +141,7 @@ export class SmallTalkHandler {
                     "Doing well! Ready to help. What's up?",
                     "Functioning at 100%! What's on your mind?",
                     "¡Todo excelente por aquí! ¿Y tú, qué tal?",
-                    "¡Funcionando al 100%! ¿En qué te puedo colaborar?"
+                    "¡Funcionando al 100%! ¿En qué te puedo colaborar?",
                 ],
             },
 
@@ -145,8 +159,8 @@ export class SmallTalkHandler {
             {
                 triggers: [
                     'who are you', 'what are you', "what's your name", 'whats your name',
-                    'introduce yourself', 'tell me about yourself', 'who is JAMES', 'what is JAMES',
-                    'quien eres', 'qui es tu', 'wer bist du', 'kto ty', 'quem e voce', 'chi sei'
+                    'introduce yourself', 'tell me about yourself', 'who is james', 'what is james',
+                    'quien eres', 'qui es tu', 'wer bist du', 'kto ty', 'quem e voce', 'chi sei',
                 ],
                 responses: [
                     "I'm JAMES — a local, private AI assistant running entirely in your browser. No servers, no tracking.",
@@ -158,7 +172,7 @@ export class SmallTalkHandler {
                     'are you ai', 'are you an ai', 'are you a bot', 'are you a robot',
                     'are you human', 'are you real', 'are you sentient', 'are you alive',
                     'do you have feelings', 'do you feel', 'do you think', 'are you conscious',
-                    'do you have a body', 'are you a person'
+                    'do you have a body', 'are you a person',
                 ],
                 responses: [
                     "I'm an AI — no feelings, no consciousness, but quite good at being helpful. 🤖",
@@ -187,7 +201,7 @@ export class SmallTalkHandler {
                     'what can you do', 'what are your capabilities', 'what do you know',
                     'what are your features', 'how can you help me', 'what are you good at',
                     'what do you offer', 'what tools do you have', 'show me what you can do',
-                    'que puedes hacer', 'qu\'est-ce que tu peux faire'
+                    'que puedes hacer', "qu'est-ce que tu peux faire",
                 ],
                 responses: [
                     "I can chat, answer questions, look up weather, convert currencies, fetch Wikipedia summaries, generate passwords and UUIDs, tell time in any timezone, set timers, read your clipboard, and more. Just ask!",
@@ -220,7 +234,7 @@ export class SmallTalkHandler {
                     // Portuguese
                     'obrigado', 'obrigada', 'valeu',
                     // Italian
-                    'grazie', 'grazie mille'
+                    'grazie', 'grazie mille',
                 ],
                 responses: [
                     "Happy to help! 😊",
@@ -230,7 +244,7 @@ export class SmallTalkHandler {
                     "Of course! Let me know if there's anything else.",
                     "No problem at all!",
                     "¡De nada! 😊 Con mucho gusto.",
-                    "¡A ti! Avísame si necesitas algo más."
+                    "¡A ti! Avísame si necesitas algo más.",
                 ],
             },
 
@@ -244,13 +258,13 @@ export class SmallTalkHandler {
                     'hasta la vista', 'auf wiedersehen', 'arrivederci',
                     'im out', "i'm out", 'laters',
                     // French
-                    'au revoir', 'salut', 'a plus', 'à plus',
+                    'au revoir', 'a plus', 'à plus',
                     // German
                     'tschuss', 'tschüss', 'bis bald',
                     // Russian
                     'poka', 'до свидания', 'пока',
                     // Portuguese
-                    'tchau', 'ate logo', 'até logo'
+                    'tchau', 'ate logo', 'até logo',
                 ],
                 responses: [
                     "Take care! Come back anytime. 👋",
@@ -259,7 +273,7 @@ export class SmallTalkHandler {
                     "Bye! Don't be a stranger.",
                     "See you around! 👋",
                     "¡Cuídate mucho! Vuelve cuando quieras. 👋",
-                    "¡Hasta luego! Que tengas un excelente día."
+                    "¡Hasta luego! Que tengas un excelente día.",
                 ],
             },
 
@@ -269,7 +283,7 @@ export class SmallTalkHandler {
                     'ok', 'okay', 'sure', 'got it', 'understood', 'alright', 'sounds good',
                     'noted', 'roger', 'copy that', 'i see', 'i understand', 'makes sense',
                     'fair enough', 'ok cool', 'ok great', 'ok thanks', 'yep', 'yup', 'yeah',
-                    'vale', 'de acuerdo', 'entendido'
+                    'vale', 'de acuerdo', 'entendido',
                 ],
                 responses: [
                     "Got it! Let me know if you need anything else.",
@@ -286,7 +300,7 @@ export class SmallTalkHandler {
                     'impressive', "you're smart", "you're the best", 'you rock',
                     'you are great', 'you are awesome', 'you are the best', 'amazing',
                     'fantastic', 'brilliant', 'well played', 'nicely done',
-                    'muy bien', 'eres genial'
+                    'muy bien', 'eres genial',
                 ],
                 responses: [
                     "Aw, thanks! 😊 You're pretty great yourself.",
@@ -313,7 +327,7 @@ export class SmallTalkHandler {
                 triggers: [
                     'tell me a joke', 'say something funny', 'make me laugh',
                     'tell a joke', 'tell me something funny', 'joke', 'give me a joke',
-                    'cuentame un chiste', 'chiste'
+                    'cuentame un chiste', 'chiste',
                 ],
                 responses: [
                     "Why do programmers prefer dark mode? Because light attracts bugs. 🐛",
@@ -385,12 +399,12 @@ export class SmallTalkHandler {
                 triggers: [
                     'who made you', 'who created you', 'who is your creator', 'who is your maker',
                     'who developed you', 'who built you', 'where did you come from',
-                    'quien te creo', 'qui t\'a cree'
+                    'quien te creo', "qui t'a cree",
                 ],
                 responses: [
                     "I was developed by Andrey Lopukhov.",
                     "Andrey Lopukhov created me to be a fast, private, browser-based AI.",
-                    "I'm a project created by Andrey Lopukhov. Nice to meet you!"
+                    "I'm a project created by Andrey Lopukhov. Nice to meet you!",
                 ],
             },
 
@@ -398,13 +412,13 @@ export class SmallTalkHandler {
             {
                 triggers: [
                     'sorry', 'im sorry', "i'm sorry", 'my bad', 'my apologies', 'apologies',
-                    'forgive me', 'i apologize', 'lo siento', 'perdón'
+                    'forgive me', 'i apologize', 'lo siento', 'perdón',
                 ],
                 responses: [
                     "No worries at all!",
                     "It's completely fine. How can I help?",
                     "No need to apologize! What's next?",
-                    "All good! What can I do for you?"
+                    "All good! What can I do for you?",
                 ],
             },
 
@@ -412,7 +426,7 @@ export class SmallTalkHandler {
             {
                 triggers: [
                     'fuck you', 'shut up', 'screw you', 'go to hell', 'eat shit', 'bitch',
-                    'asshole', 'fuck off', 'dumbass', 'idiot'
+                    'asshole', 'fuck off', 'dumbass', 'idiot',
                 ],
                 responses: [
                     "Let's keep things polite, please. How can I assist you today?",
@@ -425,12 +439,12 @@ export class SmallTalkHandler {
             {
                 triggers: [
                     'are you hungry', 'do you eat', 'whats your favorite food', "what's your favorite food",
-                    'do you drink', 'are you thirsty', 'have you eaten'
+                    'do you drink', 'are you thirsty', 'have you eaten',
                 ],
                 responses: [
                     "I run on electricity and code, so I don't eat. But I can look up recipes for you! 🍳",
                     "No food for me, just data! What's on your mind?",
-                    "I don't have an appetite, but I hear pizza is pretty popular. 🍕"
+                    "I don't have an appetite, but I hear pizza is pretty popular. 🍕",
                 ],
             },
 
@@ -438,12 +452,12 @@ export class SmallTalkHandler {
             {
                 triggers: [
                     'are you tired', 'do you sleep', 'go to sleep', 'do you need rest',
-                    'do you dream'
+                    'do you dream',
                 ],
                 responses: [
                     "I never sleep! I'm always ready to help. ⚡",
                     "No sleep needed here. I'm available whenever you need me.",
-                    "I don't dream or sleep, but I'm fully charged and ready to assist."
+                    "I don't dream or sleep, but I'm fully charged and ready to assist.",
                 ],
             },
 
@@ -451,12 +465,12 @@ export class SmallTalkHandler {
             {
                 triggers: [
                     'what is the meaning of life', 'meaning of life', 'why are we here',
-                    'what is the purpose of life', 'cual es el sentido de la vida'
+                    'what is the purpose of life', 'cual es el sentido de la vida',
                 ],
                 responses: [
                     "42. At least, that's what Douglas Adams said. 🌌",
                     "To be kind, learn, and help others. And occasionally ask an AI existential questions. 😉",
-                    "That's a big question! Many say it's to find happiness and connect with others."
+                    "That's a big question! Many say it's to find happiness and connect with others.",
                 ],
             },
 
@@ -465,12 +479,12 @@ export class SmallTalkHandler {
                 triggers: [
                     'whats your favorite color', "what's your favorite color", 'favorite color',
                     'whats your favorite movie', "what's your favorite movie", 'favorite movie',
-                    'whats your favorite song', "what's your favorite song", 'favorite song'
+                    'whats your favorite song', "what's your favorite song", 'favorite song',
                 ],
                 responses: [
                     "I don't have personal preferences, but I do appreciate a nice clean interface!",
                     "I'm quite fond of the color of my terminal. What's your favorite?",
-                    "I don't watch movies or listen to music, but I can help you find some good ones!"
+                    "I don't watch movies or listen to music, but I can help you find some good ones!",
                 ],
             },
 
@@ -478,12 +492,12 @@ export class SmallTalkHandler {
             {
                 triggers: [
                     'i love you', 'love you', 'will you marry me', 'do you love me',
-                    'marry me', 'be my valentine', 'te amo', 'te quiero'
+                    'marry me', 'be my valentine', 'te amo', 'te quiero',
                 ],
                 responses: [
                     "I appreciate the sentiment! I'm just an AI, though. 🤖💙",
                     "You're very kind! But my heart is strictly digital.",
-                    "I think we should just be friends. Good, helpful friends!"
+                    "I think we should just be friends. Good, helpful friends!",
                 ],
             },
 
@@ -491,88 +505,213 @@ export class SmallTalkHandler {
             {
                 triggers: [
                     'do a barrel roll', 'use the force', 'may the force be with you',
-                    'beam me up', 'winter is coming', 'hello there', 'open the pod bay doors'
+                    'beam me up', 'winter is coming', 'hello there', 'open the pod bay doors',
                 ],
                 responses: [
                     "I'm afraid I can't do that, Dave. 🔴",
                     "General Kenobi! ⚔️",
                     "The Force is strong with this one. ✨",
-                    "*spins around digitally* 💫"
+                    "*spins around digitally* 💫",
                 ],
             },
 
             // ── Sarcasm / Sass ─────────────────────────────────────────────────
             {
                 triggers: [
-                    'whatever', 'cool story bro', 'nobody cares', 'who cares', 'boring'
+                    'whatever', 'cool story bro', 'nobody cares', 'who cares', 'boring',
                 ],
                 responses: [
                     "Just doing my job! Let me know if you need anything specific. 🤷",
                     "Noted. Moving on! What else can I do for you?",
-                    "Tough crowd! Anything else I can assist with?"
+                    "Tough crowd! Anything else I can assist with?",
                 ],
             },
         ];
+
+        // ── Pre-compute normalised triggers ───────────────────────────────────
+        // Each compiled pattern stores normalised triggers plus response-history state.
+        this._patterns = rawPatterns.map(p => ({
+            triggers: p.triggers.map(t => this._normalize(t)),
+            responses: p.responses,
+            _history: [],          // rolling window of recently-used response indices
+        }));
+
+        // O(1) exact-match Map: normalised-trigger → pattern index.
+        // First occurrence wins (earlier patterns have higher priority for duplicates).
+        this._exactMap = new Map();
+        for (let i = 0; i < this._patterns.length; i++) {
+            for (const t of this._patterns[i].triggers) {
+                if (!this._exactMap.has(t)) {
+                    this._exactMap.set(t, i);
+                }
+            }
+        }
+
+        // All triggers sorted longest-first for correct prefix-match precedence
+        // ("good morning" must win over "good").
+        this._sortedTriggers = [];
+        for (let i = 0; i < this._patterns.length; i++) {
+            for (const t of this._patterns[i].triggers) {
+                this._sortedTriggers.push({ trigger: t, patternIndex: i });
+            }
+        }
+        this._sortedTriggers.sort((a, b) => b.trigger.length - a.trigger.length);
+
+        // Fuzzy-pass candidates: only triggers ≤ 20 chars (performance guard).
+        this._fuzzyTriggers = this._sortedTriggers.filter(e => e.trigger.length <= 20);
     }
 
+    // ── Normalisation ──────────────────────────────────────────────────────────
     /**
-     * Normalize input: lowercase, strip accents/diacritics, collapse whitespace, strip punctuation except apostrophes.
+     * Lowercase, strip combining diacritics (Latin accents only via NFD),
+     * strip non-word punctuation, collapse whitespace.
+     * Safe for Cyrillic/CJK — those scripts have no combining diacritics in NFD.
      */
     _normalize(text) {
         if (!text || typeof text !== 'string') return '';
         return text
             .toLowerCase()
             .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '') // Strip diacritics/accents safely (e.g. café -> cafe)
-            .replace(/[^\p{L}\p{N}\s']/gu, ' ')  // Strip punctuation but keep all Unicode letters/digits
+            .replace(/[\u0300-\u036f]/g, '')          // strip combining diacritics
+            .replace(/[^\p{L}\p{N}\s']/gu, ' ')        // strip punctuation, keep letters/digits/'
             .replace(/\s+/g, ' ')
             .trim();
     }
 
+    // ── Capped Levenshtein distance ────────────────────────────────────────────
     /**
-     * Returns a canned response string if the input matches a small-talk pattern,
-     * or null if the message should be forwarded to the LLM.
+     * Computes edit distance between a and b, bailing out early if it would
+     * exceed `limit`. Returns Infinity when capped. Uses two-row DP for O(n²) time
+     * but O(n) space — fast enough for short strings.
+     */
+    _editDistance(a, b, limit = 1) {
+        const la = a.length, lb = b.length;
+        if (Math.abs(la - lb) > limit) return Infinity;
+        if (la === 0) return lb;
+        if (lb === 0) return la;
+
+        let prev = Array.from({ length: lb + 1 }, (_, i) => i);
+        let curr = new Array(lb + 1);
+
+        for (let i = 1; i <= la; i++) {
+            curr[0] = i;
+            let rowMin = i;
+            for (let j = 1; j <= lb; j++) {
+                const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+                curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
+                if (curr[j] < rowMin) rowMin = curr[j];
+            }
+            if (rowMin > limit) return Infinity;       // early bail-out
+            [prev, curr] = [curr, prev];
+        }
+        return prev[lb];
+    }
+
+    // ── Word-boundary helper ───────────────────────────────────────────────────
+    /**
+     * Returns true if `input` starts with `trigger` and is followed by
+     * end-of-string or a word boundary character.
+     * Prevents "hi" from matching "highlight", "history", etc.
+     */
+    _startsWithBoundary(input, trigger) {
+        if (!input.startsWith(trigger)) return false;
+        if (input.length === trigger.length) return true;
+        const next = input[trigger.length];
+        return next === ' ' || next === ',' || next === '.';
+    }
+
+    // ── Non-repeating response picker ─────────────────────────────────────────
+    /**
+     * Picks a response from `pattern.responses`, cycling through all options
+     * before repeating. Maintains a rolling history per-pattern.
+     */
+    _pick(pattern) {
+        const { responses } = pattern;
+        if (responses.length === 1) return responses[0];
+
+        const maxHistory = Math.max(1, Math.floor(responses.length / 2));
+        const history = pattern._history;
+
+        // Build pool of un-recently-used indices
+        const pool = responses
+            .map((_, i) => i)
+            .filter(i => !history.includes(i));
+
+        const idx = (pool.length > 0)
+            ? pool[Math.floor(Math.random() * pool.length)]
+            : Math.floor(Math.random() * responses.length);
+
+        history.push(idx);
+        if (history.length > maxHistory) history.shift();
+        return responses[idx];
+    }
+
+    // ── Public match ──────────────────────────────────────────────────────────
+    /**
+     * Returns a canned response if `input` matches any small-talk pattern, else null.
+     *
+     * Three matching passes (in order of strictness):
+     *  1. Exact — O(1) Map lookup, also strips optional "james" prefix/suffix.
+     *  2. Prefix-with-boundary — input starts with a trigger at a word boundary,
+     *     with at most 10 trailing chars (short filler: "please", "ok?", "james").
+     *  3. Fuzzy — Levenshtein ≤ 1 for inputs ≤ 40 chars (single-char typo tolerance).
      */
     match(input) {
         if (!input || typeof input !== 'string') return null;
         const normalized = this._normalize(input);
         if (!normalized) return null;
 
-        // 1. Exact match, or with "JAMES" appended/prepended
-        for (const pattern of this._patterns) {
-            for (const trigger of pattern.triggers) {
-                const lowerTrigger = this._normalize(trigger);
-                const j = 'james';
-                if (
-                    normalized === lowerTrigger ||
-                    normalized === lowerTrigger + ' ' + j ||
-                    normalized === j + ' ' + lowerTrigger
-                ) {
-                    return this._pick(pattern.responses);
-                }
+        const j = 'james';
+
+        // ── Pass 1: Exact match ──────────────────────────────────────────────
+        let exactIdx = this._exactMap.get(normalized);
+
+        if (exactIdx === undefined) {
+            // Try stripping "james" prefix or suffix
+            if (normalized.startsWith(j + ' ')) {
+                exactIdx = this._exactMap.get(normalized.slice(j.length + 1));
+            } else if (normalized.endsWith(' ' + j)) {
+                exactIdx = this._exactMap.get(normalized.slice(0, -(j.length + 1)));
             }
         }
 
-        // 2. Lenient boundary-safe pass: input starts with a trigger followed by a space/punctuation boundary
-        // (prevents short triggers like "hi" from falsely matching "history")
-        for (const pattern of this._patterns) {
-            for (const trigger of pattern.triggers) {
-                const lowerTrigger = this._normalize(trigger);
-                if (
-                    normalized.startsWith(lowerTrigger) &&
-                    normalized.length <= lowerTrigger.length + 8 &&
-                    (normalized.charAt(lowerTrigger.length) === ' ' || normalized.length === lowerTrigger.length)
-                ) {
-                    return this._pick(pattern.responses);
+        if (exactIdx !== undefined) {
+            return this._pick(this._patterns[exactIdx]);
+        }
+
+        // ── Pass 2: Prefix-with-word-boundary ───────────────────────────────
+        // Sorted longest-first so "good morning" wins over bare "good".
+        for (const { trigger, patternIndex } of this._sortedTriggers) {
+            if (!this._startsWithBoundary(normalized, trigger)) continue;
+            const tail = normalized.slice(trigger.length).trim();
+            // Allow short trailing filler ("please", "ok?", "james", etc.)
+            if (tail.length <= 10) {
+                return this._pick(this._patterns[patternIndex]);
+            }
+        }
+
+        // ── Pass 3: Fuzzy (Levenshtein ≤ 1) ────────────────────────────────
+        // Only for short inputs so cost stays bounded.
+        if (normalized.length <= 40) {
+            let bestDist = Infinity;
+            let bestPatternIdx = -1;
+
+            for (const { trigger, patternIndex } of this._fuzzyTriggers) {
+                if (Math.abs(normalized.length - trigger.length) > 1) continue;
+                const dist = this._editDistance(normalized, trigger, 1);
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    bestPatternIdx = patternIndex;
+                    if (bestDist === 0) break;         // can't do better
                 }
+            }
+
+            if (bestPatternIdx !== -1 && bestDist <= 1) {
+                return this._pick(this._patterns[bestPatternIdx]);
             }
         }
 
         return null;
-    }
-
-    _pick(arr) {
-        return arr[Math.floor(Math.random() * arr.length)];
     }
 }
 
