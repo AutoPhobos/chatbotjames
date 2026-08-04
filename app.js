@@ -709,8 +709,7 @@ async function handleToolCalls(message, targetId, originChatId) {
     const assistantToolTurn = { role: 'assistant', content: message };
     // Inject results as a 'user' turn with a system prefix so the model
     // understands it should summarize the data — not echo the raw JSON back.
-    const toolResultTurn = { role: 'user', content: '[SYSTEM: Tool results below. Interpret them and reply naturally to the user.]
-' + toolResultText };
+    const toolResultTurn = { role: 'user', content: '[SYSTEM: Tool results below. Interpret them and reply naturally to the user.]\n' + toolResultText };
 
     if (originChatId === currentChatId) {
         chatHistory.push(assistantToolTurn, toolResultTurn);
