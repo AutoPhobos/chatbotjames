@@ -787,6 +787,29 @@ async function executeTool(toolName, params) {
         setTimeout(() => {
             const chatLog = document.getElementById('chatLog');
             activeGameUI = renderGameBoard(activeGame, chatLog, (moveInfo) => {
+                // Check if the player's move ended the game immediately
+                const gameOver = activeGame.type === 'chess'
+                    ? activeGame.isGameOver()
+                    : activeGame.isGameOver();
+
+                if (gameOver) {
+                    const result = activeGame.type === 'checkers' && activeGame.getWinner
+                        ? (activeGame.getWinner() === 'w' ? 'White wins!' : 'Black wins!')
+                        : 'Game over!';
+                    const msg = `[Game Over] ${result} The board has been updated.`;
+                    chatHistory.push({ role: 'user', content: msg });
+                    appendUserMessage(`[Game Over — ${result}]`, chatHistory.length - 1);
+                    persistCurrentChat();
+                    setIdleState(false);
+                    worker.postMessage({
+                        type: 'query',
+                        messages: getMessagesWindow(chatHistory),
+                        targetId: getNextTargetId(),
+                        chatId: currentChatId
+                    });
+                    return;
+                }
+
                 const aiPrompt = activeGame.type === 'chess'
                     ? `[Game State] Current FEN: ${activeGame.getFen()}. You are playing Black. The user just moved. What is your next move in standard algebraic notation (e.g. e5, Nf6)? Use the make_move tool.`
                     : `[Game State] Current Checkers Board: ${activeGame.getFen()}. You are playing Black (b/B). The user just moved. What is your next move in 'from_r,from_c to to_r,to_c' format? Use the make_move tool.`;
@@ -815,7 +838,16 @@ async function executeTool(toolName, params) {
         const moveMade = activeGame.makeSanMove(moveStr);
         if (moveMade) {
             if (activeGameUI) activeGameUI.update();
-            return { status: "moved", move: moveStr, newState: activeGame.getFen() };
+            const newState = activeGame.getFen();
+            // Check if the AI's move ended the game
+            const gameOver = activeGame.isGameOver();
+            if (gameOver) {
+                const result = activeGame.type === 'checkers' && activeGame.getWinner
+                    ? (activeGame.getWinner() === 'w' ? 'White wins!' : 'Black wins!')
+                    : 'Game over!';
+                return { status: "moved", move: moveStr, newState, gameOver: true, result };
+            }
+            return { status: "moved", move: moveStr, newState };
         } else {
             throw new Error(`Invalid or illegal move: ${moveStr}. Please check the board state and try a valid move.`);
         }
