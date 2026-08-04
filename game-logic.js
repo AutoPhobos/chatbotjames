@@ -15,6 +15,10 @@ export class ChessGame {
         return { fen: this.game.fen(), moveHistory: this.moveHistory };
     }
 
+    getTurn() {
+        return this.game.turn(); // returns 'w' or 'b'
+    }
+
     getBoard() {
         return this.game.board(); // 2D array
     }

@@ -706,7 +706,7 @@ function handleStartGame(params) {
     const gameType = params.game;
     activeGame = gameType === 'checkers' ? new CheckersGame() : new ChessGame();
     
-    chatHistory.push({ role: 'assistant', type: 'game_board' });
+    chatHistory.push({ role: 'assistant', type: 'game_board', content: '' });
     persistCurrentChat();
     renderChatLog();
 

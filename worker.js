@@ -766,7 +766,7 @@ self.onmessage = async (e) => {
         try {
             self.postMessage({ status: 'thinking', targetId, chatId });
 
-            const activeMessages = messages.filter(m => !m.content.includes('Tools available'));
+            const activeMessages = messages.filter(m => !(m.content || '').includes('Tools available'));
             const chatContext = [
                 { role: 'system', content: systemPrompt },
                 ...activeMessages
