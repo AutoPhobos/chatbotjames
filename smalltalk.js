@@ -26,7 +26,7 @@ export class SmallTalkHandler {
                     // Italian
                     'ciao',
                     // Chinese (Pinyin)
-                    'ni hao'
+                    'ni hao',
                 ],
                 responses: [
                     "Hey! What's on your mind?",
