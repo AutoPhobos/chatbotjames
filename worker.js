@@ -606,6 +606,11 @@ self.onmessage = async (e) => {
     }
 
     if (type === 'init') {
+        // If we receive a new init while generating, force-reset the flag.
+        // The old generation loop will error out naturally (chatbot is now a new instance)
+        // and the finally block will set isGenerating = false again, which is harmless.
+        isAborted = true;
+        isGenerating = false;
         try {
             await new Promise((resolve) => setTimeout(resolve, 125));
             const [gpuInfo, wasmCaps] = await Promise.all([detectGpu(), detectWasmCapabilities()]);

@@ -128,9 +128,18 @@ function flushStreamQueue(targetId) {
 
 // ─── Window Memory Helper ───────────────────────────────────────────────────
 const MAX_HISTORY = 10;
+const MAX_TOOL_DEPTH = 4; // Max consecutive tool call cycles before breaking the loop
+let _toolCallDepth = 0;
 
 function getMessagesWindow(messages) {
-    if (!messages || messages.length <= MAX_HISTORY) return messages;
+    if (!messages || messages.length <= MAX_HISTORY) {
+        // Strip leading assistant message (e.g. welcome msg) so the model
+        // always receives a history that starts with a user turn.
+        if (messages && messages.length > 0 && messages[0].role !== 'user') {
+            return messages.slice(1);
+        }
+        return messages;
+    }
     let sliced = messages.slice(-MAX_HISTORY);
     if (sliced.length > 0 && sliced[0].role !== 'user') {
         sliced = sliced.slice(1);
@@ -441,6 +450,9 @@ function handleStopGeneration() {
         worker.postMessage({ type: 'abort' });
     }
     
+    // Reset tool call depth so next conversation starts fresh
+    _toolCallDepth = 0;
+
     // Immediately set UI to idle state to stop thinking animation
     setIdleState(true);
     updateStatusLight('idle');
@@ -463,6 +475,8 @@ async function handleToolCalls(message, targetId, originChatId) {
     const toolCalls = parseToolCalls(message);
 
     if (toolCalls.length === 0) {
+        // Reset tool depth when we get a plain response (no tool calls)
+        _toolCallDepth = 0;
         if (originChatId === currentChatId) {
             updateLiveBubble(message, targetId);
             chatHistory.push({ role: 'assistant', content: message });
@@ -474,6 +488,22 @@ async function handleToolCalls(message, targetId, originChatId) {
                 localStorage.setItem('chatbot-chats', JSON.stringify(allChats));
             }
         }
+        return;
+    }
+
+    // Guard against infinite tool call loops
+    _toolCallDepth++;
+    if (_toolCallDepth > MAX_TOOL_DEPTH) {
+        _toolCallDepth = 0;
+        console.warn(`Tool call depth exceeded (${MAX_TOOL_DEPTH}). Breaking loop.`);
+        const loopError = `[Tool loop broken after ${MAX_TOOL_DEPTH} consecutive tool calls. Please try rephrasing your question.]`;
+        if (originChatId === currentChatId) {
+            updateLiveBubble(loopError, targetId);
+            chatHistory.push({ role: 'assistant', content: loopError });
+            persistCurrentChat();
+        }
+        setIdleState(true);
+        updateStatusLight('idle');
         return;
     }
 
@@ -762,11 +792,17 @@ async function simulateCannedResponse(canned, targetId = null) {
 
     await new Promise(r => setTimeout(r, 400 + Math.random() * 500));
 
+    // If the user stopped before we finished the thinking delay, bail out
+    if (!_isGeneratingUI) return;
+
     if (statusText) statusText.textContent = 'RESPONDING...';
     queueStreamText(targetId, canned);
 
     const wordCount = canned.split(/\s+/).length;
     await new Promise(r => setTimeout(r, wordCount * 35 + 300));
+
+    // Check again — user may have stopped during the stream animation
+    if (!_isGeneratingUI) return;
 
     chatHistory.push({ role: 'assistant', content: canned });
     persistCurrentChat();
