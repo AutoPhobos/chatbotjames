@@ -3,6 +3,7 @@ import { toolRouter } from './tool-router.js';
 import { ChessGame, CheckersGame } from './game-logic.js';
 import { renderGameBoard } from './game-ui.js';
 import { CONFIG } from './config.js';
+import { BUILD_NUMBER } from './build.js';
 
 let activeGame = null;
 let activeGameUI = null;
@@ -161,9 +162,6 @@ function playDoneSound() {
     setTimeout(() => _playTone({ freq: 783.99, type: 'sine', gainPeak: 0.08, duration: 0.22, rampUp: 0.01 }), 120); // G5
 }
 // ─────────────────────────────────────────────────────────────────────────────
-
-//let isGenerating = false;
-let currentChatId = null;
 
 // Cached DOM elements for performance during tight rendering loops
 let _progressFillEl = null;
@@ -1534,5 +1532,6 @@ applyModelBtn?.addEventListener('click', () => {
 
     worker.postMessage({ type: 'init', forcePresetId: _selectedPresetId });
 });
+
 
 

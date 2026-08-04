@@ -1,6 +1,6 @@
 const CACHE_NAME = 'JAMES-v5.2';
 
-// Only cache truly static assets — NOT app logic files
+// Only cache truly static assets - NOT app logic files
 const STATIC_ASSETS = [
     'https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css'
 ];
@@ -9,6 +9,7 @@ const STATIC_ASSETS = [
 const NETWORK_FIRST = [
     '/',
     'config.js',
+    'build.js',
     'config.json',
     'game-logic.js',
     'game-ui.js',
@@ -26,7 +27,7 @@ const NETWORK_FIRST = [
     'preview.png'
 ];
 
-// ── Install: pre-cache only CDN static assets ─────────────────────────────
+// Install: pre-cache only CDN static assets
 self.addEventListener('install', (e) => {
     e.waitUntil(
         caches.open(CACHE_NAME).then(c => c.addAll(STATIC_ASSETS))
@@ -34,7 +35,7 @@ self.addEventListener('install', (e) => {
     self.skipWaiting();
 });
 
-// ── Activate: delete old caches ───────────────────────────────────────────
+// Activate: delete old caches
 self.addEventListener('activate', (e) => {
     e.waitUntil(
         caches.keys().then(keys =>
@@ -47,29 +48,24 @@ self.addEventListener('activate', (e) => {
     self.clients.claim();
 });
 
-// ── Fetch: network-first for app files, cache-first for CDN assets ────────
+// Fetch: network-first for app files, cache-first for CDN assets
 self.addEventListener('fetch', (event) => {
-    // Only cache GET requests (Transformers.js sends HEAD requests for file sizes)
+    // Only cache GET requests
     if (event.request.method !== 'GET') return;
 
-    const url = new URL(event.request.url);
-    const filename = url.pathname.split('/',
-    'config.js',
-    'config.json',
-    'game-logic.js',
-    'game-ui.js').pop();
+    // Do not cache extension requests
+    if (!event.request.url.startsWith('http')) return;
 
-    // Always bypass SW for model weight files (large .bin / .onnx fetches)
+    const url = new URL(event.request.url);
+    const filename = url.pathname.split('/').pop();
+
+    // Always bypass SW for model weight files
     if (url.pathname.includes('.onnx') || url.pathname.includes('.bin')) {
-        return; // Let browser handle directly
+        return; 
     }
 
-    // Network-first for app files (caches them for offline PWA installability)
-    if (url.pathname === '/',
-    'config.js',
-    'config.json',
-    'game-logic.js',
-    'game-ui.js' || NETWORK_FIRST.some(f => filename === f || url.pathname.endsWith(f))) {
+    // Network-first for app files
+    if (url.pathname === '/' || NETWORK_FIRST.some(f => filename === f || url.pathname.endsWith(f))) {
         event.respondWith(
             fetch(event.request)
                 .then(res => {
@@ -86,7 +82,7 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // CDN assets: cache-first (they're versioned and never change)
+    // CDN assets: cache-first
     if (url.hostname.includes('jsdelivr.net') || url.hostname.includes('cdn.')) {
         event.respondWith(
             caches.match(event.request).then(cached =>
@@ -109,5 +105,4 @@ self.addEventListener('fetch', (event) => {
         })
     );
 });
-
 
