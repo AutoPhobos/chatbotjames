@@ -9,7 +9,7 @@
         content="Complete documentation for JAMES: how to use the local browser AI chatbot, available tools (weather, Wikipedia, currency, Python, and more), backend selection, and privacy model.">
     <meta name="keywords"
         content="JAMES documentation, local AI docs, browser AI tools, WebGPU AI, offline AI assistant, JAMES chatbot guide">
-    <meta name="author" content="Andrey Lopukhov">
+    <meta name="author" content="SmallTalk Apps">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://chatbotjames.onrender.com/docs.html">
     <meta property="og:title" content="JAMES Docs — How to Use the Local Browser AI">
@@ -30,18 +30,14 @@
       "headline": "JAMES Documentation — Local Browser AI Chatbot",
       "description": "Complete reference for JAMES: architecture, tools, backend selection, model switching, and privacy.",
       "url": "https://chatbotjames.onrender.com/docs.html",
-      "author": { "@type": "Person", "name": "Andrey Lopukhov" },
-      "publisher": { "@type": "Person", "name": "Andrey Lopukhov" },
-      "dateModified": "2026-06-24"
+      "author": { "@type": "Organization", "name": "SmallTalk Apps" },
+      "publisher": { "@type": "Organization", "name": "SmallTalk Apps" },
+      "dateModified": "2026-08-04"
     }
     </script>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="stylesheet" href="style.css">
     <style>
-        body {
-            overflow: auto;
-        }
-
         body {
             background: var(--bg-main);
             color: var(--text-primary);
@@ -401,7 +397,7 @@
                     <li>Click <strong>+ New Chat</strong> to start a fresh session.</li>
                     <li>Thread titles are derived from the first user message.</li>
                     <li>Use the <strong>×</strong> button to delete a thread permanently.</li>
-                    <li>The active thread state is stored in localStorage and restored on revisit.</li>
+                    <li>The active thread and its history are stored in <strong>IndexedDB</strong> and restored on revisit.</li>
                 </ul>
             </section>
             <section class="doc-section" id="stop">
@@ -607,8 +603,8 @@ query: browser inference</pre>
             <section class="doc-section" id="architecture">
                 <h2>Architecture</h2>
                 <div class="arch-diagram">
-                    Browser Main Thread → app.js → worker.js → Transformers.js → WebGPU / WASM
-                    <br>postMessage() → Storage → IndexedDB / localStorage
+                    Browser Main Thread &rarr; app.js &rarr; worker.js &rarr; Transformers.js &rarr; WebGPU / WASM
+                    <br>postMessage() &rarr; Storage &rarr; IndexedDB
                 </div>
                 <p>The worker owns inference and model state. The main thread owns the UI, tools bridge, and storage.
                 </p>
@@ -671,6 +667,7 @@ query: browser inference</pre>
     </div>
     <footer class="page-footer">
         <span>JAMES // CORE Genesis</span>
+        <span>By <a href="https://github.com/tripping-alien" target="_blank" rel="noopener">SmallTalk Apps</a></span>
         <span><a href="about.html">About</a> · <a href="index.html">Terminal</a> · MIT License</span>
     </footer>
     <script>

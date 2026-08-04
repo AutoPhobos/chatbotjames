@@ -1,6 +1,125 @@
 import { smallTalk } from './smalltalk.js';
 import { toolRouter } from './tool-router.js';
 
+// ─── IndexedDB Chat Storage ──────────────────────────────────────────────────
+// Replaces localStorage for chat history — no 5 MB limit, async, fast.
+
+const IDB_NAME = 'james-chats-db';
+const IDB_STORE = 'chats';
+let _idb = null;
+
+async function openChatDB() {
+    if (_idb) return _idb;
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(IDB_NAME, 1);
+        req.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(IDB_STORE)) {
+                db.createObjectStore(IDB_STORE, { keyPath: 'id' });
+            }
+        };
+        req.onsuccess = (e) => { _idb = e.target.result; resolve(_idb); };
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
+
+/** Fire-and-forget: persist a single chat to IndexedDB. */
+function dbSaveChat(chat) {
+    if (!chat) return;
+    openChatDB()
+        .then(db => {
+            const tx = db.transaction(IDB_STORE, 'readwrite');
+            tx.objectStore(IDB_STORE).put(chat);
+        })
+        .catch(e => console.warn('IDB save failed:', e));
+}
+
+/** Fire-and-forget: delete a chat from IndexedDB by id. */
+function dbDeleteChat(id) {
+    openChatDB()
+        .then(db => {
+            const tx = db.transaction(IDB_STORE, 'readwrite');
+            tx.objectStore(IDB_STORE).delete(id);
+        })
+        .catch(e => console.warn('IDB delete failed:', e));
+}
+
+/** Load all chats, sorted newest-first (id is a timestamp). */
+async function dbLoadAllChats() {
+    try {
+        const db = await openChatDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(IDB_STORE, 'readonly');
+            const req = tx.objectStore(IDB_STORE).getAll();
+            req.onsuccess = (e) => {
+                const chats = (e.target.result || []).sort((a, b) => b.id - a.id);
+                resolve(chats);
+            };
+            req.onerror = (e) => reject(e.target.error);
+        });
+    } catch (e) {
+        console.warn('IDB load failed, falling back to empty state:', e);
+        return [];
+    }
+}
+
+/**
+ * One-time migration: move existing localStorage chats into IndexedDB,
+ * then clear the old key so this only runs once.
+ */
+async function migrateFromLocalStorage() {
+    const raw = localStorage.getItem('chatbot-chats');
+    if (!raw) return;
+    try {
+        const chats = JSON.parse(raw);
+        if (Array.isArray(chats) && chats.length > 0) {
+            console.log(`📦 Migrating ${chats.length} chat(s) from localStorage → IndexedDB…`);
+            await openChatDB();
+            for (const chat of chats) dbSaveChat(chat);
+            localStorage.removeItem('chatbot-chats');
+            console.log('✅ Migration complete');
+        }
+    } catch (e) {
+        console.warn('localStorage migration failed:', e);
+    }
+}
+
+// ─── Screen Wake Lock ───────────────────────────────────────────────────
+// Keeps the screen on during model downloads, which can take several minutes.
+
+let _wakeLock = null;
+
+async function acquireWakeLock() {
+    if (!('wakeLock' in navigator) || _wakeLock) return;
+    try {
+        _wakeLock = await navigator.wakeLock.request('screen');
+        // Browser may release it on tab-switch; re-acquire on return
+        _wakeLock.addEventListener('release', () => { _wakeLock = null; });
+        document.addEventListener('visibilitychange', _onWakeLockVisibilityChange);
+        console.log('🔆 Screen Wake Lock acquired');
+    } catch (e) {
+        console.warn('Wake Lock unavailable:', e.message);
+    }
+}
+
+function _onWakeLockVisibilityChange() {
+    if (document.visibilityState === 'visible') acquireWakeLock();
+}
+
+function releaseWakeLock() {
+    if (_wakeLock) {
+        _wakeLock.release().catch(() => {});
+        _wakeLock = null;
+        document.removeEventListener('visibilitychange', _onWakeLockVisibilityChange);
+        console.log('🔅 Screen Wake Lock released');
+    }
+}
+
+// ─── Virtual Scroll State ───────────────────────────────────────────────
+const RENDER_WINDOW = 50;  // max DOM-rendered messages at a time
+let _renderOffset = 0;     // chatHistory index where the render window begins
+let _chatObserver = null;  // IntersectionObserver watching the top sentinel
+
 // ─── Sound Engine (Web Audio API, no external files) ─────────────────────────
 const _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -157,11 +276,15 @@ function workerMessageHandler(e) {
         updateStatusLight('idle');
         if (statusText) statusText.textContent = 'READY';
         if (status !== 'error' && status !== 'aborted') playDoneSound();
+        // Release wake lock once the model finishes loading (success or failure)
+        if (status === 'done' || status === 'error') releaseWakeLock();
     } else {
         setIdleState(false);
         updateStatusLight('thinking');
         if (status === 'thinking' && statusText) statusText.textContent = 'THINKING...';
         if (status === 'streaming' && statusText) statusText.textContent = 'RESPONDING...';
+        // Acquire wake lock during model download / warm-start (can take minutes)
+        if (status === 'downloading' || status === 'warm-start') acquireWakeLock();
     }
 
     switch (status) {
@@ -259,7 +382,7 @@ function workerMessageHandler(e) {
                 const bgChat = allChats.find(c => c.id === e.data.chatId);
                 if (bgChat) {
                     bgChat.messages.push({ role: 'assistant', content: message });
-                    localStorage.setItem('chatbot-chats', JSON.stringify(allChats));
+                    dbSaveChat(bgChat);
                 }
             }
             break;
@@ -392,7 +515,7 @@ function sendMessage() {
         if (chat && chat.name === 'New Chat') {
             const titleSource = text || attachedFiles.map(f => f.name).join(', ') || 'File upload';
             chat.name = titleSource.substring(0, 30) + (titleSource.length > 30 ? '...' : '');
-            localStorage.setItem('chatbot-chats', JSON.stringify(allChats));
+            dbSaveChat(chat);
             updateChatList();
             updateChatListActive(currentChatId);
         }
@@ -485,7 +608,7 @@ async function handleToolCalls(message, targetId, originChatId) {
             const bgChat = allChats.find(c => c.id === originChatId);
             if (bgChat) {
                 bgChat.messages.push({ role: 'assistant', content: message });
-                localStorage.setItem('chatbot-chats', JSON.stringify(allChats));
+                dbSaveChat(bgChat);
             }
         }
         return;
@@ -532,7 +655,13 @@ async function handleToolCalls(message, targetId, originChatId) {
         const bgChat = allChats.find(c => c.id === originChatId);
         if (bgChat) bgChat.messages.push(assistantToolTurn, toolResultTurn);
     }
-    localStorage.setItem('chatbot-chats', JSON.stringify(allChats));
+    // Persist whichever chat was modified
+    if (originChatId === currentChatId) {
+        persistCurrentChat();
+    } else {
+        const bgChatToSave = allChats.find(c => c.id === originChatId);
+        if (bgChatToSave) dbSaveChat(bgChatToSave);
+    }
 
     const activeMessages = originChatId === currentChatId
         ? chatHistory
@@ -874,7 +1003,7 @@ function persistCurrentChat() {
     const chat = allChats.find(c => c.id === currentChatId);
     if (chat) {
         chat.messages = [...chatHistory];
-        localStorage.setItem('chatbot-chats', JSON.stringify(allChats));
+        dbSaveChat(chat); // fire-and-forget async IDB write
     }
 }
 
@@ -902,7 +1031,7 @@ function startNewChat() {
     };
     currentChatId = newChat.id;
     allChats.unshift(newChat);
-    localStorage.setItem('chatbot-chats', JSON.stringify(allChats));
+    dbSaveChat(newChat);
 
     updateChatList();
     renderChatLog();
@@ -910,40 +1039,105 @@ function startNewChat() {
     if (cmdInput) cmdInput.focus();
 }
 
+/** Build a single message DOM element (shared by renderChatLog and loadOlderMessages). */
+function createMessageElement(msg) {
+    const messageWrap = document.createElement('div');
+    messageWrap.className = `message-wrap ${msg.role === 'user' ? 'user-msg' : 'assistant-msg'}`;
+    const messageContent = document.createElement('div');
+    messageContent.className = 'message-content';
+
+    if (msg.role === 'assistant') {
+        messageContent.innerHTML = formatAssistantMessage(msg.content);
+        messageWrap.appendChild(messageContent);
+    } else {
+        messageContent.textContent = msg.content;
+        const editBtn = document.createElement('button');
+        editBtn.className = 'edit-msg-btn';
+        editBtn.innerHTML = '\u270f\ufe0f';
+        editBtn.title = 'Edit this message';
+        editBtn.onclick = () => window.editUserMessage(msg.content);
+        const container = document.createElement('div');
+        container.className = 'user-msg-container';
+        container.appendChild(editBtn);
+        container.appendChild(messageContent);
+        messageWrap.appendChild(container);
+    }
+    return messageWrap;
+}
+
+/**
+ * Renders the chat log with IntersectionObserver-driven virtual scrolling.
+ * Only the most recent RENDER_WINDOW messages are in the DOM at once.
+ * Scrolling to the top auto-loads older batches (20 at a time).
+ */
 function renderChatLog() {
     const chatLog = document.getElementById('chatLog');
     if (!chatLog) return;
+
+    if (_chatObserver) { _chatObserver.disconnect(); _chatObserver = null; }
     chatLog.innerHTML = '';
-    chatHistory.forEach(msg => {
-        const messageWrap = document.createElement('div');
-        messageWrap.className = `message-wrap ${msg.role === 'user' ? 'user-msg' : 'assistant-msg'}`;
 
-        const messageContent = document.createElement('div');
-        messageContent.className = 'message-content';
+    _renderOffset = Math.max(0, chatHistory.length - RENDER_WINDOW);
 
-        if (msg.role === 'assistant') {
-            messageContent.innerHTML = formatAssistantMessage(msg.content);
-            messageWrap.appendChild(messageContent);
-        } else {
-            messageContent.textContent = msg.content;
+    if (_renderOffset > 0) {
+        const sentinel = _makeSentinel();
+        chatLog.appendChild(sentinel);
+        _attachSentinelObserver(chatLog, sentinel);
+    }
 
-            const editBtn = document.createElement('button');
-            editBtn.className = 'edit-msg-btn';
-            editBtn.innerHTML = '✏️';
-            editBtn.title = 'Edit this message';
-            editBtn.onclick = () => window.editUserMessage(msg.content);
-
-            const container = document.createElement('div');
-            container.className = 'user-msg-container';
-            container.appendChild(editBtn);
-            container.appendChild(messageContent);
-            messageWrap.appendChild(container);
-        }
-
-        chatLog.appendChild(messageWrap);
-    });
+    chatHistory.slice(_renderOffset).forEach(msg => chatLog.appendChild(createMessageElement(msg)));
     chatLog.scrollTop = chatLog.scrollHeight;
 }
+
+/** Create the "N earlier messages" banner at the top of the chat log. */
+function _makeSentinel() {
+    const el = document.createElement('div');
+    el.id = 'chat-sentinel';
+    el.className = 'chat-sentinel';
+    el.textContent = `\u2191 ${_renderOffset} earlier message${_renderOffset !== 1 ? 's' : ''} — scroll up to load`;
+    return el;
+}
+
+function _attachSentinelObserver(chatLog, sentinel) {
+    _chatObserver = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) window.loadOlderMessages();
+    }, { root: chatLog, rootMargin: '0px', threshold: 0.1 });
+    _chatObserver.observe(sentinel);
+}
+
+/** Load the next batch of older messages when the sentinel scrolls into view. */
+window.loadOlderMessages = function () {
+    const chatLog = document.getElementById('chatLog');
+    if (!chatLog || _renderOffset === 0) return;
+
+    const batchSize = Math.min(20, _renderOffset);
+    const newOffset = _renderOffset - batchSize;
+    const olderMsgs = chatHistory.slice(newOffset, _renderOffset);
+    _renderOffset = newOffset;
+
+    // Remove existing sentinel + observer before we mutate the DOM
+    if (_chatObserver) { _chatObserver.disconnect(); _chatObserver = null; }
+    document.getElementById('chat-sentinel')?.remove();
+
+    const prevScrollHeight = chatLog.scrollHeight;
+    const fragment = document.createDocumentFragment();
+
+    if (_renderOffset > 0) {
+        const newSentinel = _makeSentinel();
+        fragment.appendChild(newSentinel);
+    }
+    olderMsgs.forEach(msg => fragment.appendChild(createMessageElement(msg)));
+    chatLog.insertBefore(fragment, chatLog.firstChild);
+
+    // Keep the user's viewport stable (no jump)
+    chatLog.scrollTop = chatLog.scrollHeight - prevScrollHeight;
+
+    // Re-attach observer if more messages remain
+    if (_renderOffset > 0) {
+        const newSentinel = document.getElementById('chat-sentinel');
+        if (newSentinel) _attachSentinelObserver(chatLog, newSentinel);
+    }
+};
 
 function updateChatList() {
     const chatListEl = document.getElementById('chatList');
@@ -982,7 +1176,7 @@ function updateChatListActive(chatId) {
 
 function deleteChat(chatId) {
     allChats = allChats.filter(c => c.id !== chatId);
-    localStorage.setItem('chatbot-chats', JSON.stringify(allChats));
+    dbDeleteChat(chatId); // async remove from IndexedDB
 
     if (chatId === currentChatId) {
         currentChatId = null;
@@ -997,23 +1191,23 @@ function deleteChat(chatId) {
     }
 }
 
-function loadSavedChats() {
-    const saved = localStorage.getItem('chatbot-chats');
-    if (saved) {
-        try { allChats = JSON.parse(saved); } catch { allChats = []; }
-        updateChatList();
-    }
+async function loadSavedChats() {
+    await migrateFromLocalStorage(); // no-op after first run
+    allChats = await dbLoadAllChats();
+    if (allChats.length > 0) updateChatList();
 }
 
 // ─── Bootstrap ──────────────────────────────────────────────────────────────
 
-loadSavedChats();
-
-if (allChats.length > 0) {
-    loadChatHistory(allChats[0].id);
-} else {
-    startNewChat();
-}
+// Bootstrap: load chats from IndexedDB before rendering anything
+(async () => {
+    await loadSavedChats();
+    if (allChats.length > 0) {
+        loadChatHistory(allChats[0].id);
+    } else {
+        startNewChat();
+    }
+})();
 
 if (isTVDevice()) {
     document.body.classList.add('tv-mode');
