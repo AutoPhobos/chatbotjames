@@ -77,7 +77,7 @@ export async function performWebSearch(query) {
                         title: item.title,
                         url: `https://en.wikipedia.org/?curid=${item.pageid}`,
                         // Strip HTML tags and HTML entities from Wikipedia snippet
-                        snippet: item.snippet ? item.snippet.replace(/<\/?[^>]+>|&#?\w+;/g, '') : ''
+                        snippet: item.snippet ? item.snippet.replace(/<\/?[^>]+(>|$)|&[a-zA-Z0-9#]+;/g, '') : ''
                     }));
                 }
             }

@@ -150,7 +150,12 @@ async function downloadAndCache(url) {
 }
 
 async function customFetch(resource, init = {}) {
-    const request = new Request(resource, init);
+    let request;
+    if (resource instanceof Request) {
+        request = resource.clone();
+    } else {
+        request = new Request(resource, init);
+    }
     if (request.method !== 'GET' || request.headers.has('Range')) {
         return nativeFetch(request);
     }
@@ -170,7 +175,7 @@ async function customFetch(resource, init = {}) {
         return await downloadAndCache(request.url);
     } catch (err) {
         console.warn('Custom fetch failed, falling back to native fetch:', err);
-        return nativeFetch(request);
+        return nativeFetch(resource instanceof Request ? resource.clone() : new Request(resource, init));
     }
 }
 

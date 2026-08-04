@@ -131,7 +131,11 @@ const MAX_HISTORY = 10;
 
 function getMessagesWindow(messages) {
     if (!messages || messages.length <= MAX_HISTORY) return messages;
-    return [messages[0], ...messages.slice(-(MAX_HISTORY - 1))];
+    let sliced = messages.slice(-MAX_HISTORY);
+    if (sliced.length > 0 && sliced[0].role !== 'user') {
+        sliced = sliced.slice(1);
+    }
+    return sliced;
 }
 
 // Unified Worker Message Handler
