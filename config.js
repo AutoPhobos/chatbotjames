@@ -1,2 +1,17 @@
-const response = await fetch('./config.json');
-export const CONFIG = await response.json();
+export const CONFIG = {
+    "ui": {
+        "renderWindowMessages": 50,
+        "maxHistory": 10,
+        "maxToolDepth": 4,
+        "throttleFpsMs": 33,
+        "streamRenderIntervalMs": 15
+    },
+    "worker": {
+        "chunkSizeMb": 4,
+        "maxDownloadConcurrency": 3,
+        "maxTokens": 1024,
+        "temperature": 1.0,
+        "topK": 20,
+        "topP": 0.9
+    }
+};
