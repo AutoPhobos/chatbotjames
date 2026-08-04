@@ -1,4 +1,4 @@
-import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0';
+import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0';
 import { CONFIG } from './config.js';
 
 // --- CONFIGURATION ---
@@ -770,3 +770,4 @@ self.onmessage = async (e) => {
         }
     }
 };
+

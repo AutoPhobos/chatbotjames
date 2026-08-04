@@ -175,7 +175,7 @@ let _progressFillEl = null;
 let _statusMetaEl = null;
 
 // Initialize Workers
-let worker = new Worker('worker.js', { type: 'module' });
+let worker = new Worker('worker.js?v=2', { type: 'module' });
 const toolsWorker = new Worker('tools-worker.js', { type: 'module' });
 const pythonWorker = new Worker('python-worker.js');
 const pythonCallbacks = new Map();
@@ -430,7 +430,7 @@ function initWorker() {
     if (worker) {
         worker.terminate();
     }
-    worker = new Worker('worker.js', { type: 'module' });
+    worker = new Worker('worker.js?v=2', { type: 'module' });
     // Re-attach the message handler so the new worker isn't silent
     worker.onmessage = workerMessageHandler;
     // Re-initialize the model so the new worker is fully operational
@@ -1539,6 +1539,7 @@ applyModelBtn?.addEventListener('click', () => {
 
     worker.postMessage({ type: 'init', forcePresetId: _selectedPresetId });
 });
+
 
 
 
