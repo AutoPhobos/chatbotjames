@@ -309,13 +309,13 @@ const RULES = [
     {
         tool: 'weather',
         description: 'Fetches weather or forecast for a location.',
-        examples: ['weather in Tokyo', "what's the forecast for Paris", 'temperature in Berlin'],
+        examples: ['weather in Tokyo', "what's the forecast for Paris", 'temperature in Berlin', 'Tokyo weather'],
         patterns: [
-            /(?:what(?:'s| is)(?: the)?) weather(?: like)? (?:in|at|for) (.+)/i,
-            /weather (?:in|at|for) (.+)/i,
-            /(?:forecast|temperature|temp) (?:in|at|for) (.+)/i,
-            /how(?:'s| is) (?:the )?weather (?:in|at) (.+)/i,
-            /(?:is it|will it be) (?:rain|snow|cold|hot|warm)\w* (?:in|at) (.+)/i,
+            /^(?:what(?:'s| is)(?: the)?)?\s*weather(?:\s+like)?(?:\s+(?:in|at|for))?\s+(.+)/i,
+            /^(?:forecast|temperature|temp)(?:\s+(?:in|at|for))?\s+(.+)/i,
+            /^how(?:'s| is)(?: the)? weather(?:\s+(?:in|at|for))?\s+(.+)/i,
+            /^(?:is it|will it be)\s+(?:rain|snow|cold|hot|warm)\w*(?:\s+(?:in|at|for))?\s+(.+)/i,
+            /^(.+)\s+weather\??$/i,
         ],
         params: m => ({ location: cleanTail(m[1]) }),
     },
@@ -324,11 +324,12 @@ const RULES = [
     {
         tool: 'time',
         description: 'Gets the current time in a specific location.',
-        examples: ['what time is it in London', 'current time in Tokyo', 'time in New York'],
+        examples: ['what time is it in London', 'current time in Tokyo', 'time in New York', 'London time'],
         patterns: [
-            /(?:what(?:'s| is)(?: the)?) (?:local )?time (?:in|at) (.+)/i,
-            /what time is it (?:in|at|over in) (.+)/i,
-            /current time (?:in|at) (.+)/i,
+            /^(?:what(?:'s| is)(?: the)?)?\s*(?:local\s+)?time\s+(?:in|at|for)\s+(.+)/i,
+            /^what time is it(?:\s+(?:in|at|for|over in))\s+(.+)/i,
+            /^current time\s+(?:in|at|for)\s+(.+)/i,
+            /^(.+)\s+time\??$/i,
         ],
         params: m => ({ timezone: resolveTimezone(cleanTail(m[1])) }),
     },
@@ -337,11 +338,10 @@ const RULES = [
     {
         tool: 'date',
         description: "Gets today's date or current local time.",
-        examples: ["what's the date", 'what day is it', 'what time is it'],
+        examples: ["what's the date", 'what day is it', 'what time is it', "today's date"],
         patterns: [
-            /^(?:what(?:'s| is)(?: the)?) (?:date|day)(?: today)?\??$/i,
-            /^today(?:'s)? date\??$/i,
-            /^current date\??$/i,
+            /^(?:what(?:'s| is)(?: the| today's)?)?\s*(?:date|day)(?: today)?\??$/i,
+            /^(?:today(?:'s)?|current)\s+date\??$/i,
             /^what day is (?:it|today)\??$/i,
             /^what time is it\??$/i,
         ],
@@ -449,10 +449,11 @@ const RULES = [
     {
         tool: 'timer',
         description: 'Sets a countdown timer.',
-        examples: ['set a timer for 10 minutes', 'start a 30-second timer', 'timer for 1.5 hours'],
+        examples: ['set a timer for 10 minutes', 'start a 30-second timer', 'timer for 1.5 hours', '10 minute timer'],
         patterns: [
-            /(?:set|start|create)(?: a)? timer (?:for )?(\d+(?:\.\d+)?)\s*(hour|hr|h|minute|min|second|sec)\b/i,
-            /(?:remind me in) (\d+(?:\.\d+)?)\s*(hour|hr|h|minute|min|second|sec)\b/i,
+            /^(?:set|start|create)?\s*(?:a\s+)?timer(?:\s+for)?\s+(\d+(?:\.\d+)?)\s*(hour|hr|h|minute|min|m|second|sec|s)\b/i,
+            /^(\d+(?:\.\d+)?)\s*(hour|hr|h|minute|min|m|second|sec|s)\s+timer\b/i,
+            /^(?:remind me in)\s+(\d+(?:\.\d+)?)\s*(hour|hr|h|minute|min|m|second|sec|s)\b/i,
         ],
         params: m => {
             const v = parseFloat(m[1]), u = m[2].toLowerCase();
@@ -570,7 +571,7 @@ const RULES = [
         description: "Detects the user's geographic location.",
         examples: ['where am I', 'my location', 'find my location'],
         patterns: [
-            /^(?:where am i|my location|current location|locate me|find my location)\??$/i,
+            /^(?:where am i(?:\s+located)?|my location|current location|locate me|find my location|show my location|what is my location)\??$/i,
         ],
         params: () => ({}),
     },
@@ -581,7 +582,7 @@ const RULES = [
         description: "Reads the user's clipboard.",
         examples: ['read clipboard', 'what is in my clipboard'],
         patterns: [
-            /^(?:read|get|check|show)(?: me)?(?: my)? clipboard\??$/i,
+            /^(?:read|get|check|show|paste)(?: me)?(?: my)? clipboard(?:\s+please)?\??$/i,
             /^what(?:'s| is) in(?: my)? clipboard\??$/i,
             /^clipboard\??$/i,
         ],
@@ -592,9 +593,9 @@ const RULES = [
     {
         tool: 'websearch',
         description: 'Searches the web (DuckDuckGo fallback).',
-        examples: ['search for TypeScript tutorials', 'look up climate change', 'google best pizza NYC'],
+        examples: ['search for TypeScript tutorials', 'look up climate change', 'google best pizza NYC', 'search the web for artificial intelligence'],
         patterns: [
-            /^(?:search for|look up|google|bing|search) (.+)/i,
+            /^(?:search(?: the web| web)?(?: for)?|look up|google|bing|find updates on|search on google for)\s+(.+)/i,
         ],
         params: m => ({ query: cleanTail(m[1]) }),
     },
@@ -616,11 +617,14 @@ const RULES = [
     {
         tool: 'start_game',
         description: 'Starts a game of Chess or Checkers in the chat.',
-        examples: ['let\'s play chess', 'start a game of checkers', 'play chess'],
+        examples: ['let\'s play chess', 'start a game of checkers', 'play chess', 'chess game please', 'can we play chess', 'checkers please'],
         patterns: [
-            /(?:let'?s\s+)?(?:play|start)(?: a game of)?\s+(chess|checkers)/i
+            /^(?:let'?s\s+|can\s+(?:we|you)\s+|could\s+(?:we|you)\s+|would\s+you\s+like\s+to\s+|how\s+about\s+a\s+|i\s+want\s+to\s+|i'd\s+like\s+to\s+)?(?:play|start|launch|open)?\s*(?:a\s+)?(?:game\s+of\s+)?(chess|checkers)(?:\s+game)?(?:\s+please|\s+now|\s+with\s+me)?\??$/i,
+            /^(?:play|start|new|open|launch)\s+(?:a\s+)?(?:game\s+of\s+)?(chess|checkers)\b/i,
+            /^(chess|checkers)\s+(?:game|please|now)\b/i,
+            /^(chess|checkers)$/i,
         ],
-        params: m => ({ game: m[1].toLowerCase() }),
+        params: m => ({ game: (m[1] || m[2] || '').toLowerCase() }),
     },
 ];
 
