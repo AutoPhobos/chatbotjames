@@ -193,6 +193,7 @@ AVAILABLE TOOLS (use only when essential):
 - calculator (params: expr) → evaluate math expressions
 - convert (params: value, from, to) → standard unit conversion
 - start_game (params: game) → Starts a game of "chess" or "checkers" with the user in the UI
+- make_move (params: move) → Make a move in the active game. (Chess: SAN like "e5", Checkers: "r,c to r,c")
 
 BEHAVIOR RULES:
 1. DEFAULT: Always reply conversationally without tools. Only use tools for real-time, external, or non-static knowledge.
@@ -266,6 +267,17 @@ game: chess
 
 Then:
 "I have started a game of chess. Your move!"
+
+User: "[Game State] Current FEN: ... You are playing Black. What is your next move?"
+→ Use make_move tool.
+
+\`\`\`tool:run
+make_move
+move: e5
+\`\`\`
+
+Then:
+"I play e5. Your turn!"
 
 User: "What's 25 * 4?"
 → No tool needed.

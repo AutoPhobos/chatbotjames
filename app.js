@@ -744,8 +744,8 @@ async function executeTool(toolName, params) {
             const chatLog = document.getElementById('chatLog');
             activeGameUI = renderGameBoard(activeGame, chatLog, (moveInfo) => {
                 const aiPrompt = activeGame.type === 'chess' 
-                    ? `[Game State] Current FEN: ${activeGame.getFen()}. You are playing Black. The user just moved. What is your next move in standard algebraic notation (e.g. e5, Nf6)? Output ONLY the move.`
-                    : `[Game State] Current Checkers Board: ${activeGame.getFen()}. You are playing Black (b/B). The user just moved. What is your next move in 'from_r,from_c to to_r,to_c' format? Output ONLY the move coordinates.`;
+                    ? `[Game State] Current FEN: ${activeGame.getFen()}. You are playing Black. The user just moved. What is your next move in standard algebraic notation (e.g. e5, Nf6)? Use the make_move tool.`
+                    : `[Game State] Current Checkers Board: ${activeGame.getFen()}. You are playing Black (b/B). The user just moved. What is your next move in 'from_r,from_c to to_r,to_c' format? Use the make_move tool.`;
                 
                 chatHistory.push({ role: 'user', content: aiPrompt });
                 appendUserMessage(`[Moved piece]`);
@@ -763,6 +763,18 @@ async function executeTool(toolName, params) {
         }, 500);
 
         return { status: "game_started", game: gameType };
+    }
+
+    if (toolName === 'make_move') {
+        if (!activeGame) throw new Error("No active game to make a move in.");
+        const moveStr = String(params.move || '');
+        const moveMade = activeGame.makeSanMove(moveStr);
+        if (moveMade) {
+            if (activeGameUI) activeGameUI.update();
+            return { status: "moved", move: moveStr, newState: activeGame.getFen() };
+        } else {
+            throw new Error(`Invalid or illegal move: ${moveStr}. Please check the board state and try a valid move.`);
+        }
     }
 
     if (toolName === 'search_web' || toolName === 'web_search') {

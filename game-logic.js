@@ -33,8 +33,18 @@ export class ChessGame {
 
     makeSanMove(san) {
         try {
-            return this.game.move(san);
+            return this.game.move(san.trim());
         } catch (e) {
+            // Fallback: search for SAN-like tokens in the text
+            const sanRegex = /\b(?:[NQKBR]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NQKBR])?[+#]?|O-O(?:-O)?)\b/g;
+            const matches = san.match(sanRegex);
+            if (matches) {
+                for (const match of matches) {
+                    try {
+                        return this.game.move(match);
+                    } catch(err) {}
+                }
+            }
             return null;
         }
     }
