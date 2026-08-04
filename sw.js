@@ -65,7 +65,11 @@ self.addEventListener('fetch', (event) => {
                     caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
                     return res;
                 })
-                .catch(() => caches.match(event.request))
+                .catch(async () => {
+                    const cached = await caches.match(event.request);
+                    if (cached) return cached;
+                    return new Response('Network error in app file', { status: 503 });
+                })
         );
         return;
     }
@@ -78,7 +82,7 @@ self.addEventListener('fetch', (event) => {
                     const clone = res.clone();
                     caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
                     return res;
-                })
+                }).catch(() => new Response('Network error in CDN fetch', { status: 503 }))
             )
         );
         return;
@@ -86,6 +90,10 @@ self.addEventListener('fetch', (event) => {
 
     // Everything else: network with cache fallback
     event.respondWith(
-        fetch(event.request).catch(() => caches.match(event.request))
+        fetch(event.request).catch(async () => {
+            const cached = await caches.match(event.request);
+            if (cached) return cached;
+            return new Response('Network error', { status: 503 });
+        })
     );
 });
