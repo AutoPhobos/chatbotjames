@@ -504,46 +504,10 @@ async function handleToolCalls(message, targetId, originChatId) {
     if (toolCalls.length === 0) {
         _toolCallDepth = 0;
 
-        let interceptedGameMove = false;
-        if (activeGame && originChatId === currentChatId) {
-            const movesMade = activeGame.makeSanMove(message);
-            if (movesMade) {
-                const moves = Array.isArray(movesMade) ? movesMade : [movesMade];
-                for (const move of moves) {
-                    let notation = null;
-                    if (activeGame.type === 'chess') {
-                        notation = move.san || move.trim();
-                        if (move.promotion) playGameBuffSound();
-                        else playGameMoveSound();
-                    } else {
-                        notation = `(${move.from.r},${move.from.c})→(${move.to.r},${move.to.c})`;
-                        if (move.multiJump || move.jump) playGameBuffSound();
-                        else playGameMoveSound();
-                    }
-                    if (activeGameUI) activeGameUI.update(notation);
-                }
-                
-                if (activeGame.isGameOver()) {
-                    const winner = activeGame.getWinner ? activeGame.getWinner() : null;
-                    if (winner === 'w') playGameWinSound();
-                    else if (winner === 'b') playGameLoseSound();
-                    else if (activeGame.type === 'chess' && activeGame.game.isCheckmate()) {
-                        if (activeGame.game.turn() === 'b') playGameWinSound();
-                        else playGameLoseSound();
-                    } else {
-                        playGameMoveSound();
-                    }
-                }
-                
-                interceptedGameMove = true;
-            }
-        }
-
         if (originChatId === currentChatId) {
             updateLiveBubble(message, targetId);
             chatHistory.push({ role: 'assistant', content: message });
             persistCurrentChat();
-            if (interceptedGameMove) refreshGameBoardUI();
         } else {
             const bgChat = allChats.find(c => c.id === originChatId);
             if (bgChat) {
