@@ -618,7 +618,7 @@ const RULES = [
         description: 'Starts a game of Chess or Checkers in the chat.',
         examples: ['let\'s play chess', 'start a game of checkers', 'play chess'],
         patterns: [
-            /^(?:let'?s\s+)?(?:play|start)(?: a game of)?\s+(chess|checkers)/i
+            /(?:let'?s\s+)?(?:play|start)(?: a game of)?\s+(chess|checkers)/i
         ],
         params: m => ({ game: m[1].toLowerCase() }),
     },
