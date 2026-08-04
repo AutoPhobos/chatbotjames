@@ -43,6 +43,7 @@ let activeGameUI = null;
 // UI State Locks
 let _isGeneratingUI = false;
 let lastUpdate = 0;
+const activeGenerations = new Map(); // chatId -> targetId
 let _gpuInfo = null;
 let _presets = [];
 let _activePresetId = null;
@@ -165,6 +166,9 @@ function workerMessageHandler(e) {
         if (statusText) statusText.textContent = 'READY';
         if (status !== 'error' && status !== 'aborted') playDoneSound();
         if (status === 'done' || status === 'error') releaseWakeLock();
+        if (status === 'aborted' && e.data.chatId) activeGenerations.delete(e.data.chatId);
+        if (status === 'complete' && e.data.chatId) activeGenerations.delete(e.data.chatId);
+        if (status === 'error' && e.data.chatId) activeGenerations.delete(e.data.chatId);
     } else {
         if (!_isGeneratingUI) {
             setIdleState(false);
@@ -429,11 +433,13 @@ function sendMessage() {
 
     setIdleState(false);
     const messagesForModel = getMessagesWindow(chatHistory);
+    const targetId = getNextTargetId();
+    activeGenerations.set(currentChatId, targetId);
 
     worker.postMessage({
         type: 'query',
         messages: messagesForModel,
-        targetId: getNextTargetId(),
+        targetId: targetId,
         chatId: currentChatId
     });
 }
@@ -575,6 +581,7 @@ async function handleToolCalls(message, targetId, originChatId) {
 
     const messagesForModel = getMessagesWindow(activeMessages);
     const nextTargetId = getNextTargetId();
+    activeGenerations.set(originChatId, nextTargetId);
 
     worker.postMessage({
         type: 'query',
@@ -670,9 +677,11 @@ function handleGameMove(moveInfo) {
     }
 
     const moveNotation = moveInfo.notation || '';
+    const aiColor = activeGame.getTurn() === 'w' ? 'White' : 'Black';
+    const checkersAiColor = activeGame.getTurn() === 'w' ? 'White (w/W)' : 'Black (b/B)';
     const aiPrompt = activeGame.type === 'chess'
-        ? `[Game State] Current FEN: ${activeGame.getFen()}. You are playing Black. The user just moved${moveNotation ? ` (${moveNotation})` : ''}. It is NOW YOUR TURN. You MUST immediately use the make_move tool to play your move in standard algebraic notation (e.g. e5, Nf6). Do NOT say 'your turn' — it is your turn right now.`
-        : `[Game State] Current Checkers Board: ${activeGame.getFen()}. You are playing Black (b/B). The user just moved${moveNotation ? ` (${moveNotation})` : ''}. It is NOW YOUR TURN. You MUST immediately use the make_move tool with 'from_r,from_c to to_r,to_c' format. Do NOT say 'your turn' — it is your turn right now.`;
+        ? `[Game State] Current FEN: ${activeGame.getFen()}. You are playing ${aiColor}. The user just moved${moveNotation ? ` (${moveNotation})` : ''}. It is NOW YOUR TURN. You MUST immediately use the make_move tool to play your move in standard algebraic notation (e.g. e5, Nf6). Do NOT say 'your turn' — it is your turn right now.`
+        : `[Game State] Current Checkers Board: ${activeGame.getFen()}. You are playing ${checkersAiColor}. The user just moved${moveNotation ? ` (${moveNotation})` : ''}. It is NOW YOUR TURN. You MUST immediately use the make_move tool with 'from_r,from_c to to_r,to_c' format. Do NOT say 'your turn' — it is your turn right now.`;
 
     chatHistory.push({ role: 'user', content: aiPrompt, hidden: true });
     chatHistory.push({ role: 'system', content: `[Moved piece: ${moveNotation || 'done'}]` });
@@ -683,10 +692,12 @@ function handleGameMove(moveInfo) {
 
     setIdleState(false);
     const messagesForModel = getMessagesWindow(chatHistory);
+    const targetId = getNextTargetId();
+    activeGenerations.set(currentChatId, targetId);
     worker.postMessage({
         type: 'query',
         messages: messagesForModel,
-        targetId: getNextTargetId(),
+        targetId: targetId,
         chatId: currentChatId
     });
 }
@@ -901,6 +912,14 @@ function loadChatHistory(chatId) {
                 activeGameUI = renderGameBoard(activeGame, container, handleGameMove);
             }
         }, 50);
+    }
+    
+    if (activeGenerations.has(chatId)) {
+        const tId = activeGenerations.get(chatId);
+        const hasText = streamQueues.has(tId) && streamQueues.get(tId).displayed.length > 0;
+        if (!hasText) {
+            updateLiveBubble('...', tId, true);
+        }
     }
 }
 

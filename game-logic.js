@@ -1,9 +1,10 @@
 import { Chess } from 'https://esm.sh/chess.js';
 
 export class ChessGame {
-    constructor(fen) {
+    constructor(fen, moveHistory = []) {
         this.game = new Chess(fen);
         this.type = 'chess';
+        this.moveHistory = moveHistory;
     }
 
     getFen() {
@@ -11,7 +12,7 @@ export class ChessGame {
     }
 
     getState() {
-        return { fen: this.game.fen() };
+        return { fen: this.game.fen(), moveHistory: this.moveHistory };
     }
 
     getBoard() {
@@ -80,11 +81,13 @@ export class CheckersGame {
     constructor(state) {
         this.type = 'checkers';
         if (state) {
-            this.board = JSON.parse(state.board);
+            this.board = typeof state.board === 'string' ? JSON.parse(state.board) : state.board;
             this.turn = state.turn;
-            this.mustJumpFrom = state.mustJumpFrom || null; // {r,c} during a multi-jump sequence
+            this.mustJumpFrom = state.mustJumpFrom || null;
+            this.moveHistory = state.moveHistory || [];
         } else {
             this.reset();
+            this.moveHistory = [];
         }
     }
 
@@ -107,7 +110,7 @@ export class CheckersGame {
     }
 
     getState() {
-        return { board: JSON.stringify(this.board), turn: this.turn, mustJumpFrom: this.mustJumpFrom };
+        return { board: JSON.stringify(this.board), turn: this.turn, mustJumpFrom: this.mustJumpFrom, moveHistory: this.moveHistory };
     }
 
     getFen() {

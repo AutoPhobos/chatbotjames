@@ -21,8 +21,8 @@ export function renderGameBoard(game, container, onMove) {
     const boardWithLabels = document.createElement('div');
     boardWithLabels.style.cssText = `
         display: grid;
-        grid-template-columns: 20px 352px;
-        grid-template-rows: 352px 20px;
+        grid-template-columns: 24px 448px;
+        grid-template-rows: 448px 24px;
         user-select: none;
     `;
 
@@ -33,9 +33,9 @@ export function renderGameBoard(game, container, onMove) {
         flex-direction: column;
         justify-content: space-around;
         align-items: center;
-        height: 352px;
+        height: 448px;
         font-family: 'Courier New', monospace;
-        font-size: 10px;
+        font-size: 11px;
         color: #aaa;
         padding: 0;
     `;
@@ -45,8 +45,8 @@ export function renderGameBoard(game, container, onMove) {
     fileLabelsRow.style.cssText = `
         grid-column: 1 / 3;
         display: grid;
-        grid-template-columns: 20px repeat(8, 44px);
-        height: 20px;
+        grid-template-columns: 24px repeat(8, 56px);
+        height: 24px;
     `;
     // corner spacer
     fileLabelsRow.appendChild(document.createElement('div'));
@@ -55,10 +55,10 @@ export function renderGameBoard(game, container, onMove) {
     boardContainer.className = 'game-board-container';
     boardContainer.style.cssText = `
         display: grid;
-        grid-template-columns: repeat(8, 44px);
-        grid-template-rows: repeat(8, 44px);
-        width: 352px;
-        height: 352px;
+        grid-template-columns: repeat(8, 56px);
+        grid-template-rows: repeat(8, 56px);
+        width: 448px;
+        height: 448px;
         border: 2px solid #555;
         border-radius: 4px;
         margin: 0;
@@ -71,16 +71,16 @@ export function renderGameBoard(game, container, onMove) {
         align-items: center;
         justify-content: center;
         font-family: 'Courier New', monospace;
-        font-size: 10px;
+        font-size: 11px;
         color: #aaa;
-        width: 44px;
-        height: 20px;
+        width: 56px;
+        height: 24px;
     `;
 
     // Populate rank labels (left side) and file labels (bottom row)
     for (let r = 0; r < 8; r++) {
         const lbl = document.createElement('div');
-        lbl.style.cssText = 'line-height: 44px; font-family: "Courier New",monospace; font-size:10px; color:#aaa; text-align:center; width:20px; height:44px;';
+        lbl.style.cssText = 'line-height: 56px; font-family: "Courier New",monospace; font-size:11px; color:#aaa; text-align:center; width:24px; height:56px;';
         lbl.textContent = game.type === 'chess' ? String(8 - r) : String(r);
         rankLabels.appendChild(lbl);
     }
@@ -100,7 +100,7 @@ export function renderGameBoard(game, container, onMove) {
     // ── Notation panel ──────────────────────────────────────────────────────────
     const notationPanel = document.createElement('div');
     notationPanel.style.cssText = `
-        width: 372px;
+        width: 472px;
         max-height: 100px;
         overflow-y: auto;
         background: rgba(0,0,0,0.25);
@@ -118,8 +118,12 @@ export function renderGameBoard(game, container, onMove) {
     wrapper.appendChild(notationPanel);
 
     // Move history: array of { moveNumber, white, black }
-    const moveHistory = []; // { moveNumber, white?: string, black?: string }
+    const moveHistory = game.moveHistory || []; // { moveNumber, white?: string, black?: string }
     let halfMoveCount = 0; // incremented per full side-move applied
+    moveHistory.forEach(m => {
+        if (m.white) halfMoveCount++;
+        if (m.black) halfMoveCount++;
+    });
 
     function addNotation(san) {
         halfMoveCount++;
@@ -134,6 +138,7 @@ export function renderGameBoard(game, container, onMove) {
                 moveHistory.push({ moveNumber: 1, black: san });
             }
         }
+        game.moveHistory = moveHistory;
         renderNotation();
     }
 
@@ -200,7 +205,7 @@ export function renderGameBoard(game, container, onMove) {
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    font-size: 26px;
+                    font-size: 32px;
                     cursor: pointer;
                     position: relative;
                     transition: background-color 0.12s;
@@ -279,7 +284,7 @@ export function renderGameBoard(game, container, onMove) {
                     if (p !== 0) {
                         const isKing = Math.abs(p) === 2;
                         pieceEl.textContent = isKing ? CHECKERS_SYMBOL.king : CHECKERS_SYMBOL.regular;
-                        pieceEl.style.fontSize   = isKing ? '22px' : '28px';
+                        pieceEl.style.fontSize   = isKing ? '28px' : '34px';
                         pieceEl.style.color      = p > 0 ? '#f0f0f0' : '#1a1a1a';
                         pieceEl.style.textShadow = p > 0
                             ? '0 0 2px #000, 0 0 2px #000'
@@ -396,6 +401,7 @@ export function renderGameBoard(game, container, onMove) {
         }
     }
 
+    renderNotation();
     render();
 
     // Mount to the provided container
