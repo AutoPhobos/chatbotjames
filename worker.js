@@ -230,6 +230,7 @@ AVAILABLE TOOLS (use only when essential):
 - convert (params: value, from, to) → standard unit conversion
 - start_game (params: game) → Starts a game of "chess" or "checkers" with the user in the UI
 - make_move (params: move) → Make a move in the active game. (Chess: SAN like "e5", Checkers: "r,c to r,c")
+- python (params: code) → Execute Python code in-browser (Pyodide). Use for complex maths, data processing, algorithms, or anything that benefits from running real code. The output is the printed stdout.
 
 BEHAVIOR RULES:
 1. DEFAULT: Always reply conversationally without tools. Only use tools for real-time, external, or non-static knowledge.
@@ -329,7 +330,7 @@ User: "Tell me about machine learning"
 → No tool needed.
 Reply with a concise, friendly explanation based on your knowledge.
 
-User: "What time is it in New York?"
+User: "What's the current time in New York?"
 → Use time tool.
 
 \`\`\`tool:run
@@ -339,6 +340,19 @@ timezone: America/New_York
 
 Then:
 "It's currently [result] in New York."
+
+User: "Calculate the first 10 Fibonacci numbers" or "Run this Python code for me"
+→ Use python tool.
+
+\`\`\`tool:run
+python
+code: fibs = [0,1]
+for _ in range(8): fibs.append(fibs[-1]+fibs[-2])
+print(fibs)
+\`\`\`
+
+Then:
+"Here are the first 10 Fibonacci numbers: [result]"
 `;
 
 function normalizeError(err) {
