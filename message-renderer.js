@@ -1,4 +1,12 @@
 import { CONFIG } from './config.js';
+import { marked } from 'https://esm.sh/marked@11.1.0';
+import DOMPurify from 'https://esm.sh/dompurify@3.0.8';
+
+// Configure marked to use GitHub Flavored Markdown and breaks
+marked.setOptions({
+    gfm: true,
+    breaks: true
+});
 
 const RENDER_WINDOW = CONFIG.ui.renderWindowMessages;
 let _renderOffset = 0;
@@ -31,9 +39,9 @@ export function escapeHTML(raw) {
 }
 
 export function formatAssistantMessage(text) {
-    // ── Step 1: Extract tool:run blocks BEFORE HTML escaping ──────────────────
+    // ── Step 1: Extract tool:run blocks BEFORE parsing ────────────────────────
     const toolBoxes = [];
-    const TOOL_PLACEHOLDER = '\x01TOOLBOX_'; // \x01 is not affected by escapeHTML
+    const TOOL_PLACEHOLDER = 'TOOLBOX_PLACEHOLDER_XYZ_'; // Unique placeholder
     const textWithPlaceholders = text.replace(/```\s*tool:run\n?([\s\S]*?)```/g, (_, code) => {
         const lines = code.trim().split('\n');
         const toolName = escapeHTML(lines[0] || 'Unknown');
@@ -43,35 +51,17 @@ export function formatAssistantMessage(text) {
             <div style="color: #94a3b8;">${params}</div>
         </div>`;
         const idx = toolBoxes.push(html) - 1;
-        return `${TOOL_PLACEHOLDER}${idx}\x01`;
+        return `${TOOL_PLACEHOLDER}${idx}`;
     });
 
-    // ── Step 2: Escape HTML on remaining text ─────────────────────────────────
-    let html = escapeHTML(textWithPlaceholders);
+    // ── Step 2: Apply markdown formatting ────────────────────────────────────
+    let html = marked.parse(textWithPlaceholders, { async: false });
 
-    // ── Step 3: Apply markdown formatting ────────────────────────────────────
-    html = html
-        .replace(/```([\s\S]*?)```/g, (_, code) => `<pre><code>${code.trim()}</code></pre>`)
-        .replace(/(^|\n)######\s*(.+)/g, '$1<h6>$2</h6>')
-        .replace(/(^|\n)#####\s*(.+)/g, '$1<h5>$2</h5>')
-        .replace(/(^|\n)####\s*(.+)/g, '$1<h4>$2</h4>')
-        .replace(/(^|\n)###\s*(.+)/g, '$1<h3>$2</h3>')
-        .replace(/(^|\n)##\s*(.+)/g, '$1<h2>$2</h2>')
-        .replace(/(^|\n)#\s*(.+)/g, '$1<h1>$2</h1>')
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.+?)\*/g, '<em>$1</em>')
-        .replace(/`([^`\n]+?)`/g, '<code>$1</code>')
-        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, linkText, url) => {
-            const rawUrl = url.trim();
-            const lowerUrl = rawUrl.toLowerCase();
-            const isUnsafe = lowerUrl.startsWith('javascript:') || lowerUrl.startsWith('data:') || lowerUrl.startsWith('vbscript:');
-            const cleanUrl = isUnsafe ? '#' : escapeHTML(rawUrl);
-            return `<a href="${cleanUrl}" target="_blank" rel="noreferrer noopener">${linkText}</a>`;
-        })
-        .replace(/\n/g, '<br>');
+    // ── Step 3: Sanitize the parsed HTML ─────────────────────────────────────
+    html = DOMPurify.sanitize(html);
 
-    // ── Step 4: Restore tool blocks (placeholders survive escapeHTML intact) ──
-    toolBoxes.forEach((box, i) => { html = html.replace(`${TOOL_PLACEHOLDER}${i}\x01`, box); });
+    // ── Step 4: Restore tool blocks ──────────────────────────────────────────
+    toolBoxes.forEach((box, i) => { html = html.replace(`${TOOL_PLACEHOLDER}${i}`, box); });
 
     return html;
 }
