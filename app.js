@@ -217,12 +217,62 @@ workerController.onComplete = (chatId, targetId, message) => {
                 import('./game-logic.js').then(({ extractAIMove }) => {
                     const aiMove = extractAIMove(message, gameController.activeGame);
                     if (aiMove) {
-                        gameController.handleMakeMove({ move: aiMove }, null, (v) => uiManager.setIdleState(v, (x) => globalState.isGeneratingUI = x), null);
-                        chatManager.persistCurrentChat(() => gameController.getGameState());
+                        gameController.handleMakeMove(
+                            { move: aiMove },
+                            (msg) => {
+                                chatManager.chatHistory.push({ role: 'system', content: msg });
+                                renderChatLog();
+                            },
+                            (v) => uiManager.setIdleState(v, (x) => globalState.isGeneratingUI = x),
+                            () => {
+                                chatManager.persistCurrentChat(() => window.gameController.getGameState());
+                                uiManager.updateStatusText('THINKING...');
+                                const aiTargetId = getNextTargetId();
+                                workerController.postQuery(getMessagesWindow(chatManager.chatHistory), aiTargetId, chatManager.currentChatId);
+                                updateLiveBubble('...', aiTargetId);
+                            }
+                        );
                     }
                 });
             }
             chatManager.persistCurrentChat(() => gameController.getGameState());
+        }
+    } else if (chatId !== chatManager.currentChatId && message) {
+        const bgChat = chatManager.allChats.find(c => c.id === chatId);
+        if (bgChat) {
+            bgChat.messages.push({ role: 'assistant', content: message });
+            
+            if (bgChat.gameState) {
+                import('./game-logic.js').then(({ extractAIMove, ChessGame, CheckersGame }) => {
+                    const tempGame = bgChat.gameState.type === 'checkers' ? new CheckersGame() : new ChessGame();
+                    if (bgChat.gameState.fen) tempGame.loadFen(bgChat.gameState.fen);
+                    tempGame.aiColor = bgChat.gameState.aiColor || 'b';
+                    
+                    const aiMove = extractAIMove(message, tempGame);
+                    if (aiMove) {
+                        const moveInfo = tempGame.move(aiMove);
+                        if (moveInfo) {
+                            let notation = moveInfo.notation || moveInfo.san;
+                            if (bgChat.gameState.history && tempGame.setHistory) tempGame.setHistory(bgChat.gameState.history);
+                            if (!tempGame.moveHistory) tempGame.moveHistory = [];
+                            if (notation) tempGame.moveHistory.push(notation);
+                            bgChat.gameState = {
+                                type: tempGame.type,
+                                fen: tempGame.getFen(),
+                                history: tempGame.getHistory ? tempGame.getHistory() : null,
+                                aiColor: tempGame.aiColor
+                            };
+                        } else {
+                            bgChat.messages.push({ role: 'system', content: `[System]: Failed to make move ${aiMove}. Invalid move.` });
+                            const nextTargetId = Date.now().toString(36);
+                            workerController.postQuery(getMessagesWindow(bgChat.messages), nextTargetId, chatId);
+                        }
+                    }
+                    import('./chat-db.js').then(db => db.dbSaveChat(bgChat));
+                });
+            } else {
+                import('./chat-db.js').then(db => db.dbSaveChat(bgChat));
+            }
         }
     }
 };
@@ -241,8 +291,21 @@ workerController.onAborted = (chatId, targetId, message) => {
             import('./game-logic.js').then(({ extractAIMove }) => {
                 const aiMove = extractAIMove(message, window.gameController.activeGame);
                 if (aiMove) {
-                    window.gameController.handleMakeMove({ move: aiMove }, null, (v) => uiManager.setIdleState(v, (x) => globalState.isGeneratingUI = x), null);
-                    chatManager.persistCurrentChat(() => window.gameController.getGameState());
+                    window.gameController.handleMakeMove(
+                        { move: aiMove },
+                        (msg) => {
+                            chatManager.chatHistory.push({ role: 'system', content: msg });
+                            renderChatLog();
+                        },
+                        (v) => uiManager.setIdleState(v, (x) => globalState.isGeneratingUI = x),
+                        () => {
+                            chatManager.persistCurrentChat(() => window.gameController.getGameState());
+                            uiManager.updateStatusText('THINKING...');
+                            const aiTargetId = getNextTargetId();
+                            workerController.postQuery(getMessagesWindow(chatManager.chatHistory), aiTargetId, chatManager.currentChatId);
+                            updateLiveBubble('...', aiTargetId);
+                        }
+                    );
                 }
             });
         }
@@ -252,7 +315,38 @@ workerController.onAborted = (chatId, targetId, message) => {
         const bgChat = chatManager.allChats.find(c => c.id === chatId);
         if (bgChat) {
             bgChat.messages.push({ role: 'assistant', content: message });
-            import('./chat-db.js').then(db => db.dbSaveChat(bgChat));
+            
+            if (bgChat.gameState) {
+                import('./game-logic.js').then(({ extractAIMove, ChessGame, CheckersGame }) => {
+                    const tempGame = bgChat.gameState.type === 'checkers' ? new CheckersGame() : new ChessGame();
+                    if (bgChat.gameState.fen) tempGame.loadFen(bgChat.gameState.fen);
+                    tempGame.aiColor = bgChat.gameState.aiColor || 'b';
+                    
+                    const aiMove = extractAIMove(message, tempGame);
+                    if (aiMove) {
+                        const moveInfo = tempGame.move(aiMove);
+                        if (moveInfo) {
+                            let notation = moveInfo.notation || moveInfo.san;
+                            if (bgChat.gameState.history && tempGame.setHistory) tempGame.setHistory(bgChat.gameState.history);
+                            if (!tempGame.moveHistory) tempGame.moveHistory = [];
+                            if (notation) tempGame.moveHistory.push(notation);
+                            bgChat.gameState = {
+                                type: tempGame.type,
+                                fen: tempGame.getFen(),
+                                history: tempGame.getHistory ? tempGame.getHistory() : null,
+                                aiColor: tempGame.aiColor
+                            };
+                        } else {
+                            bgChat.messages.push({ role: 'system', content: `[System]: Failed to make move ${aiMove}. Invalid move.` });
+                            const nextTargetId = Date.now().toString(36);
+                            workerController.postQuery(getMessagesWindow(bgChat.messages), nextTargetId, chatId);
+                        }
+                    }
+                    import('./chat-db.js').then(db => db.dbSaveChat(bgChat));
+                });
+            } else {
+                import('./chat-db.js').then(db => db.dbSaveChat(bgChat));
+            }
         }
     }
     renderChatLog();
