@@ -146,18 +146,25 @@ function setIdleState(isIdle) {
 }
 
 function getMessagesWindow(messages) {
-    let filtered = messages ? messages.filter(m => m.role !== 'system') : [];
-    if (filtered.length <= MAX_HISTORY) {
-        if (filtered.length > 0 && filtered[0].role !== 'user') {
-            return filtered.slice(1);
-        }
-        return filtered;
+    if (!messages) return [];
+
+    // Separate background (isBackground) system messages from the regular history.
+    // Background messages are always injected and do NOT count toward MAX_HISTORY.
+    const background = messages.filter(m => m.isBackground);
+    const regular = messages.filter(m => !m.isBackground && m.role !== 'system');
+
+    let windowed = regular;
+    if (regular.length > MAX_HISTORY) {
+        windowed = regular.slice(-MAX_HISTORY);
     }
-    let sliced = filtered.slice(-MAX_HISTORY);
-    if (sliced.length > 0 && sliced[0].role !== 'user') {
-        sliced = sliced.slice(1);
+    // Ensure the window starts with a user message
+    if (windowed.length > 0 && windowed[0].role !== 'user') {
+        windowed = windowed.slice(1);
     }
-    return sliced;
+
+    // Re-inject background messages at the end (most recent) so the model sees them
+    // fresh without them being windowed away
+    return [...windowed, ...background];
 }
 
 // Unified Worker Message Handler
@@ -472,6 +479,7 @@ function sendMessage() {
     if (text) {
         localStorage.setItem('james-last-input', text);
     }
+    _saveResumeSnapshot();
 
     worker.postMessage({
         type: 'query',
@@ -609,6 +617,7 @@ async function handleToolCalls(message, targetId, originChatId) {
     activeGenerations.set(originChatId, nextTargetId);
 
     localStorage.setItem('james-is-generating', 'true');
+    if (originChatId === currentChatId) _saveResumeSnapshot();
 
     worker.postMessage({
         type: 'query',
@@ -734,6 +743,7 @@ function handleGameMove(moveInfo) {
         persistCurrentChat();
         setIdleState(false);
         localStorage.setItem('james-is-generating', 'true');
+        _saveResumeSnapshot();
         worker.postMessage({
             type: 'query',
             messages: getMessagesWindow(chatHistory),
@@ -762,6 +772,7 @@ function handleGameMove(moveInfo) {
     const targetId = getNextTargetId();
     activeGenerations.set(currentChatId, targetId);
     localStorage.setItem('james-is-generating', 'true');
+    _saveResumeSnapshot();
     worker.postMessage({
         type: 'query',
         messages: messagesForModel,
@@ -1145,42 +1156,121 @@ document.getElementById('sidebarToggle')?.addEventListener('click', () => {
 document.getElementById('sidebarOverlay')?.addEventListener('click', closeSidebar);
 
 // ==========================================
+// RECOVERY HELPERS
+// ==========================================
+function _saveResumeSnapshot() {
+    try {
+        // Cap to last 30 messages to stay within sessionStorage limits
+        const snapshot = chatHistory.slice(-30);
+        sessionStorage.setItem('james-resume-history', JSON.stringify(snapshot));
+        sessionStorage.setItem('james-resume-chat-id', currentChatId || '');
+    } catch (e) {
+        console.warn('Could not save resume snapshot:', e);
+    }
+}
+
+function _clearResumeSnapshot() {
+    sessionStorage.removeItem('james-resume-history');
+    sessionStorage.removeItem('james-resume-chat-id');
+    localStorage.removeItem('james-last-input');
+}
+
+// ==========================================
 // RECOVERY LOGIC
 // ==========================================
 function initRecovery() {
     const isGenerating = localStorage.getItem('james-is-generating');
-    if (isGenerating === 'true') {
-        localStorage.removeItem('james-is-generating');
-        const overlay = document.getElementById('recoveryOverlay');
-        const modal = document.getElementById('recoveryModal');
-        const noBtn = document.getElementById('recoveryNoBtn');
-        const yesBtn = document.getElementById('recoveryYesBtn');
-        const closeBtn = document.getElementById('recoveryClose');
+    if (isGenerating !== 'true') return;
 
-        if (overlay && modal) {
-            overlay.classList.add('active');
-            modal.classList.add('active');
+    // Clear the flag immediately so we don't loop on subsequent reloads
+    localStorage.removeItem('james-is-generating');
 
-            const closePopup = () => {
-                overlay.classList.remove('active');
-                modal.classList.remove('active');
-                localStorage.removeItem('james-last-input');
-            };
+    const resumeHistoryRaw = sessionStorage.getItem('james-resume-history');
+    const resumeChatId = sessionStorage.getItem('james-resume-chat-id');
+    const lastInput = localStorage.getItem('james-last-input') || '(previous message)';
 
-            noBtn.addEventListener('click', closePopup);
-            closeBtn.addEventListener('click', closePopup);
+    const overlay = document.getElementById('recoveryOverlay');
+    const modal = document.getElementById('recoveryModal');
+    const noBtn = document.getElementById('recoveryNoBtn');
+    const yesBtn = document.getElementById('recoveryYesBtn');
+    const closeBtn = document.getElementById('recoveryClose');
 
-            yesBtn.addEventListener('click', () => {
-                const lastInput = localStorage.getItem('james-last-input');
-                closePopup();
-                if (lastInput) {
-                    const cmdInput = document.getElementById('cmdInput');
-                    cmdInput.value = lastInput;
-                    sendMessage();
-                }
-            });
-        }
+    if (!overlay || !modal) return;
+
+    overlay.classList.add('active');
+    modal.classList.add('active');
+
+    // Update the modal body to show what the last message was
+    const modalBody = modal.querySelector('.recovery-body');
+    if (modalBody) {
+        modalBody.textContent = `It looks like the page was refreshed while JAMES was generating a response to: "${lastInput.substring(0, 80)}${lastInput.length > 80 ? '…' : ''}". Would you like to try regenerating?`;
     }
+
+    const closePopup = () => {
+        overlay.classList.remove('active');
+        modal.classList.remove('active');
+        _clearResumeSnapshot();
+    };
+
+    noBtn.addEventListener('click', closePopup);
+    closeBtn.addEventListener('click', closePopup);
+
+    yesBtn.addEventListener('click', () => {
+        overlay.classList.remove('active');
+        modal.classList.remove('active');
+
+        let restoredHistory = null;
+        if (resumeHistoryRaw) {
+            try { restoredHistory = JSON.parse(resumeHistoryRaw); } catch (e) { /* ignore */ }
+        }
+        _clearResumeSnapshot();
+
+        if (restoredHistory && restoredHistory.length > 0) {
+            // Restore full history and re-dispatch without adding a duplicate user message
+            chatHistory = restoredHistory;
+
+            // If we have a matching chat, also reload it from DB so the sidebar is in sync
+            const matchChat = allChats.find(c => c.id === resumeChatId);
+            if (matchChat) {
+                persistCurrentChat(); // save current before switching
+                currentChatId = resumeChatId;
+                safeLocalStorage.setItem('james-last-chat-id', currentChatId);
+                matchChat.messages = [...chatHistory];
+                dbSaveChat(matchChat);
+                updateChatListActive(currentChatId);
+            }
+
+            renderChatLog();
+
+            // Re-dispatch the generation using the restored history
+            setIdleState(false);
+            updateStatusLight('thinking');
+            const statusText = document.getElementById('statusText');
+            if (statusText) statusText.textContent = 'RESUMING...';
+
+            const messagesForModel = getMessagesWindow(chatHistory);
+            const targetId = getNextTargetId();
+            activeGenerations.set(currentChatId, targetId);
+            updateLiveBubble('...', targetId, true);
+
+            localStorage.setItem('james-is-generating', 'true');
+            _saveResumeSnapshot();
+
+            worker.postMessage({
+                type: 'query',
+                messages: messagesForModel,
+                targetId,
+                chatId: currentChatId
+            });
+        } else {
+            // Fallback: re-send the last user text through the normal path
+            const cmdInputEl = document.getElementById('cmdInput');
+            if (cmdInputEl && lastInput !== '(previous message)') {
+                cmdInputEl.value = lastInput;
+                sendMessage();
+            }
+        }
+    });
 }
 
 // Call on load
