@@ -224,14 +224,9 @@ workerController.onComplete = (chatId, targetId, message) => {
                                 renderChatLog();
                             },
                             (v) => uiManager.setIdleState(v, (x) => globalState.isGeneratingUI = x),
-                            () => {
-                                chatManager.persistCurrentChat(() => window.gameController.getGameState());
-                                uiManager.updateStatusText('THINKING...');
-                                const aiTargetId = getNextTargetId();
-                                workerController.postQuery(getMessagesWindow(chatManager.chatHistory), aiTargetId, chatManager.currentChatId);
-                                updateLiveBubble('...', aiTargetId);
-                            }
+                            null
                         );
+                        chatManager.persistCurrentChat(() => gameController.getGameState());
                     }
                 });
             }
@@ -298,14 +293,9 @@ workerController.onAborted = (chatId, targetId, message) => {
                             renderChatLog();
                         },
                         (v) => uiManager.setIdleState(v, (x) => globalState.isGeneratingUI = x),
-                        () => {
-                            chatManager.persistCurrentChat(() => window.gameController.getGameState());
-                            uiManager.updateStatusText('THINKING...');
-                            const aiTargetId = getNextTargetId();
-                            workerController.postQuery(getMessagesWindow(chatManager.chatHistory), aiTargetId, chatManager.currentChatId);
-                            updateLiveBubble('...', aiTargetId);
-                        }
+                        null
                     );
+                    chatManager.persistCurrentChat(() => window.gameController.getGameState());
                 }
             });
         }
@@ -527,6 +517,7 @@ window.simulateCannedResponse = function(text) {
     const interval = setInterval(() => {
         if (!globalState.isGeneratingUI || globalState.cannedGenId !== currentGenId) {
             clearInterval(interval);
+            workerController.activeGenerations.delete(chatManager.currentChatId);
             return;
         }
         chars += 3;
@@ -733,8 +724,8 @@ function initRecovery() {
         modal.classList.remove('active');
     };
 
-    document.getElementById('recoveryNo')?.addEventListener('click', closePopup);
-    document.getElementById('recoveryClose')?.addEventListener('click', closePopup);
+    document.getElementById('recoveryNo')?.addEventListener('click', closePopup, { once: true });
+    document.getElementById('recoveryClose')?.addEventListener('click', closePopup, { once: true });
 
     document.getElementById('recoveryYes')?.addEventListener('click', () => {
         closePopup();
@@ -745,12 +736,11 @@ function initRecovery() {
         const targetId = getNextTargetId();
         updateLiveBubble('...', targetId, true);
         workerController.postQuery(getMessagesWindow(chatManager.chatHistory), targetId, chatManager.currentChatId);
-    });
+    }, { once: true });
 }
 
 window.initRecovery = initRecovery;
 window.uiManager = uiManager;
-window.gameController = gameController;
 
 // ==========================================
 // INITIALIZATION
@@ -875,7 +865,7 @@ setupModelPanel({
     }
 });
 
-let _noteToastTimeout = null;
+
 function _showCopyToast() {
     const toast = document.getElementById('copyToast');
     if (!toast) return;

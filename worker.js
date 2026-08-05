@@ -242,7 +242,7 @@ self.onmessage = async (e) => {
         } catch (err) {
             if (err.message === 'AbortGeneration') {
                 self.postMessage({
-                    status: 'complete',
+                    status: 'aborted',
                     message: accumulatedResponse.trim(),
                     targetId,
                     chatId

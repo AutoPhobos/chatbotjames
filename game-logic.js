@@ -11,6 +11,11 @@ export class ChessGame {
         return this.game.fen();
     }
 
+    loadFen(fen) {
+        if (!fen) return;
+        this.game = new Chess(fen);
+    }
+
     getState() {
         return { fen: this.game.fen(), moveHistory: this.moveHistory };
     }

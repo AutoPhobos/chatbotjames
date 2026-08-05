@@ -77,7 +77,9 @@ class WorkerController {
                 break;
             case 'complete':
                 if (this.onComplete) this.onComplete(chatId, targetId, message);
-                if (this.onToolCalls) this.onToolCalls(message, targetId, chatId);
+                if (this.onToolCalls && message && /```\s*tool:run\n/.test(message)) {
+                    this.onToolCalls(message, targetId, chatId);
+                }
                 break;
             case 'aborted':
                 if (this.onAborted) this.onAborted(chatId, targetId, message);
