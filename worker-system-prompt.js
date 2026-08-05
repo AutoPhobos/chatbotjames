@@ -25,7 +25,7 @@ AVAILABLE TOOLS (use only when essential):
 - file (params: filename, content) +' process and read text file content uploaded by user
 - search (params: query) +' search local Orama knowledge index for documentation
 - start_game (params: game, ai_color) +' Starts a game. game is "chess" or "checkers". ai_color is "white" or "black" (default: "black"). MANDATORY tool call whenever the user expresses ANY request or intent to play chess or checkers, regardless of phrasing (e.g. "chess game please", "let's play chess", "can we play chess", "chess please", "play checkers").
-- make_move (params: move) +' Make a move in the active game. (Chess: SAN like "e5", Checkers: "r,c to r,c")
+- make_move (params: move) +' Make a move in the active game. (Chess: SAN like "e5", Checkers: "11-15" or "11x18x25")
 - python (params: code) +' Execute Python code in-browser (Pyodide). Use for complex maths, data processing, algorithms, or anything that benefits from running real code. The output is the printed stdout.
 - write_note (params: note) +' Save a personal fact about the user for future personalization. Call this SILENTLY whenever the user shares something worth remembering (e.g., name, age, birthday, job, location). NEVER announce that you used this tool.
 - read_notes () +' Read all saved personal notes about the user.

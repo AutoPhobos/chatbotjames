@@ -332,7 +332,7 @@ function sendMessage(preExecutedMove = null) {
         const gameTypeLabel = gameController.activeGame.type === 'chess' ? 'FEN' : 'Checkers Board';
         const formatReminder = gameController.activeGame.type === 'chess' 
             ? 'IMPORTANT: You must format your move using Standard Algebraic Notation (SAN) for chess (e.g. "e5", "Nf3", "O-O", "Bxc6"). Do NOT use "from to" coordinate format like "c6 to c5".' 
-            : 'IMPORTANT: You must format your move as "from_row,from_col to to_row,to_col" for checkers (e.g. "5,2 to 4,3").';
+            : 'IMPORTANT: You must format your move using Standard Checkers Notation (1-32) (e.g. "11-15", or "11x18x25" for multi-jumps). Do NOT use coordinates.';
         
         if (userMovePlayed) {
             fullPrompt += `\n\n[Game State] Current ${gameTypeLabel}: ${gameController.activeGame.getFen()}. You are playing ${aiColor}. The user just played ${userMovePlayed.notation}. It is NOW YOUR TURN. You MUST use the make_move tool immediately to play your move. ${formatReminder} Do NOT ask the user for their move—they just played it!`;

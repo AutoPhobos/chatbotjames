@@ -382,13 +382,15 @@ export function renderGameBoard(game, container, onMove) {
                             if (game.type === 'chess') {
                                 notationStr = moveResult.san || `${moveResult.from}-${moveResult.to}`;
                             } else {
-                                // Build / extend the multi-jump chain
-                                const step = `(${selectedSquare.r},${selectedSquare.c})→(${r},${c})`;
+                                // Build / extend the multi-jump chain using standard notation (1-32)
+                                const s = game.rcToSq(selectedSquare.r, selectedSquare.c);
+                                const t = game.rcToSq(r, c);
+                                const sep = moveResult.jumped ? 'x' : '-';
+                                
                                 if (multiJumpChain === null) {
-                                    multiJumpChain = step;
+                                    multiJumpChain = `${s}${sep}${t}`;
                                 } else {
-                                    // Append only the new destination (chain already has the source)
-                                    multiJumpChain += `→(${r},${c})`;
+                                    multiJumpChain += `${sep}${t}`;
                                 }
                                 notationStr = multiJumpChain;
                             }

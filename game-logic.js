@@ -348,12 +348,42 @@ export class CheckersGame {
         return this.turn === 'w' ? 'b' : 'w'; // the player who can't move loses
     }
 
+    // ── Standard Notation Converters (1-32) ──────────────────────────────────
+    rcToSq(r, c) {
+        return r * 4 + Math.floor(c / 2) + 1;
+    }
+
+    sqToRc(sq) {
+        const zeroIdx = sq - 1;
+        const r = Math.floor(zeroIdx / 4);
+        const remainder = zeroIdx % 4;
+        const c = (r % 2 === 0) ? (remainder * 2 + 1) : (remainder * 2);
+        return { r, c };
+    }
+
     /**
-     * Parse a move from an AI string such as:
-     *   "5,2 to 4,3"  |  "5 2 to 4 3"  |  "row 5 col 2 to row 4 col 3"
-     *   "(5,2) -> (4,3)"  |  "5,2-4,3"
+     * Parse a move from standard checkers notation (e.g. "11-15" or "11x15x24").
+     * Fallback to coordinates parsing if necessary.
      */
     makeSanMove(san) {
+        // Try standard checkers notation first: numbers separated by -, x, or spaces
+        const parts = san.split(/[-xX\s→>]+/).map(p => parseInt(p, 10)).filter(n => !isNaN(n) && n >= 1 && n <= 32);
+        if (parts.length >= 2) {
+            const applied = [];
+            for (let i = 0; i < parts.length - 1; i++) {
+                const { r: sr, c: sc } = this.sqToRc(parts[i]);
+                const { r: tr, c: tc } = this.sqToRc(parts[i + 1]);
+                const res = this.move(sr, sc, tr, tc);
+                if (res) applied.push({ ...res, notation: san });
+                else break;
+            }
+            if (applied.length > 0 && applied.length === parts.length - 1) {
+                return applied; // Return only if the full chain was valid
+            }
+            // If partial chain matched or failed, it might be coordinate notation? Let's fallback just in case.
+        }
+
+        // Fallback: Coordinates parsing "5,2 to 4,3"
         const regex = /(\d+)\s*[,:]?\s*(\d+)\s*(?:to|->|-|→|\s+)\s*(\d+)\s*[,:]?\s*(\d+)/gi;
         const matches = [...san.matchAll(regex)];
         if (matches.length > 0) {
@@ -362,7 +392,7 @@ export class CheckersGame {
                 const sr = parseInt(match[1]), sc = parseInt(match[2]);
                 const tr = parseInt(match[3]), tc = parseInt(match[4]);
                 const res = this.move(sr, sc, tr, tc);
-                if (res) applied.push(res);
+                if (res) applied.push({ ...res, notation: san });
             }
             return applied.length > 0 ? applied : null;
         }
@@ -423,12 +453,10 @@ export function parseUserMove(text, game) {
             if (m) return { notation: m.san, move: m };
         }
     } else if (game.type === 'checkers') {
-        const match = text.match(/(\d+)\s*[,:]?\s*(\d+)\s*(?:to|->|-|→|\s+)\s*(\d+)\s*[,:]?\s*(\d+)/i);
+        const match = text.match(/(\d+)\s*[-xX\s→>]+\s*(\d+)/i);
         if (match) {
-            const sr = parseInt(match[1]), sc = parseInt(match[2]);
-            const tr = parseInt(match[3]), tc = parseInt(match[4]);
-            const res = game.move(sr, sc, tr, tc);
-            if (res) return { notation: `(${sr},${sc})→(${tr},${tc})`, move: res };
+            const m = game.makeSanMove(text);
+            if (m && m.length > 0) return { notation: text, move: m[0] };
         }
     }
 
@@ -442,7 +470,7 @@ export function extractAIMove(text, game) {
         const match = text.match(intentRegex);
         if (match && match[1]) return match[1];
     } else if (game.type === 'checkers') {
-        let match = text.match(/(\d+)\s*[,:]?\s*(\d+)\s*(?:to|->|-|→|\s+)\s*(\d+)\s*[,:]?\s*(\d+)/i);
+        let match = text.match(/(\d+)\s*[-xX\s→>]+\s*(\d+)/i);
         if (match) return match[0];
         
         // Catch hallucinated chess notation (e.g. "e7 to e5") to trigger an error for the LLM
