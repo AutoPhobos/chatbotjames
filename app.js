@@ -55,6 +55,7 @@ let _activePresetId = null;
 let _selectedPresetId = null;
 let _deviceRamGB = 4;
 let attachedFiles = [];
+let _appendMode = false;
 
 // Window Memory Helper
 const MAX_HISTORY = CONFIG.ui.maxHistory;
@@ -103,7 +104,8 @@ setupMessageRenderer({
             cmdInput.focus();
         }
         renderChatLog();
-    }
+    },
+    onAppendMsg: () => setAppendMode(true)
 });
 
 // Wire up Model Panel callbacks
@@ -382,6 +384,15 @@ window.removeAttachment = function (index) {
 
 // Message Sending Logic
 function sendMessage() {
+    // In append mode, the send button injects context instead of a normal turn
+    if (_appendMode) {
+        const text = cmdInput.value.trim();
+        if (!text) return;
+        setAppendMode(false);
+        handleAppend(text);
+        return;
+    }
+
     const text = cmdInput.value.trim();
     if ((!text && attachedFiles.length === 0) || _isGeneratingUI) return;
 
@@ -479,6 +490,72 @@ function sendMessage() {
     if (text) {
         localStorage.setItem('james-last-input', text);
     }
+    _saveResumeSnapshot();
+
+    worker.postMessage({
+        type: 'query',
+        messages: messagesForModel,
+        targetId: targetId,
+        chatId: currentChatId
+    });
+}
+
+/**
+ * Toggle append mode on/off.
+ * When on, the next Send becomes an append-inject rather than a normal user turn.
+ */
+function setAppendMode(active) {
+    _appendMode = active;
+    const banner = document.getElementById('appendModeBanner');
+    const inputWrapper = document.querySelector('.input-wrapper');
+    if (active) {
+        banner?.classList.remove('hidden');
+        inputWrapper?.classList.add('append-active');
+        if (cmdInput) {
+            cmdInput.placeholder = 'Type context to inject...';
+            cmdInput.focus();
+        }
+    } else {
+        banner?.classList.add('hidden');
+        inputWrapper?.classList.remove('append-active');
+        if (cmdInput) {
+            cmdInput.value = '';
+            cmdInput.placeholder = 'Message JAMES...';
+        }
+    }
+}
+
+/**
+ * Handle an append: inject a hidden background message and re-dispatch
+ * the last AI assistant turn for regeneration.
+ */
+function handleAppend(text) {
+    if (!text || _isGeneratingUI) return;
+
+    // Inject the context as a hidden background system message
+    chatHistory.push({
+        role: 'system',
+        content: `[Background context from user]: ${text}`,
+        isBackground: true,
+        hidden: false // we skip rendering via isBackground in message-renderer
+    });
+
+    persistCurrentChat();
+    renderChatLog();
+
+    // Re-dispatch generation using the updated history
+    setIdleState(false);
+    updateStatusLight('thinking');
+    const statusText = document.getElementById('statusText');
+    if (statusText) statusText.textContent = 'THINKING...';
+
+    const messagesForModel = getMessagesWindow(chatHistory);
+    const targetId = getNextTargetId();
+    activeGenerations.set(currentChatId, targetId);
+    updateLiveBubble('...', targetId);
+
+    localStorage.setItem('james-is-generating', 'true');
+    localStorage.setItem('james-last-input', text);
     _saveResumeSnapshot();
 
     worker.postMessage({
@@ -1013,6 +1090,7 @@ function loadChatHistory(chatId) {
 
 function startNewChat() {
     persistCurrentChat();
+    setAppendMode(false);
 
     const welcome = getWelcomeMessage();
     chatHistory = [welcome];
@@ -1135,6 +1213,9 @@ const statusTextEl = document.getElementById('statusText');
 if (statusTextEl) {
     statusTextEl.textContent = _savedLastPresetId ? 'RESUMING LAST MODEL…' : 'INITIALIZING...';
 }
+
+// Wire up the append mode cancel button
+document.getElementById('appendModeCancelBtn')?.addEventListener('click', () => setAppendMode(false));
 
 // Sidebar Controls
 const newChatBtn = document.getElementById('newChatBtn');

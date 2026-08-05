@@ -16,11 +16,13 @@ let _lastRenderTime = 0;
 let _getChatHistory = () => [];
 let _getIsGenerating = () => false;
 let _onEditUserMsg = null;
+let _onAppendMsg = null;
 
 export function setupMessageRenderer(options) {
     if (options.getChatHistory) _getChatHistory = options.getChatHistory;
     if (options.getIsGenerating) _getIsGenerating = options.getIsGenerating;
     if (options.onEditUserMsg) _onEditUserMsg = options.onEditUserMsg;
+    if (options.onAppendMsg) _onAppendMsg = options.onAppendMsg;
 }
 
 export function updateStatusLight(state) {
@@ -150,7 +152,13 @@ export function scrollToBottom() {
 }
 
 /** Build a single message DOM element (shared by renderChatLog and loadOlderMessages). */
-export function createMessageElement(msg, historyIdx = -1) {
+export function createMessageElement(msg, historyIdx = -1, isLastAssistant = false) {
+    // Skip background-injected system messages entirely (used by append mode)
+    if (msg.isBackground) {
+        const el = document.createElement('div');
+        el.style.display = 'none';
+        return el;
+    }
     if (msg.hidden) {
         const el = document.createElement('div');
         el.style.display = 'none';
@@ -210,6 +218,17 @@ export function createMessageElement(msg, historyIdx = -1) {
         container.style.position = 'relative';
         container.appendChild(messageContent);
         container.appendChild(copyBtn);
+
+        // Append button — only visible on the last assistant message
+        if (isLastAssistant && _onAppendMsg) {
+            const appendBtn = document.createElement('button');
+            appendBtn.className = 'append-msg-btn';
+            appendBtn.innerHTML = '📝 Append';
+            appendBtn.title = 'Append hidden context to this response';
+            appendBtn.onclick = () => _onAppendMsg();
+            container.appendChild(appendBtn);
+        }
+
         messageWrap.appendChild(container);
     } else {
         messageContent.textContent = msg.content;
@@ -250,7 +269,10 @@ export function renderChatLog() {
         _attachSentinelObserver(chatLog, sentinel);
     }
 
-    history.slice(_renderOffset).forEach((msg, i) => chatLog.appendChild(createMessageElement(msg, _renderOffset + i)));
+    // Find the index of the last assistant message so we can add the append button
+    const sliced = history.slice(_renderOffset);
+    const lastAssistantRelIdx = sliced.map((m, i) => ({ m, i })).filter(({ m }) => m.role === 'assistant' && !m.hidden && !m.isBackground).map(({ i }) => i).at(-1);
+    sliced.forEach((msg, i) => chatLog.appendChild(createMessageElement(msg, _renderOffset + i, i === lastAssistantRelIdx)));
     chatLog.scrollTop = chatLog.scrollHeight;
 }
 
@@ -292,7 +314,7 @@ window.loadOlderMessages = function () {
         const newSentinel = _makeSentinel();
         fragment.appendChild(newSentinel);
     }
-    olderMsgs.forEach((msg, i) => fragment.appendChild(createMessageElement(msg, newOffset + i)));
+    olderMsgs.forEach((msg, i) => fragment.appendChild(createMessageElement(msg, newOffset + i, false)));
     chatLog.insertBefore(fragment, chatLog.firstChild);
 
     // Keep the user's viewport stable (no jump)

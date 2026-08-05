@@ -134,6 +134,10 @@
             <div class="input-area" role="region" aria-label="Chat input">
                 <div class="input-container">
                     <div id="attachmentPreview" class="attachment-preview" aria-live="polite"></div>
+                    <div id="appendModeBanner" class="append-mode-banner hidden" role="status" aria-live="polite">
+                        <span>📝 <strong>Append mode</strong> — your next message will be injected as hidden context (the AI will re-generate factoring it in)</span>
+                        <button type="button" id="appendModeCancelBtn" aria-label="Cancel append mode">✕ Cancel</button>
+                    </div>
                     <div class="input-wrapper">
                         <input type="file" id="fileInput" style="display: none;" multiple aria-hidden="true" tabindex="-1">
                         <button type="button" id="attachButton" class="icon-btn"
