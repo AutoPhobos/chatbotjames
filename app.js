@@ -474,13 +474,21 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
                 );
                 toolResult = `Game started: ${params.game || 'chess'}. Wait for user's move.`;
             } else if (toolName === 'make_move') {
-                gameController.handleMakeMove(
+                const moveResult = gameController.handleMakeMove(
                     params, 
-                    (msg) => chatManager.chatHistory.push({ role: 'system', content: msg }), 
+                    (msg) => {
+                        if (!msg.includes('Failed to make move')) {
+                            chatManager.chatHistory.push({ role: 'system', content: msg });
+                        }
+                    }, 
                     (v) => uiManager.setIdleState(v, (x) => globalState.isGeneratingUI = x),
                     () => {} 
                 );
-                toolResult = `Move ${params.move} played. Wait for user's next move.`;
+                if (moveResult && moveResult.success === false) {
+                    toolResult = moveResult.error;
+                } else {
+                    toolResult = `Move ${params.move} played. Wait for user's next move.`;
+                }
             } else if (toolName === 'eval_python' || toolName === 'python') {
                 toolResult = await workerController.callWorkerRPC(workerController.pythonWorker, { type: 'python', code: params.code }, 30000);
             } else {
@@ -553,6 +561,7 @@ function initRecovery() {
 
         const targetId = getNextTargetId();
         updateLiveBubble('...', targetId, true);
+        workerController.postQuery(getMessagesWindow(chatManager.chatHistory), targetId, chatManager.currentChatId);
     });
 }
 

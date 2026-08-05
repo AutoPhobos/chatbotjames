@@ -144,23 +144,28 @@ class GameController {
 
     handleMakeMove(params, addSystemMessageCallback, setIdleStateCallback, queryModelCallback) {
         if (!this.activeGame) {
-            if (addSystemMessageCallback) addSystemMessageCallback(`[System]: Failed to make move. No active game. Please start a game first using start_game.`);
+            const err = `[System]: Failed to make move. No active game. Please start a game first using start_game.`;
+            if (addSystemMessageCallback) addSystemMessageCallback(err);
             if (queryModelCallback) queryModelCallback();
-            return;
+            return { success: false, error: err };
         }
 
         try {
             const moveInfo = this.activeGame.move(params.move);
             if (!moveInfo) {
-                if (addSystemMessageCallback) addSystemMessageCallback(`[System]: Failed to make move ${params.move}. Invalid move.`);
+                const err = `[System]: Failed to make move ${params.move}. Invalid move.`;
+                if (addSystemMessageCallback) addSystemMessageCallback(err);
                 if (queryModelCallback) queryModelCallback();
-                return;
+                return { success: false, error: err };
             }
             this.handleGameMove(moveInfo, addSystemMessageCallback, setIdleStateCallback, queryModelCallback);
             if (this.onGameStateChange) this.onGameStateChange();
+            return { success: true };
         } catch (e) {
-            if (addSystemMessageCallback) addSystemMessageCallback(`[System]: Failed to make move ${params.move}. Error: ${e.message}`);
+            const err = `[System]: Failed to make move ${params.move}. Error: ${e.message}`;
+            if (addSystemMessageCallback) addSystemMessageCallback(err);
             if (queryModelCallback) queryModelCallback();
+            return { success: false, error: err };
         }
     }
 
