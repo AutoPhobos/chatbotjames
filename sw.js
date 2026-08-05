@@ -9,7 +9,6 @@ const STATIC_ASSETS = [
 const NETWORK_FIRST = [
     '/',
     'config.js',
-    'build.js',
     'config.json',
     'chat-db.js',
     'audio-wakelock.js',

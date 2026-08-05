@@ -22,8 +22,6 @@ Disallow: /tool-router.js
 Disallow: /tools-search.js
 Disallow: /tools-bridge.js
 Disallow: /orama.js
-Disallow: /patch.js
-Disallow: /build.js
 
 # Prevent indexing of model weight cache if exposed
 Disallow: /models/
