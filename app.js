@@ -898,7 +898,12 @@ function handleStartGame(params) {
     
     refreshGameBoardUI();
 
-    return { status: "game_started", game: gameType };
+    const stateLabel = gameType === 'checkers' ? 'Checkers Board' : 'FEN';
+    return {
+        status: "game_started",
+        game: gameType,
+        message: `[Game State] Current ${stateLabel}: ${activeGame.getFen()}. You are Black. The user is White and plays first. Await the user's move.`
+    };
 }
 
 function handleMakeMove(params) {

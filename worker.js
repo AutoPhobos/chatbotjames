@@ -316,7 +316,7 @@ amount: 100
 Then:
 "100 USD is approximately [result] EUR at current rates."
 
-User: "chess game please" or "Let's play a game of chess" or "can we play chess?"
+User: "chess game please" or "Let's play a game of chess"
 → Use start_game tool.
 
 \`\`\`tool:run
@@ -326,6 +326,17 @@ game: chess
 
 Then:
 "I have started a game of chess. Your move!"
+
+User: "let's play checkers"
+→ Use start_game tool.
+
+\`\`\`tool:run
+start_game
+game: checkers
+\`\`\`
+
+Then:
+"I have started a game of checkers. You play as White and go first. Your move!"
 
 User: "[Game State] Current FEN: ... You are playing Black. What is your next move?"
 → Use make_move tool.
