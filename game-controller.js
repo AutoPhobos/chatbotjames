@@ -60,7 +60,7 @@ class GameController {
                 // When user clicks to make a move, populate the input and send it
                 if (moveResult && moveResult.notation && window.uiManager && window.uiManager.cmdInput && window.sendMessage) {
                     window.uiManager.cmdInput.value = moveResult.notation;
-                    window.sendMessage();
+                    window.sendMessage(moveResult);
                 }
             });
         } else {
