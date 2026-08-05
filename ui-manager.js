@@ -105,9 +105,12 @@ class UIManager {
 
     getLightweightWelcomeMessage(showTools) {
         const toolsHtml = showTools ? `
+            <div class="welcome-box-tools-info" style="font-size: 0.9rem; color: #94a3b8; margin: 12px 0 8px;">
+                Ask naturally to use these tools (e.g., "Search the web for news"):
+            </div>
             <div class="welcome-box-tools">
-                <span class="tool-tag">web_search</span>
-                <span class="tool-tag">make_move</span>
+                <span class="tool-tag" title="Search the web for up-to-date information">web_search</span>
+                <span class="tool-tag" title="Play a game">make_move</span>
             </div>
         ` : '';
         return {
@@ -125,12 +128,15 @@ class UIManager {
 
     getFullWelcomeMessage(showTools) {
         const toolsHtml = showTools ? `
+            <div class="welcome-box-tools-info" style="font-size: 0.95rem; color: #94a3b8; margin: 12px 0 8px;">
+                I have access to the following tools. Just ask me naturally (e.g., "What's the weather in London?" or "Search the web for recent AI news"):
+            </div>
             <div class="welcome-box-tools">
-                <span class="tool-tag">web_search</span>
-                <span class="tool-tag">wikipedia</span>
-                <span class="tool-tag">eval_python</span>
-                <span class="tool-tag">get_current_weather</span>
-                <span class="tool-tag">make_move</span>
+                <span class="tool-tag" title="Search the web for up-to-date information">web_search</span>
+                <span class="tool-tag" title="Look up encyclopedia articles">wikipedia</span>
+                <span class="tool-tag" title="Execute Python code in the browser">eval_python</span>
+                <span class="tool-tag" title="Get current weather for any location">get_current_weather</span>
+                <span class="tool-tag" title="Play chess or checkers">make_move</span>
             </div>
         ` : '';
         return {
@@ -148,8 +154,11 @@ class UIManager {
 
     getTVWelcomeMessage(showTools) {
         const toolsHtml = showTools ? `
+            <div class="welcome-box-tools-info" style="font-size: 1.1rem; color: #94a3b8; margin: 12px 0 8px;">
+                You can ask me to search the web naturally using your voice!
+            </div>
             <div class="welcome-box-tools">
-                <span class="tool-tag" style="font-size: 1.2rem; padding: 6px 12px;">web_search</span>
+                <span class="tool-tag" title="Search the web for up-to-date information" style="font-size: 1.2rem; padding: 6px 12px;">web_search</span>
             </div>
         ` : '';
         return {
