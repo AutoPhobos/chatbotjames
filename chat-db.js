@@ -9,6 +9,7 @@ export const safeLocalStorage = {
 
 const IDB_NAME = 'james-chats-db';
 const IDB_STORE = 'chats';
+const IDB_NOTES_STORE = 'user-notes';
 let _idb = null;
 let _idbPromise = null; // Prevents concurrent open() races — callers share one promise
 
@@ -16,11 +17,14 @@ export async function openChatDB() {
     if (_idb) return _idb;
     if (_idbPromise) return _idbPromise; // Return the in-progress open to any concurrent caller
     _idbPromise = new Promise((resolve, reject) => {
-        const req = indexedDB.open(IDB_NAME, 1);
+        const req = indexedDB.open(IDB_NAME, 2); // version 2 adds user-notes store
         req.onupgradeneeded = (e) => {
             const db = e.target.result;
             if (!db.objectStoreNames.contains(IDB_STORE)) {
                 db.createObjectStore(IDB_STORE, { keyPath: 'id' });
+            }
+            if (!db.objectStoreNames.contains(IDB_NOTES_STORE)) {
+                db.createObjectStore(IDB_NOTES_STORE, { keyPath: 'id' });
             }
         };
         req.onsuccess = (e) => { _idb = e.target.result; resolve(_idb); };
@@ -28,6 +32,7 @@ export async function openChatDB() {
     });
     return _idbPromise;
 }
+
 
 /** Fire-and-forget: persist a single chat to IndexedDB. */
 export function dbSaveChat(chat) {
@@ -95,5 +100,70 @@ export async function migrateFromLocalStorage() {
         }
     } catch (e) {
         console.warn('safeLocalStorage migration failed:', e);
+    }
+}
+
+// ─── User Notes Storage ───────────────────────────────────────────────────────
+
+/** Save or update a single note. Each note: { id, text, timestamp } */
+export function dbSaveNote(note) {
+    if (!note) return;
+    openChatDB()
+        .then(db => {
+            try {
+                const tx = db.transaction(IDB_NOTES_STORE, 'readwrite');
+                tx.objectStore(IDB_NOTES_STORE).put(note);
+            } catch (e) {
+                console.warn('IDB note save failed:', e);
+            }
+        })
+        .catch(e => console.warn('IDB note save failed:', e));
+}
+
+/** Load all notes, sorted oldest-first. */
+export async function dbLoadNotes() {
+    try {
+        const db = await openChatDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(IDB_NOTES_STORE, 'readonly');
+            const req = tx.objectStore(IDB_NOTES_STORE).getAll();
+            req.onsuccess = (e) => {
+                const notes = (e.target.result || []).sort((a, b) => a.timestamp - b.timestamp);
+                resolve(notes);
+            };
+            req.onerror = (e) => reject(e.target.error);
+        });
+    } catch (e) {
+        console.warn('IDB notes load failed:', e);
+        return [];
+    }
+}
+
+/** Delete a single note by id. */
+export function dbDeleteNote(id) {
+    openChatDB()
+        .then(db => {
+            try {
+                const tx = db.transaction(IDB_NOTES_STORE, 'readwrite');
+                tx.objectStore(IDB_NOTES_STORE).delete(id);
+            } catch (e) {
+                console.warn('IDB note delete failed:', e);
+            }
+        })
+        .catch(e => console.warn('IDB note delete failed:', e));
+}
+
+/** Wipe all notes. */
+export async function dbClearNotes() {
+    try {
+        const db = await openChatDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(IDB_NOTES_STORE, 'readwrite');
+            tx.objectStore(IDB_NOTES_STORE).clear();
+            tx.oncomplete = resolve;
+            tx.onerror = (e) => reject(e.target.error);
+        });
+    } catch (e) {
+        console.warn('IDB notes clear failed:', e);
     }
 }
