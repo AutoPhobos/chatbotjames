@@ -285,7 +285,7 @@ function workerMessageHandler(e) {
             // re-dispatched query is not silently dropped by the worker.
             if (!workerMessageHandler._recoveryInitDone) {
                 workerMessageHandler._recoveryInitDone = true;
-                initRecovery();
+                if (window._chatsLoadedForRecovery) initRecovery();
             }
             break;
         }
@@ -1247,6 +1247,9 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         startNewChat();
     }
+    
+    window._chatsLoadedForRecovery = true;
+    if (workerMessageHandler._recoveryInitDone) initRecovery();
 })();
 
 if (isTVDevice()) {
