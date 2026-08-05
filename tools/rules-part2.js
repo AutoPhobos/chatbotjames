@@ -18,17 +18,15 @@ export const RULES = [
             } else {
                 toStr = m[1]; val = m[2]; fromStr = m[3];
             }
-            const from = resolveUnit(fromStr);
-            const to = resolveUnit(toStr);
-            
-            if (!from || !to) {
-                throw new Error("Unknown unit");
-            }
-            
+            const TEMP_UNITS = ['celsius','fahrenheit','kelvin','c','f','k'];
+            const fromOk = resolveUnit(fromStr) || TEMP_UNITS.includes(fromStr.toLowerCase());
+            const toOk = resolveUnit(toStr) || TEMP_UNITS.includes(toStr.toLowerCase());
+            if (!fromOk) throw new Error(`Unknown unit: ${fromStr}`);
+            if (!toOk) throw new Error(`Unknown unit: ${toStr}`);
             return {
-                value: parseFloat(val),
-                from,
-                to
+                amount: parseFloat(val),
+                from: fromStr,
+                to: toStr
             };
         },
     },

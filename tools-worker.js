@@ -91,8 +91,10 @@ async function getWebSearch(params) {
 // ── Wikipedia summary ─────────────────────────────────────────────────────
 async function getWikipedia(params) {
     const { query } = params;
+    // Wikipedia REST API uses page titles: replace spaces with underscores
+    const titleised = query.trim().replace(/\s+/g, '_');
     const res = await fetch(
-        `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`
+        `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(titleised)}`
     );
     if (!res.ok) {
         return {
@@ -469,25 +471,29 @@ function convertUnits(params) {
 function countdownTool(params) {
     const { target } = params;
 
-    // Attempt to resolve well-known named dates for the current year
+    // Compute fresh each call so year-boundary cases are always correct
+    const now = new Date();
+    const thisYear = now.getFullYear();
+    const nextYear = thisYear + 1;
+
+    const thanksgivingDate = (() => {
+        const nov1 = new Date(thisYear, 10, 1);
+        const thu = (11 - nov1.getDay()) % 7;
+        return new Date(thisYear, 10, 1 + thu + 21).toISOString().slice(0, 10);
+    })();
+
     const namedDates = {
-        'christmas': `${new Date().getFullYear()}-12-25`,
-        'new year': `${new Date().getFullYear() + 1}-01-01`,
-        "new year's": `${new Date().getFullYear() + 1}-01-01`,
-        "new year's day": `${new Date().getFullYear() + 1}-01-01`,
-        'halloween': `${new Date().getFullYear()}-10-31`,
-        'valentine': `${new Date().getFullYear()}-02-14`,
-        "valentine's day": `${new Date().getFullYear()}-02-14`,
-        'thanksgiving': (() => {
-            // 4th Thursday of November
-            const y = new Date().getFullYear();
-            const nov1 = new Date(y, 10, 1);
-            const thu = (11 - nov1.getDay()) % 7;
-            return new Date(y, 10, 1 + thu + 21).toISOString().slice(0, 10);
-        })(),
-        'independence day': `${new Date().getFullYear()}-07-04`,
-        'july 4': `${new Date().getFullYear()}-07-04`,
-        "new year's eve": `${new Date().getFullYear()}-12-31`,
+        'christmas': `${thisYear}-12-25`,
+        'new year': `${nextYear}-01-01`,
+        "new year's": `${nextYear}-01-01`,
+        "new year's day": `${nextYear}-01-01`,
+        'halloween': `${thisYear}-10-31`,
+        'valentine': `${thisYear}-02-14`,
+        "valentine's day": `${thisYear}-02-14`,
+        'thanksgiving': thanksgivingDate,
+        'independence day': `${thisYear}-07-04`,
+        'july 4': `${thisYear}-07-04`,
+        "new year's eve": `${thisYear}-12-31`,
     };
 
     const key = target.toLowerCase().trim();
@@ -496,7 +502,6 @@ function countdownTool(params) {
     const targetDate = new Date(resolvedDate);
     if (isNaN(targetDate)) throw new Error(`Cannot parse date: "${target}"`);
 
-    const now = new Date();
     // If named date has already passed this year, bump to next year
     if (targetDate < now && namedDates[key]) {
         targetDate.setFullYear(targetDate.getFullYear() + 1);
