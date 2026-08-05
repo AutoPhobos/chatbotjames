@@ -44,7 +44,7 @@ export function formatAssistantMessage(text) {
     // ── Step 1: Extract tool:run blocks BEFORE parsing ────────────────────────
     const toolBoxes = [];
     const TOOL_PLACEHOLDER = 'TOOLBOX_PLACEHOLDER_XYZ_'; // Unique placeholder
-    const textWithPlaceholders = text.replace(/```\s*tool:run\n?([\s\S]*?)```/g, (_, code) => {
+    let processedText = text.replace(/```\s*tool:run\n?([\s\S]*?)```/g, (_, code) => {
         const lines = code.trim().split('\n');
         const toolName = escapeHTML(lines[0] || 'Unknown');
         const params = lines.slice(1).map(l => escapeHTML(l)).join('<br>');
@@ -53,17 +53,44 @@ export function formatAssistantMessage(text) {
             <div style="color: #94a3b8;">${params}</div>
         </div>`;
         const idx = toolBoxes.push(html) - 1;
-        return `${TOOL_PLACEHOLDER}${idx}`;
+        return `\n\n${TOOL_PLACEHOLDER}${idx}\n\n`;
     });
 
+    // ── Step 1.5: Extract <think> blocks ─────────────────────────────────────
+    const thinkBoxes = [];
+    const THINK_PLACEHOLDER = 'THINKBOX_PLACEHOLDER_XYZ_';
+    
+    // Match closed <think> blocks
+    processedText = processedText.replace(/<think>([\s\S]*?)<\/think>/g, (_, content) => {
+        const parsedContent = DOMPurify.sanitize(marked.parse(content.trim(), { async: false }));
+        const html = `<details class="think-box" style="margin: 8px 0; background: rgba(0,0,0,0.1); border-left: 3px solid #8b5cf6; padding: 8px 12px; border-radius: 4px; font-size: 0.9em;"><summary style="color: #a78bfa; font-weight: bold; cursor: pointer; user-select: none;">🤔 Thinking Process</summary><div style="margin-top: 8px; color: #94a3b8;">${parsedContent}</div></details>`;
+        const idx = thinkBoxes.push(html) - 1;
+        return `\n\n${THINK_PLACEHOLDER}${idx}\n\n`;
+    });
+
+    // Match unclosed <think> block (for streaming)
+    const unclosedThinkIdx = processedText.indexOf('<think>');
+    if (unclosedThinkIdx !== -1) {
+        const content = processedText.substring(unclosedThinkIdx + 7);
+        const parsedContent = DOMPurify.sanitize(marked.parse(content.trim(), { async: false }));
+        const html = `<details class="think-box" open style="margin: 8px 0; background: rgba(0,0,0,0.1); border-left: 3px solid #8b5cf6; padding: 8px 12px; border-radius: 4px; font-size: 0.9em;"><summary style="color: #a78bfa; font-weight: bold; cursor: pointer; user-select: none;">🤔 Thinking Process...</summary><div style="margin-top: 8px; color: #94a3b8;">${parsedContent}</div></details>`;
+        const idx = thinkBoxes.push(html) - 1;
+        processedText = processedText.substring(0, unclosedThinkIdx) + `\n\n${THINK_PLACEHOLDER}${idx}\n\n`;
+    }
+
     // ── Step 2: Apply markdown formatting ────────────────────────────────────
-    let html = marked.parse(textWithPlaceholders, { async: false });
+    let html = marked.parse(processedText, { async: false });
 
     // ── Step 3: Sanitize the parsed HTML ─────────────────────────────────────
     html = DOMPurify.sanitize(html);
 
-    // ── Step 4: Restore tool blocks ──────────────────────────────────────────
-    toolBoxes.forEach((box, i) => { html = html.replace(`${TOOL_PLACEHOLDER}${i}`, box); });
+    // ── Step 4: Restore tool blocks & think blocks ────────────────────────────
+    toolBoxes.forEach((box, i) => { 
+        html = html.replace(`<p>${TOOL_PLACEHOLDER}${i}</p>`, box).replace(`${TOOL_PLACEHOLDER}${i}`, box); 
+    });
+    thinkBoxes.forEach((box, i) => { 
+        html = html.replace(`<p>${THINK_PLACEHOLDER}${i}</p>`, box).replace(`${THINK_PLACEHOLDER}${i}`, box); 
+    });
 
     return html;
 }
