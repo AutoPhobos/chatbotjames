@@ -553,11 +553,12 @@ function initRecovery() {
 
         const targetId = getNextTargetId();
         updateLiveBubble('...', targetId, true);
-        workerController.postQuery(getMessagesWindow(chatManager.chatHistory), targetId, chatManager.currentChatId);
     });
 }
 
 window.initRecovery = initRecovery;
+window.uiManager = uiManager;
+window.gameController = gameController;
 
 // ==========================================
 // INITIALIZATION
