@@ -322,11 +322,14 @@ function sendMessage() {
         const turnColor = gameController.activeGame.getTurn() === 'w' ? 'White' : 'Black';
         const aiColor = 'Black';
         const gameTypeLabel = gameController.activeGame.type === 'chess' ? 'FEN' : 'Checkers Board';
+        const formatReminder = gameController.activeGame.type === 'chess' 
+            ? 'IMPORTANT: You must format your move using Standard Algebraic Notation (SAN) for chess (e.g. "e5", "Nf3", "O-O", "Bxc6"). Do NOT use "from to" coordinate format like "c6 to c5".' 
+            : 'IMPORTANT: You must format your move as "from_row,from_col to to_row,to_col" for checkers (e.g. "5,2 to 4,3").';
         
         if (userMovePlayed) {
-            fullPrompt += `\n\n[Game State] Current ${gameTypeLabel}: ${gameController.activeGame.getFen()}. You are playing ${aiColor}. The user just played ${userMovePlayed.notation}. It is NOW YOUR TURN. You MUST use the make_move tool immediately to play your move. Do NOT ask the user for their move—they just played it!`;
+            fullPrompt += `\n\n[Game State] Current ${gameTypeLabel}: ${gameController.activeGame.getFen()}. You are playing ${aiColor}. The user just played ${userMovePlayed.notation}. It is NOW YOUR TURN. You MUST use the make_move tool immediately to play your move. ${formatReminder} Do NOT ask the user for their move—they just played it!`;
         } else {
-            fullPrompt += `\n\n[Game State] Current ${gameTypeLabel}: ${gameController.activeGame.getFen()}. You are playing ${aiColor}. It is currently ${turnColor}'s turn. If the user's message is just normal chat, reply normally without using any game tools.`;
+            fullPrompt += `\n\n[Game State] Current ${gameTypeLabel}: ${gameController.activeGame.getFen()}. You are playing ${aiColor}. It is currently ${turnColor}'s turn. If the user's message is just normal chat, reply normally without using any game tools. If you are making a move, remember: ${formatReminder}`;
         }
     }
 
