@@ -67,23 +67,46 @@ class GameController {
     handleGameMove(moveInfo, addSystemMessageCallback, setIdleStateCallback, queryModelCallback) {
         if (!this.activeGame) return;
 
-        const { moveObj, fen, isCheckmate, isDraw, result } = moveInfo;
+        let notation = moveInfo.notation || moveInfo.san;
+        const actualMove = moveInfo.move || moveInfo;
         
         if (this.activeGameUI) {
-            this.activeGameUI.update(moveObj.san || moveInfo.notation);
+            this.activeGameUI.update(notation);
         }
 
-        if (moveObj.promotion || moveObj.jump || moveObj.multiJump) {
+        const isPromotion = actualMove.promotion || (actualMove.flags && actualMove.flags.includes('p'));
+        const isJump = actualMove.jumped || actualMove.multiJump;
+
+        if (isPromotion || isJump) {
             playGameBuffSound();
         } else {
             playGameMoveSound();
         }
 
-        if (isCheckmate || isDraw) {
-            if (result === '1-0') playGameWinSound();
+        let isGameOver = false;
+        let result = null;
+        let isWin = false;
+
+        if (this.activeGame.type === 'chess' && this.activeGame.game.isGameOver()) {
+            isGameOver = true;
+            if (this.activeGame.game.isCheckmate()) {
+                result = this.activeGame.getTurn() === 'w' ? '0-1' : '1-0';
+                isWin = result === '1-0';
+            } else {
+                result = '1/2-1/2';
+                isWin = false; // draw
+            }
+        } else if (this.activeGame.type === 'checkers' && this.activeGame.isGameOver()) {
+            isGameOver = true;
+            result = this.activeGame.getWinner() === 'w' ? '1-0' : '0-1';
+            isWin = result === '1-0';
+        }
+
+        if (isGameOver) {
+            if (isWin) playGameWinSound();
             else playGameLoseSound();
             
-            if (addSystemMessageCallback) addSystemMessageCallback(`[Game Over] ${result}`);
+            if (addSystemMessageCallback) addSystemMessageCallback(`[Game Over] ${result || 'Draw'}`);
             if (setIdleStateCallback) setIdleStateCallback(false);
             if (queryModelCallback) queryModelCallback();
         }
