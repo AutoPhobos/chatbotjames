@@ -1,19 +1,34 @@
-# Robots.txt for JAMES v5.2
+# Robots.txt for JAMES AI
+# https://chatbotjames.onrender.com/
+
 User-agent: *
 Allow: /
 Allow: /index.html
 Allow: /about.html
 Allow: /docs.html
 Allow: /style.css
-Allow: /app.js
 Allow: /manifest.json
+Allow: /preview.png
+Allow: /favicon.ico
+Allow: /sitemap.xml
 
-# Prevent indexing of heavy worker files and Python logic
+# Prevent indexing of heavy worker and internal logic files
 Disallow: /worker.js
 Disallow: /python-worker.js
 Disallow: /tools-worker.js
+Disallow: /app.js
+Disallow: /smalltalk.js
+Disallow: /tool-router.js
+Disallow: /tools-search.js
+Disallow: /tools-bridge.js
+Disallow: /orama.js
+Disallow: /patch.js
+Disallow: /build.js
 
 # Prevent indexing of model weight cache if exposed
 Disallow: /models/
+
+# Crawl-delay for polite crawling
+Crawl-delay: 2
 
 Sitemap: https://chatbotjames.onrender.com/sitemap.xml
