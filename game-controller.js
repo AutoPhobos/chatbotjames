@@ -56,7 +56,13 @@ class GameController {
             boardWrapper.innerHTML = '';
             boardWrapper.style.display = 'flex';
             boardWrapper.style.justifyContent = 'center';
-            this.activeGameUI = renderGameBoard(this.activeGame, boardWrapper);
+            this.activeGameUI = renderGameBoard(this.activeGame, boardWrapper, (moveResult) => {
+                // When user clicks to make a move, populate the input and send it
+                if (moveResult && moveResult.notation && window.uiManager && window.uiManager.cmdInput && window.sendMessage) {
+                    window.uiManager.cmdInput.value = moveResult.notation;
+                    window.sendMessage();
+                }
+            });
         } else {
             boardWrapper.style.display = 'none';
             boardWrapper.innerHTML = '';

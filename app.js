@@ -209,6 +209,18 @@ workerController.onComplete = (chatId, targetId, message) => {
             }
         } else {
             updateLiveBubble(message, targetId, true);
+            chatManager.chatHistory.push({ role: 'assistant', content: message });
+            
+            if (gameController.activeGame) {
+                import('./game-logic.js').then(({ extractAIMove }) => {
+                    const aiMove = extractAIMove(message, gameController.activeGame);
+                    if (aiMove) {
+                        gameController.handleMakeMove({ move: aiMove }, null, (v) => uiManager.setIdleState(v, (x) => globalState.isGeneratingUI = x), null);
+                        chatManager.persistCurrentChat(() => gameController.getGameState());
+                    }
+                });
+            }
+            chatManager.persistCurrentChat(() => gameController.getGameState());
         }
     }
 };
@@ -222,6 +234,17 @@ workerController.onAborted = (chatId, targetId, message) => {
     if (chatId === chatManager.currentChatId && message !== undefined && message !== null) {
         updateLiveBubble(message, targetId);
         chatManager.chatHistory.push({ role: 'assistant', content: message });
+        
+        if (window.gameController && window.gameController.activeGame) {
+            import('./game-logic.js').then(({ extractAIMove }) => {
+                const aiMove = extractAIMove(message, window.gameController.activeGame);
+                if (aiMove) {
+                    window.gameController.handleMakeMove({ move: aiMove }, null, (v) => uiManager.setIdleState(v, (x) => globalState.isGeneratingUI = x), null);
+                    chatManager.persistCurrentChat(() => window.gameController.getGameState());
+                }
+            });
+        }
+        
         chatManager.persistCurrentChat(() => gameController.getGameState());
     } else if (chatId !== chatManager.currentChatId && message) {
         const bgChat = chatManager.allChats.find(c => c.id === chatId);
@@ -421,6 +444,10 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
         uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
         return;
     }
+
+    // Push the assistant's message with tool calls to history
+    chatManager.chatHistory.push({ role: 'assistant', content: message });
+    chatManager.persistCurrentChat(() => gameController.getGameState());
 
     for (const callBlock of calls) {
         const lines = callBlock.split('\n').map(l => l.trim()).filter(l => l);
