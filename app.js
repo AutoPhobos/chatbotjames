@@ -195,8 +195,10 @@ function workerMessageHandler(e) {
     const { status, message, loaded, total, file, targetId } = e.data;
     const statusText = document.getElementById('statusText');
 
-    if (status === 'complete' || status === 'error' || status === 'aborted') {
-        localStorage.removeItem('james-is-generating');
+    if (status === 'done' || status === 'complete' || status === 'error' || status === 'aborted') {
+        if (status !== 'done') {
+            localStorage.removeItem('james-is-generating');
+        }
         
         setIdleState(true);
         updateStatusLight('idle');
