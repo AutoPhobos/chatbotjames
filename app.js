@@ -591,7 +591,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 (async () => {
-    await chatManager.loadSavedChats(import('./chat-db.js').then(m => m.migrateFromLocalStorage), import('./crypto-utils.js').then(m => m.initEncryption));
+    await chatManager.loadSavedChats((await import('./chat-db.js')).migrateFromLocalStorage, (await import('./crypto-utils.js')).initEncryption);
     const lastChatId = Number(safeLocalStorage.getItem('james-last-chat-id'));
     const lastChat = chatManager.allChats.find(c => c.id === lastChatId);
     
