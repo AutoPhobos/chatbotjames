@@ -620,7 +620,6 @@ function handleStopGeneration() {
         worker.postMessage({ type: 'abort' });
     }
 
-    _toolCallDepth = 0;
     setIdleState(true);
     updateStatusLight('idle');
     const statusText = document.getElementById('statusText');
@@ -642,7 +641,6 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
     }
 
     if (toolCalls.length === 0) {
-        _toolCallDepth = 0;
 
         if (originChatId === currentChatId) {
             chatHistory.push({ role: 'assistant', content: message });
