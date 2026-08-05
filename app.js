@@ -196,9 +196,6 @@ function workerMessageHandler(e) {
     const statusText = document.getElementById('statusText');
 
     if (status === 'done' || status === 'complete' || status === 'error' || status === 'aborted') {
-        if (status !== 'done') {
-            localStorage.removeItem('james-is-generating');
-        }
         
         setIdleState(true);
         updateStatusLight('idle');
@@ -456,7 +453,7 @@ function sendMessage() {
         if (userMovePlayed) {
             fullPrompt += `\n\n[Game State] Current ${gameTypeLabel}: ${activeGame.getFen()}. You are playing ${aiColor}. The user just played ${userMovePlayed.notation}. It is NOW YOUR TURN. You MUST use the make_move tool immediately to play your move. Do NOT ask the user for their move—they just played it!`;
         } else {
-            fullPrompt += `\n\n[Game State] Current ${gameTypeLabel}: ${activeGame.getFen()}. You are playing ${aiColor}. It is currently ${turnColor}'s turn. If the user provided a move in text, you MUST use the make_move tool to apply their move first, then (after seeing the result) use make_move again to play your own move.`;
+            fullPrompt += `\n\n[Game State] Current ${gameTypeLabel}: ${activeGame.getFen()}. You are playing ${aiColor}. It is currently ${turnColor}'s turn. If the user's message is just normal chat, reply normally without using any game tools.`;
         }
     }
 
@@ -515,12 +512,6 @@ function sendMessage() {
     const messagesForModel = getMessagesWindow(chatHistory);
     const targetId = getNextTargetId();
     activeGenerations.set(currentChatId, targetId);
-
-    localStorage.setItem('james-is-generating', 'true');
-    if (text) {
-        localStorage.setItem('james-last-input', text);
-    }
-    _saveResumeSnapshot();
 
     worker.postMessage({
         type: 'query',
@@ -583,11 +574,6 @@ function handleAppend(text) {
     const targetId = getNextTargetId();
     activeGenerations.set(currentChatId, targetId);
     updateLiveBubble('...', targetId);
-
-    localStorage.setItem('james-is-generating', 'true');
-    // BUG FIX: Do NOT overwrite james-last-input with the injected context text.
-    // Keep the original user question so recovery shows the right prompt.
-    _saveResumeSnapshot();
 
     worker.postMessage({
         type: 'query',
@@ -740,8 +726,7 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
     const nextTargetId = getNextTargetId();
     activeGenerations.set(originChatId, nextTargetId);
 
-    localStorage.setItem('james-is-generating', 'true');
-    if (originChatId === currentChatId) _saveResumeSnapshot();
+
 
     worker.postMessage({
         type: 'query',
@@ -868,8 +853,6 @@ function handleGameMove(moveInfo) {
         chatHistory.push({ role: 'system', content: `[Game Over] ${result}` });
         persistCurrentChat();
         setIdleState(false);
-        localStorage.setItem('james-is-generating', 'true');
-        _saveResumeSnapshot();
         worker.postMessage({
             type: 'query',
             messages: getMessagesWindow(chatHistory),
@@ -897,8 +880,7 @@ function handleGameMove(moveInfo) {
     const messagesForModel = getMessagesWindow(chatHistory);
     const targetId = getNextTargetId();
     activeGenerations.set(currentChatId, targetId);
-    localStorage.setItem('james-is-generating', 'true');
-    _saveResumeSnapshot();
+
     worker.postMessage({
         type: 'query',
         messages: messagesForModel,
@@ -1310,36 +1292,21 @@ document.getElementById('sidebarOverlay')?.addEventListener('click', closeSideba
 // ==========================================
 // RECOVERY HELPERS
 // ==========================================
-function _saveResumeSnapshot() {
-    try {
-        // Cap to last 30 messages to stay within sessionStorage limits
-        const snapshot = chatHistory.slice(-30);
-        sessionStorage.setItem('james-resume-history', JSON.stringify(snapshot));
-        sessionStorage.setItem('james-resume-chat-id', currentChatId || '');
-    } catch (e) {
-        console.warn('Could not save resume snapshot:', e);
-    }
-}
 
-function _clearResumeSnapshot() {
-    sessionStorage.removeItem('james-resume-history');
-    sessionStorage.removeItem('james-resume-chat-id');
-    localStorage.removeItem('james-last-input');
-}
 
 // ==========================================
 // RECOVERY LOGIC
 // ==========================================
 function initRecovery() {
-    const isGenerating = localStorage.getItem('james-is-generating');
-    if (isGenerating !== 'true') return;
-
-    // Clear the flag immediately so we don't loop on subsequent reloads
-    localStorage.removeItem('james-is-generating');
-
-    const resumeHistoryRaw = sessionStorage.getItem('james-resume-history');
-    const resumeChatId = sessionStorage.getItem('james-resume-chat-id');
-    const lastInput = localStorage.getItem('james-last-input') || '(previous message)';
+    // If the chat is empty or the AI already replied, no recovery needed.
+    if (!chatHistory || chatHistory.length === 0) return;
+    
+    // Find the last visible message
+    const lastMsg = chatHistory[chatHistory.length - 1];
+    
+    // If the last message is not from the user, the AI either finished responding
+    // or didn't need to respond.
+    if (lastMsg.role !== 'user') return;
 
     const overlay = document.getElementById('recoveryOverlay');
     const modal = document.getElementById('recoveryModal');
@@ -1352,6 +1319,8 @@ function initRecovery() {
     overlay.classList.add('active');
     modal.classList.add('active');
 
+    const lastInput = lastMsg.displayContent || lastMsg.content || '(previous message)';
+
     // Update the modal body to show what the last message was
     const modalBody = modal.querySelector('.recovery-body');
     if (modalBody) {
@@ -1361,69 +1330,32 @@ function initRecovery() {
     const closePopup = () => {
         overlay.classList.remove('active');
         modal.classList.remove('active');
-        _clearResumeSnapshot();
     };
 
-    noBtn.addEventListener('click', closePopup);
-    closeBtn.addEventListener('click', closePopup);
+    noBtn.onclick = closePopup;
+    closeBtn.onclick = closePopup;
 
-    yesBtn.addEventListener('click', () => {
-        overlay.classList.remove('active');
-        modal.classList.remove('active');
+    yesBtn.onclick = () => {
+        closePopup();
 
-        let restoredHistory = null;
-        if (resumeHistoryRaw) {
-            try { restoredHistory = JSON.parse(resumeHistoryRaw); } catch (e) { /* ignore */ }
-        }
-        _clearResumeSnapshot();
+        // Re-dispatch the generation using the current history
+        setIdleState(false);
+        updateStatusLight('thinking');
+        const statusText = document.getElementById('statusText');
+        if (statusText) statusText.textContent = 'RESUMING...';
 
-        if (restoredHistory && restoredHistory.length > 0) {
-            chatHistory = restoredHistory;
+        const messagesForModel = getMessagesWindow(chatHistory);
+        const targetId = getNextTargetId();
+        activeGenerations.set(currentChatId, targetId);
+        updateLiveBubble('...', targetId, true);
 
-            // BUG FIX: sessionStorage returns strings; allChats IDs are numbers.
-            // Without Number() cast, strict === always fails and the chat is never matched.
-            const matchChat = allChats.find(c => c.id === Number(resumeChatId));
-            if (matchChat) {
-                persistCurrentChat();
-                // BUG FIX: currentChatId must be a number to match allChats IDs
-                currentChatId = Number(resumeChatId);
-                safeLocalStorage.setItem('james-last-chat-id', currentChatId);
-                matchChat.messages = [...chatHistory];
-                dbSaveChat(matchChat);
-                updateChatListActive(currentChatId);
-            }
-
-            renderChatLog();
-
-            // Re-dispatch the generation using the restored history
-            setIdleState(false);
-            updateStatusLight('thinking');
-            const statusText = document.getElementById('statusText');
-            if (statusText) statusText.textContent = 'RESUMING...';
-
-            const messagesForModel = getMessagesWindow(chatHistory);
-            const targetId = getNextTargetId();
-            activeGenerations.set(currentChatId, targetId);
-            updateLiveBubble('...', targetId, true);
-
-            localStorage.setItem('james-is-generating', 'true');
-            _saveResumeSnapshot();
-
-            worker.postMessage({
-                type: 'query',
-                messages: messagesForModel,
-                targetId,
-                chatId: currentChatId
-            });
-        } else {
-            // Fallback: re-send the last user text through the normal path
-            const cmdInputEl = document.getElementById('cmdInput');
-            if (cmdInputEl && lastInput !== '(previous message)') {
-                cmdInputEl.value = lastInput;
-                sendMessage();
-            }
-        }
-    });
+        worker.postMessage({
+            type: 'query',
+            messages: messagesForModel,
+            targetId,
+            chatId: currentChatId
+        });
+    };
 }
 
 // NOTE: initRecovery() is now called from workerMessageHandler on the first
