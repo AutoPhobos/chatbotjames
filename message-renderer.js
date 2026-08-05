@@ -356,7 +356,8 @@ function _attachSentinelObserver(chatLog, sentinel) {
 /** Load the next batch of older messages when the sentinel scrolls into view. */
 window.loadOlderMessages = function () {
     const chatLog = document.getElementById('chatLog');
-    const history = _getChatHistory();
+    const rawHistory = _getChatHistory();
+    const history = rawHistory.filter(m => m.type !== 'game_board');
     if (!chatLog || _renderOffset === 0 || !history.length) return;
 
     const batchSize = Math.min(20, _renderOffset);
