@@ -23,11 +23,14 @@ export class ChessGame {
         return this.game.board(); // 2D array
     }
 
-    getTurn() {
-        return this.game.turn(); // 'w' or 'b'
-    }
-
     move(source, target, promotion = 'q') {
+        if (typeof source === 'string' && target === undefined) {
+            const parsed = this.makeSanMove(source);
+            if (parsed && parsed.length > 0) {
+                return parsed[0];
+            }
+            return null;
+        }
         try {
             const result = this.game.move({
                 from: source,

@@ -90,7 +90,12 @@ export function appendUserMessage(text, historyIdx = -1) {
     container.appendChild(messageContent);
 
     messageWrap.appendChild(container);
-    chatLog.appendChild(messageWrap);
+    const gameBoardWrap = chatLog.querySelector('.game-board-wrap');
+    if (gameBoardWrap) {
+        chatLog.insertBefore(messageWrap, gameBoardWrap);
+    } else {
+        chatLog.appendChild(messageWrap);
+    }
     chatLog.scrollTop = chatLog.scrollHeight;
 }
 
@@ -111,7 +116,12 @@ export function updateLiveBubble(text, targetId, force = false) {
         bubble.id = `bubble-${targetId}`;
         bubble.className = 'message-content';
         messageWrap.appendChild(bubble);
-        chatLog.appendChild(messageWrap);
+        const gameBoardWrap = chatLog.querySelector('.game-board-wrap');
+        if (gameBoardWrap) {
+            chatLog.insertBefore(messageWrap, gameBoardWrap);
+        } else {
+            chatLog.appendChild(messageWrap);
+        }
     }
 
     if (text === '...') {
@@ -140,7 +150,12 @@ export function appendErrorToChat(errorMessage) {
     messageContent.style.color = '#dc2626';
     messageContent.textContent = `⚠️ Error: ${errorMessage}`;
     messageWrap.appendChild(messageContent);
-    chatLog.appendChild(messageWrap);
+    const gameBoardWrap = chatLog.querySelector('.game-board-wrap');
+    if (gameBoardWrap) {
+        chatLog.insertBefore(messageWrap, gameBoardWrap);
+    } else {
+        chatLog.appendChild(messageWrap);
+    }
     chatLog.scrollTop = chatLog.scrollHeight;
 }
 

@@ -61,9 +61,10 @@ class ChatManager {
         }
     }
 
-    startNewChat(getWelcomeMessageCallback, safeLocalStorage) {
-        // We do NOT persist current chat here if we want new chat to be truly independent,
-        // but historically app.js called persistCurrentChat();
+    startNewChat(getWelcomeMessageCallback, safeLocalStorage, getGameStateCallback, restoreGameStateCallback) {
+        if (getGameStateCallback) {
+            this.persistCurrentChat(getGameStateCallback);
+        }
         
         const welcome = getWelcomeMessageCallback ? getWelcomeMessageCallback() : { role: 'system', content: 'Hello!' };
         this.chatHistory = [welcome];
@@ -72,11 +73,16 @@ class ChatManager {
             id: parseInt(crypto.randomUUID().replace(/-/g, '').slice(0, 13), 16),
             name: 'New Chat',
             messages: [...this.chatHistory],
+            gameState: null
         };
         this.currentChatId = newChat.id;
         if (safeLocalStorage) safeLocalStorage.setItem('james-last-chat-id', this.currentChatId);
         this.allChats.unshift(newChat);
         dbSaveChat(newChat);
+
+        if (restoreGameStateCallback) {
+            restoreGameStateCallback(null);
+        }
 
         if (this.onChatListUpdated) this.onChatListUpdated();
         if (this.onChatChanged) this.onChatChanged(this.currentChatId);
@@ -91,7 +97,7 @@ class ChatManager {
             if (this.allChats.length > 0) {
                 this.loadChatHistory(this.allChats[0].id, getGameStateCallback, restoreGameStateCallback, safeLocalStorage);
             } else {
-                this.startNewChat(getWelcomeMessageCallback, safeLocalStorage);
+                this.startNewChat(getWelcomeMessageCallback, safeLocalStorage, getGameStateCallback, restoreGameStateCallback);
             }
         } else {
             if (this.onChatListUpdated) this.onChatListUpdated();

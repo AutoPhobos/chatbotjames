@@ -615,7 +615,12 @@ document.addEventListener('DOMContentLoaded', () => {
             safeLocalStorage
         );
     } else {
-        chatManager.startNewChat(() => uiManager.getWelcomeMessage(isMobileDevice(), isTVDevice(), true), safeLocalStorage);
+        chatManager.startNewChat(
+            () => uiManager.getWelcomeMessage(isMobileDevice(), isTVDevice(), true), 
+            safeLocalStorage,
+            () => gameController.getGameState(),
+            (state) => gameController.restoreGameState(state)
+        );
     }
     
     window._chatsLoadedForRecovery = true;
@@ -633,7 +638,14 @@ uiManager.updateStatusText(_savedLastPresetId ? 'RESUMING LAST MODEL…' : 'INIT
 document.getElementById('appendModeCancelBtn')?.addEventListener('click', () => setAppendMode(false));
 
 const newChatBtn = document.getElementById('newChatBtn');
-if (newChatBtn) newChatBtn.addEventListener('click', () => chatManager.startNewChat(() => uiManager.getWelcomeMessage(isMobileDevice(), isTVDevice(), true), safeLocalStorage));
+if (newChatBtn) {
+    newChatBtn.addEventListener('click', () => chatManager.startNewChat(
+        () => uiManager.getWelcomeMessage(isMobileDevice(), isTVDevice(), true), 
+        safeLocalStorage,
+        () => gameController.getGameState(),
+        (state) => gameController.restoreGameState(state)
+    ));
+}
 
 document.getElementById('sidebarToggle')?.addEventListener('click', () => {
     const nowCollapsed = uiManager.toggleSidebar();
