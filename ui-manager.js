@@ -140,19 +140,7 @@ class UIManager {
     }
 
     getTVWelcomeMessage(showTools) {
-            </div>
-        ` : '';
-        return {
-            role: 'system',
-            content: `JAMES TV Edition is online.`,
-            displayContent: `
-                <div class="welcome-box" style="padding: 24px;">
-                    <div class="welcome-box-header" style="font-size: 1.5rem;">📺 JAMES TV Edition</div>
-                    <div class="welcome-box-body" style="font-size: 1.2rem;">Use voice input on your remote to chat.</div>
-                    ${toolsHtml}
-                </div>
-            `
-        };
+        return this.getFullWelcomeMessage(showTools);
     }
 }
 
