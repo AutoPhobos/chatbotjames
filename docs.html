@@ -4,35 +4,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JAMES Docs — Local Browser AI Chatbot Documentation</title>
+    <title>JAMES AI Docs — Local Browser AI Chatbot | Tools, Models & Privacy Guide</title>
     <meta name="description"
-        content="Complete documentation for JAMES: how to use the local browser AI chatbot, available tools (in-browser Python, web search, weather, etc.), WebGPU models, and privacy architecture.">
+        content="Complete documentation for JAMES AI: how to use the free private browser AI chatbot, all available tools (in-browser Python/Pyodide, live web search, weather, Wikipedia, chess, checkers, unit converter, password generator, currency converter, timer, clipboard, UUID, ASCII art, color palette), WebGPU model selection (Llama 3.2, Qwen2.5, DeepSeek, SmolLM, Phi-3.5, Gemma), offline PWA installation, and encrypted local storage architecture.">
     <meta name="keywords"
-        content="JAMES documentation, local AI docs, browser AI tools, in-browser Python, Pyodide AI, WebGPU AI, offline AI assistant, JAMES chatbot guide, local AI, browser AI, WebGPU chatbot, private AI assistant, offline AI, WebAssembly AI, free AI chatbot, open source AI, no login AI, client-side AI, local LLM, Transformers.js, Llama 3.2 in browser, Qwen AI, AI games, secure AI chat, privacy-first AI">
+        content="JAMES AI documentation, local AI chatbot docs, browser AI tools guide, in-browser Python Pyodide docs, WebGPU AI tutorial, offline AI assistant docs, JAMES chatbot guide, local LLM browser how to, AI web search tool, AI weather tool docs, AI Wikipedia search, AI unit converter, AI currency converter, AI password generator, AI UUID generator, AI ASCII art tool, AI color palette tool, AI chess game docs, AI checkers game, AI timer tool, AI clipboard reader, AI base64 encoder, AI hash generator, run Python in browser, Transformers.js guide, Llama 3.2 browser setup, Qwen2.5 browser, DeepSeek R1 browser, SmolLM2 browser, Phi-3.5 browser, Gemma 2 browser, WebGPU model selection, WASM AI fallback, offline AI PWA install, private AI chat no server, encrypted IndexedDB chat history, open source AI chatbot MIT, free AI chatbot no account, ChatGPT alternative no internet, local AI privacy architecture">
     <meta name="author" content="Andrey Lopukhov">
     <meta name="robots" content="index, follow">
+    <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large">
+    <meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large">
+    <meta name="category" content="AI Documentation, Developer Tools, Privacy Software">
+    <meta name="classification" content="Technical Documentation, AI Chatbot Guide">
+    <meta name="coverage" content="Worldwide">
+    <meta name="rating" content="general">
+    <meta name="language" content="English">
     <link rel="canonical" href="https://chatbotjames.onrender.com/docs.html">
-    <meta property="og:title" content="JAMES Docs — Local Browser AI Documentation">
+    <meta property="og:title" content="JAMES AI Docs — Local Browser AI | Tools, Models & Privacy">
     <meta property="og:description"
-        content="Complete documentation for JAMES: tools (Python, web search, games), WebGPU models, local storage architecture, and privacy guarantees.">
+        content="Full guide to JAMES AI: in-browser Python (Pyodide), live web search, chess, weather, unit converter, WebGPU model selection (Llama, Qwen, DeepSeek), offline PWA, and encrypted local storage. Free, private, no server.">
     <meta property="og:image" content="https://chatbotjames.onrender.com/preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="JAMES AI documentation">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://chatbotjames.onrender.com/docs.html">
+    <meta property="og:site_name" content="JAMES AI">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="JAMES Docs — Local Browser AI Documentation">
+    <meta name="twitter:title" content="JAMES AI Docs — Local Browser AI | Tools, Models & Privacy">
     <meta name="twitter:description"
-        content="Complete documentation for JAMES: tools (Python, web search, games), WebGPU models, local storage architecture, and privacy guarantees.">
+        content="Full documentation for JAMES AI: Python execution, web search, chess, WebGPU models (Llama, Qwen, DeepSeek), offline PWA setup, and encrypted local history. 100% private, no server.">
     <meta name="twitter:image" content="https://chatbotjames.onrender.com/preview.png">
+    <meta name="twitter:creator" content="@AndreyLopukhov">
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "TechArticle",
-      "headline": "JAMES Documentation — Local Browser AI Chatbot",
-      "description": "Complete reference for JAMES: architecture, tools (Python, search, games), backend selection, model switching, and privacy.",
+      "headline": "JAMES AI Documentation — Local Browser AI Chatbot: Tools, Models & Privacy",
+      "description": "Complete reference for JAMES AI: all built-in tools (Python/Pyodide, web search, weather, Wikipedia, chess, checkers, unit converter, currency, password generator, UUID, ASCII art, color palette, timer, clipboard, base64, hash), WebGPU and WASM model selection (Llama 3.2, Qwen2.5, DeepSeek R1, SmolLM2, Phi-3.5, Gemma 2), offline PWA installation, and encrypted local storage architecture.",
       "url": "https://chatbotjames.onrender.com/docs.html",
-      "author": { "@type": "Organization", "name": "Andrey Lopukhov" },
-      "publisher": { "@type": "Organization", "name": "Andrey Lopukhov" },
-      "dateModified": "2026-08-04"
+      "keywords": "local AI chatbot, browser AI tools, WebGPU LLM, in-browser Python, Pyodide, offline AI, private AI, Llama 3.2, Qwen2.5, DeepSeek, SmolLM, AI web search, AI chess, AI password generator",
+      "articleSection": "AI Tools, WebGPU Models, Privacy Architecture, Offline PWA",
+      "author": { "@type": "Person", "name": "Andrey Lopukhov", "url": "https://github.com/tripping-alien" },
+      "publisher": { "@type": "Person", "name": "Andrey Lopukhov" },
+      "datePublished": "2026-01-01",
+      "dateModified": "2026-08-05",
+      "inLanguage": "en",
+      "isAccessibleForFree": true,
+      "about": [
+        { "@type": "SoftwareApplication", "name": "JAMES AI", "url": "https://chatbotjames.onrender.com/" }
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "JAMES AI", "item": "https://chatbotjames.onrender.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Documentation", "item": "https://chatbotjames.onrender.com/docs.html" }
+      ]
     }
     </script>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
