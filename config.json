@@ -2,7 +2,7 @@
     "ui": {
         "renderWindowMessages": 50,
         "maxHistory": 10,
-        "maxToolDepth": 4,
+        "maxToolDepth": 30,
         "throttleFpsMs": 33,
         "streamRenderIntervalMs": 15
     },
