@@ -8,8 +8,13 @@ import {
     dbSaveChat,
     dbDeleteChat,
     dbLoadAllChats,
-    migrateFromLocalStorage
+    migrateFromLocalStorage,
+    dbSaveNote,
+    dbLoadNotes,
+    dbDeleteNote,
+    dbClearNotes
 } from './chat-db.js';
+import { initEncryption } from './crypto-utils.js';
 import {
     acquireWakeLock,
     releaseWakeLock,
@@ -56,6 +61,7 @@ let _selectedPresetId = null;
 let _deviceRamGB = 4;
 let attachedFiles = [];
 let _appendMode = false;
+let _userNotes = []; // Personalization notes the AI has saved about this user
 
 // Window Memory Helper
 const MAX_HISTORY = CONFIG.ui.maxHistory;
@@ -150,23 +156,31 @@ function setIdleState(isIdle) {
 function getMessagesWindow(messages) {
     if (!messages) return [];
 
-    // Separate background (isBackground) system messages from the regular history.
-    // Background messages are always injected and do NOT count toward MAX_HISTORY.
+    // isBackground messages (append-mode injections) are always appended at the end
+    // and do NOT count toward MAX_HISTORY.
+    // BUG FIX: System messages that are NOT isBackground (game state, tool injections)
+    // were previously stripped — they're now included so the model sees them.
     const background = messages.filter(m => m.isBackground);
-    const regular = messages.filter(m => !m.isBackground && m.role !== 'system');
+    const regular    = messages.filter(m => !m.isBackground);
 
     let windowed = regular;
     if (regular.length > MAX_HISTORY) {
         windowed = regular.slice(-MAX_HISTORY);
     }
-    // Ensure the window starts with a user message
-    if (windowed.length > 0 && windowed[0].role !== 'user') {
+    // Ensure the window starts with a user message (chat-template requirement)
+    while (windowed.length > 0 && windowed[0].role !== 'user') {
         windowed = windowed.slice(1);
     }
 
-    // Re-inject background messages at the end (most recent) so the model sees them
-    // fresh without them being windowed away
-    return [...windowed, ...background];
+    const result = [...windowed, ...background];
+
+    // Prepend personalization notes as a system message the model reads every turn
+    if (_userNotes.length > 0) {
+        const notesText = _userNotes.map(n => `- ${n.text}`).join('\n');
+        result.unshift({ role: 'system', content: `[About this user]\n${notesText}` });
+    }
+
+    return result;
 }
 
 // Unified Worker Message Handler
@@ -259,6 +273,13 @@ function workerMessageHandler(e) {
                 if (lbl) lbl.textContent = `Active: ${runningPreset.label}`;
                 const applyBtn = document.getElementById('applyModelBtn');
                 if (applyBtn) applyBtn.disabled = true;
+            }
+
+            // BUG FIX: initRecovery must run AFTER the model is ready so its
+            // re-dispatched query is not silently dropped by the worker.
+            if (!workerMessageHandler._recoveryInitDone) {
+                workerMessageHandler._recoveryInitDone = true;
+                initRecovery();
             }
             break;
         }
@@ -555,7 +576,8 @@ function handleAppend(text) {
     updateLiveBubble('...', targetId);
 
     localStorage.setItem('james-is-generating', 'true');
-    localStorage.setItem('james-last-input', text);
+    // BUG FIX: Do NOT overwrite james-last-input with the injected context text.
+    // Keep the original user question so recovery shows the right prompt.
     _saveResumeSnapshot();
 
     worker.postMessage({
@@ -609,7 +631,8 @@ function handleStopGeneration() {
 }
 
 // Tool Execution Handler
-async function handleToolCalls(message, targetId, originChatId) {
+async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
+    // BUG FIX: _depth is per-call (not global) — eliminates cross-generation counter corruption.
     const toolCalls = parseToolCalls(message);
 
     if (toolCalls.length === 0 && activeGame && originChatId === currentChatId) {
@@ -636,9 +659,8 @@ async function handleToolCalls(message, targetId, originChatId) {
         return;
     }
 
-    _toolCallDepth++;
-    if (_toolCallDepth > MAX_TOOL_DEPTH) {
-        _toolCallDepth = 0;
+    const nextDepth = _depth + 1;
+    if (nextDepth > MAX_TOOL_DEPTH) {
         console.warn(`Tool call depth exceeded (${MAX_TOOL_DEPTH}). Breaking loop.`);
         const loopError = `[Tool loop broken after ${MAX_TOOL_DEPTH} consecutive tool calls. Please try rephrasing your question.]`;
         if (originChatId === currentChatId) {
@@ -648,6 +670,24 @@ async function handleToolCalls(message, targetId, originChatId) {
         }
         setIdleState(true);
         updateStatusLight('idle');
+        return;
+    }
+
+    // ── Silent tool: write_note — save and finish without a model re-query ───
+    const onlyWriteNotes = toolCalls.length > 0 && toolCalls.every(c => c.tool === 'write_note');
+    if (onlyWriteNotes) {
+        for (const call of toolCalls) {
+            try { await executeTool(call.tool, call.params); } catch (e) { console.warn('write_note failed:', e); }
+        }
+        const cleanMsg = message.replace(/```\s*tool:run[\s\S]*?```/g, '').trim();
+        if (originChatId === currentChatId) {
+            if (cleanMsg) chatHistory.push({ role: 'assistant', content: cleanMsg });
+            persistCurrentChat();
+            refreshGameBoardUI();
+        } else {
+            const bgChat = allChats.find(c => c.id === originChatId);
+            if (bgChat && cleanMsg) { bgChat.messages.push({ role: 'assistant', content: cleanMsg }); dbSaveChat(bgChat); }
+        }
         return;
     }
 
@@ -705,7 +745,9 @@ async function handleToolCalls(message, targetId, originChatId) {
 }
 
 function parseToolCalls(text) {
-    const toolRegex = /```\s*tool:run\s*([\s\S]*?)(?:\s*```|$)/g;
+    // BUG FIX: Require closing backtick — prevents parsing half-emitted tool blocks
+    // when the model hits its token limit mid-generation.
+    const toolRegex = /```\s*tool:run\s*([\s\S]+?)```/g;
     const calls = [];
     let match;
     while ((match = toolRegex.exec(text)) !== null) {
@@ -949,6 +991,21 @@ async function executeTool(toolName, params) {
         case 'python':
             if (!params?.code) throw new Error('Python tool requires a code parameter');
             return callWorkerRPC(pythonWorker, { type: 'run', code: params.code });
+
+        case 'write_note': {
+            const noteText = String(params.note || '').trim();
+            if (!noteText) return { status: 'error', reason: 'note text is empty' };
+            const note = { id: crypto.randomUUID(), text: noteText, timestamp: Date.now() };
+            _userNotes.push(note);
+            dbSaveNote(note);
+            _updateNotesUI();
+            _showNoteToast(noteText);
+            return { status: 'saved' };
+        }
+
+        case 'read_notes':
+            return { notes: _userNotes.map(n => ({ text: n.text, saved: new Date(n.timestamp).toLocaleString() })) };
+
         default:
             return callWorkerRPC(toolsWorker, { tool: toolName, params });
     }
@@ -1164,9 +1221,14 @@ function deleteChat(chatId) {
 }
 
 async function loadSavedChats() {
+    await initEncryption(); // Must init key before any DB read/write
     await migrateFromLocalStorage();
     allChats = await dbLoadAllChats();
     if (allChats.length > 0) updateChatList();
+
+    // Load personalization notes
+    _userNotes = await dbLoadNotes();
+    _updateNotesUI();
 }
 
 // Bootstrap
@@ -1307,11 +1369,11 @@ function initRecovery() {
         _clearResumeSnapshot();
 
         if (restoredHistory && restoredHistory.length > 0) {
-            // Restore full history and re-dispatch without adding a duplicate user message
             chatHistory = restoredHistory;
 
-            // If we have a matching chat, also reload it from DB so the sidebar is in sync
-            const matchChat = allChats.find(c => c.id === resumeChatId);
+            // BUG FIX: sessionStorage returns strings; allChats IDs are numbers.
+            // Without Number() cast, strict === always fails and the chat is never matched.
+            const matchChat = allChats.find(c => c.id === Number(resumeChatId));
             if (matchChat) {
                 persistCurrentChat(); // save current before switching
                 currentChatId = resumeChatId;
@@ -1354,8 +1416,8 @@ function initRecovery() {
     });
 }
 
-// Call on load
-initRecovery();
+// NOTE: initRecovery() is now called from workerMessageHandler on the first
+// status='done' event (model ready), so re-dispatched queries are never dropped.
 
 import('./tools-bridge.js').then(module => {
     module.setupToolsBridge({
