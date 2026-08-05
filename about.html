@@ -215,8 +215,8 @@
                         <p>Handles model loading, tokenization, and generation in the browser, with support for both WebGPU and WASM backends.</p>
                     </article>
                     <article class="card">
-                        <h3>Web Workers</h3>
-                        <p>Inference runs off the main thread so the UI remains smooth while generation is in progress.</p>
+                        <h3>Modular Web Workers</h3>
+                        <p>Inference runs off the main thread so the UI remains smooth. The worker logic is split into specialized modules for efficiency.</p>
                     </article>
                     <article class="card">
                         <h3>Dynamic Models</h3>
@@ -231,8 +231,8 @@
                         <p>Stores chat threads locally in the browser. No external database, no cloud sync.</p>
                     </article>
                     <article class="card">
-                        <h3>Tools bridge</h3>
-                        <p>Routes browser APIs like clipboard and geolocation through a safe bridge into the tool system.</p>
+                        <h3>Modular Tools bridge</h3>
+                        <p>Routes browser APIs like clipboard and geolocation through a safe bridge into a modular tool routing system powered by explicit rules.</p>
                     </article>
                 </div>
             </section>

@@ -669,10 +669,16 @@ move: 5,2 to 4,3  &lt;!-- Checkers row,col --&gt;</pre>
             <section class="doc-section" id="architecture">
                 <h2>Architecture</h2>
                 <div class="arch-diagram">
-                    Browser Main Thread &rarr; app.js &rarr; worker.js &rarr; Transformers.js &rarr; WebGPU / WASM
-                    <br>postMessage() &rarr; Storage &rarr; IndexedDB
+                    <strong>Browser Main Thread</strong>
+                    <br>&rarr; app.js (UI & State)
+                    <br>&rarr; tools/ (Modular Tool Routing, Maps & Rules)
+                    <br><br><strong>Web Worker (worker.js & worker-*.js)</strong>
+                    <br>&rarr; Inference, Prompts & Hardware Detection
+                    <br>&rarr; Transformers.js (WebGPU / WASM)
+                    <br><br><strong>Storage</strong>
+                    <br>&rarr; chat-db.js (IndexedDB)
                 </div>
-                <p>The worker owns inference and model state. The main thread owns the UI, tools bridge, and storage.
+                <p>The application is modularized for efficiency: the worker layer (split into multiple specialized <code>worker-*.js</code> modules) owns inference and model state. The main thread owns the UI, the modular tool routing system, and storage.
                 </p>
             </section>
             <section class="doc-section" id="privacy">

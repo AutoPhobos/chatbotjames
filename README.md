@@ -57,8 +57,9 @@ Since JAMES is a client-side application, running it locally is incredibly simpl
 
 ## Architecture
 
-- `app.js`: Main UI controller, chat state management, and tool routing.
-- `worker.js`: Dedicated Web Worker handling model initialization, prompt construction, LLM inference, and tool execution.
+- `app.js`: Main UI controller and chat state management.
+- `tools/`: A modular ecosystem for tool routing, maps, and parameter rules (`router.js`, `rules.js`, `maps.js`).
+- `worker.js` (and `worker-*.js`): Modular Web Worker handling model initialization, hardware detection, prompt construction, LLM inference, and orchestration.
 - `message-renderer.js`: Safely formats and renders LLM outputs into rich HTML using DOMPurify and Marked.js.
 - `chat-db.js`: Handles async storage of chat history into IndexedDB.
 - `game-logic.js` & `game-ui.js`: Custom engines and UI renderers for interactive in-chat games.
