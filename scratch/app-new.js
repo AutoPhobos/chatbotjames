@@ -1,3 +1,4 @@
+import { globalState } from './global-state.js';
 import { chatManager } from './chat-manager.js';
 import { gameController } from './game-controller.js';
 import { attachmentManager } from './attachment-manager.js';
@@ -23,18 +24,6 @@ import { setupModelPanel, updateModelInfo, refreshPresetCards } from './model-pa
 import { UserInputProcessor } from './input-processor.js';
 
 // ==========================================
-// GLOBALS & STATE
-// ==========================================
-let _isGeneratingUI = false;
-let _gpuInfo = null;
-let _presets = [];
-let _activePresetId = null;
-let _selectedPresetId = null;
-let _deviceRamGB = 4;
-let _appendMode = false;
-let _cannedGenId = 0;
-
-// ==========================================
 // MANAGER WIRING & CALLBACKS
 // ==========================================
 
@@ -56,7 +45,7 @@ function renderChatLog() {
 }
 
 function setAppendMode(active) {
-    _appendMode = active;
+    globalState.appendMode = active;
     uiManager.showAppendBanner(active);
 }
 
@@ -103,7 +92,6 @@ chatManager.onChatListUpdated = () => {
         chatListEl.appendChild(chatItem);
     });
     
-    // Update active
     updateChatListActive(chatManager.currentChatId);
 };
 
@@ -137,15 +125,15 @@ window.closeActiveGame = function() {
 // Worker Controller Callbacks
 workerController.onWorkerStatus = (status, message, e) => {
     if (status === 'done' || status === 'complete' || status === 'error' || status === 'aborted') {
-        uiManager.setIdleState(true, (v) => _isGeneratingUI = v);
+        uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
         updateStatusLight('idle');
         uiManager.updateStatusText('READY');
         if (status === 'aborted' && e.data.chatId) workerController.activeGenerations.delete(e.data.chatId);
         if (status === 'complete' && e.data.chatId) workerController.activeGenerations.delete(e.data.chatId);
         if (status === 'error' && e.data.chatId) workerController.activeGenerations.delete(e.data.chatId);
     } else {
-        if (!_isGeneratingUI) {
-            uiManager.setIdleState(false, (v) => _isGeneratingUI = v);
+        if (!globalState.isGeneratingUI) {
+            uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
             updateStatusLight('thinking');
         }
         if (status === 'thinking') uiManager.updateStatusText('THINKING...');
@@ -154,10 +142,10 @@ workerController.onWorkerStatus = (status, message, e) => {
 };
 
 workerController.onModelInfo = (data) => {
-    _gpuInfo = data.gpuInfo;
-    _presets = data.presets;
-    _deviceRamGB = data.ramGB ?? 4;
-    updateModelInfo({ gpuInfo: _gpuInfo, presets: _presets, ramGB: _deviceRamGB });
+    globalState.gpuInfo = data.gpuInfo;
+    globalState.presets = data.presets;
+    globalState.deviceRamGB = data.ramGB ?? 4;
+    updateModelInfo({ gpuInfo: globalState.gpuInfo, presets: globalState.presets, ramGB: globalState.deviceRamGB });
 };
 
 workerController.onWarmStart = (preset) => {
@@ -182,20 +170,19 @@ workerController.onWorkerDone = (data) => {
         uiManager.updateProgress(100);
         uiManager.updateStatusText('READY');
 
-        const runningPreset = _presets.find(
+        const runningPreset = globalState.presets.find(
             p => p.backend === data.backend && p.dtype === data.dtype && p.model === data.model
         );
         if (runningPreset) {
-            _activePresetId = runningPreset.id;
-            _selectedPresetId = runningPreset.id;
+            globalState.activePresetId = runningPreset.id;
+            globalState.selectedPresetId = runningPreset.id;
             safeLocalStorage.setItem('james-last-preset-id', runningPreset.id);
-            updateModelInfo({ activePresetId: _activePresetId, selectedPresetId: _selectedPresetId });
+            updateModelInfo({ activePresetId: globalState.activePresetId, selectedPresetId: globalState.selectedPresetId });
             refreshPresetCards();
             uiManager.updateActiveModelLabel(runningPreset.label);
         }
     }
     
-    // Recovery trigger
     if (window._chatsLoadedForRecovery) {
         initRecovery();
     }
@@ -253,7 +240,7 @@ attachmentManager.onPreviewsUpdated = () => {
         previewContainer.appendChild(chip);
     });
 };
-window.attachmentManager = attachmentManager; // Expose for onclick
+window.attachmentManager = attachmentManager;
 
 // ==========================================
 // CORE SEND LOGIC
@@ -274,7 +261,7 @@ function getMessagesWindow(messages) {
 }
 
 function handleAppend(text) {
-    if (!text || _isGeneratingUI) return;
+    if (!text || globalState.isGeneratingUI) return;
 
     chatManager.chatHistory.push({
         role: 'system',
@@ -286,7 +273,7 @@ function handleAppend(text) {
     chatManager.persistCurrentChat(() => gameController.getGameState());
     renderChatLog();
 
-    uiManager.setIdleState(false, (v) => _isGeneratingUI = v);
+    uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
     updateStatusLight('thinking');
     uiManager.updateStatusText('THINKING...');
 
@@ -299,7 +286,7 @@ function handleAppend(text) {
 }
 
 function sendMessage() {
-    if (_appendMode) {
+    if (globalState.appendMode) {
         const text = uiManager.cmdInput.value.trim();
         if (!text) return;
         setAppendMode(false);
@@ -308,7 +295,7 @@ function sendMessage() {
     }
 
     const text = uiManager.cmdInput.value.trim();
-    if ((!text && attachmentManager.attachedFiles.length === 0) || _isGeneratingUI) return;
+    if ((!text && attachmentManager.attachedFiles.length === 0) || globalState.isGeneratingUI) return;
 
     const processedText = UserInputProcessor.process(text);
     let fullPrompt = processedText;
@@ -328,7 +315,7 @@ function sendMessage() {
             gameController.handleGameMove(
                 userMovePlayed, 
                 null, 
-                (v) => uiManager.setIdleState(v, (x) => _isGeneratingUI = x), 
+                (v) => uiManager.setIdleState(v, (x) => globalState.isGeneratingUI = x), 
                 null
             );
         }
@@ -363,14 +350,14 @@ function sendMessage() {
     if (filesToSend.length === 0) {
         const canned = smallTalk.match(processedText);
         if (canned) {
-            simulateCannedResponse(canned);
+            simulateCannedResponse(canned); // Need to patch simulateCannedResponse to use global state
             return;
         }
 
         const toolMatch = toolRouter.match(processedText);
         if (toolMatch) {
             const simulatedAssistantMessage = "```tool:run\n" + toolMatch.tool + "\n" + Object.entries(toolMatch.params).map(([k, v]) => `${k}: ${v}`).join('\n') + "\n```";
-            uiManager.setIdleState(false, (v) => _isGeneratingUI = v);
+            uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
             updateStatusLight('thinking');
             uiManager.updateStatusText('ROUTING...');
             
@@ -388,7 +375,7 @@ function sendMessage() {
         }
     }
 
-    uiManager.setIdleState(false, (v) => _isGeneratingUI = v);
+    uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
     updateStatusLight('thinking');
     uiManager.updateStatusText('THINKING...');
 
@@ -405,10 +392,45 @@ function handleStopGeneration() {
     }
 }
 
+window.simulateCannedResponse = function(text) {
+    globalState.cannedGenId++;
+    const currentGenId = globalState.cannedGenId;
+    uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
+    updateStatusLight('thinking');
+    uiManager.updateStatusText('THINKING...');
+    
+    const targetId = getNextTargetId();
+    workerController.activeGenerations.set(chatManager.currentChatId, targetId);
+    updateLiveBubble('...', targetId);
+    
+    let chars = 0;
+    const interval = setInterval(() => {
+        if (!globalState.isGeneratingUI || globalState.cannedGenId !== currentGenId) {
+            clearInterval(interval);
+            return;
+        }
+        chars += 3;
+        uiManager.updateStatusText('RESPONDING...');
+        if (chars >= text.length) {
+            clearInterval(interval);
+            updateLiveBubble(text, targetId);
+            chatManager.chatHistory.push({ role: 'assistant', content: text });
+            chatManager.persistCurrentChat(() => gameController.getGameState());
+            renderChatLog();
+            uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
+            updateStatusLight('idle');
+            uiManager.updateStatusText('READY');
+            workerController.activeGenerations.delete(chatManager.currentChatId);
+        } else {
+            updateLiveBubble(text.substring(0, chars) + '...', targetId);
+        }
+    }, 30);
+};
+
 async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
     if (_depth > CONFIG.ui.maxToolDepth) {
         appendErrorToChat("Maximum tool depth exceeded.");
-        uiManager.setIdleState(true, (v) => _isGeneratingUI = v);
+        uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
         return;
     }
 
@@ -420,7 +442,7 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
     }
 
     if (calls.length === 0) {
-        uiManager.setIdleState(true, (v) => _isGeneratingUI = v);
+        uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
         return;
     }
 
@@ -448,14 +470,14 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
                 gameController.handleStartGame(
                     params, 
                     (msg) => chatManager.chatHistory.push({ role: 'system', content: msg }), 
-                    () => {} // queryModel is handled after tool calls loop
+                    () => {}
                 );
                 toolResult = `Game started: ${params.game || 'chess'}. Wait for user's move.`;
             } else if (toolName === 'make_move') {
                 gameController.handleMakeMove(
                     params, 
                     (msg) => chatManager.chatHistory.push({ role: 'system', content: msg }), 
-                    (v) => uiManager.setIdleState(v, (x) => _isGeneratingUI = x),
+                    (v) => uiManager.setIdleState(v, (x) => globalState.isGeneratingUI = x),
                     () => {} 
                 );
                 toolResult = `Move ${params.move} played. Wait for user's next move.`;
@@ -521,7 +543,7 @@ function initRecovery() {
 
     document.getElementById('recoveryYes')?.addEventListener('click', () => {
         closePopup();
-        uiManager.setIdleState(false, (v) => _isGeneratingUI = v);
+        uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
         updateStatusLight('thinking');
         uiManager.updateStatusText('RESUMING...');
 
@@ -531,7 +553,7 @@ function initRecovery() {
     });
 }
 
-window.initRecovery = initRecovery; // Expose if needed
+window.initRecovery = initRecovery;
 
 // ==========================================
 // INITIALIZATION
@@ -546,13 +568,13 @@ function isTVDevice() {
 function setupEventListeners() {
     if (uiManager.sendBtn && uiManager.cmdInput) {
         uiManager.sendBtn.addEventListener('click', () => {
-            if (_isGeneratingUI) handleStopGeneration();
+            if (globalState.isGeneratingUI) handleStopGeneration();
             else sendMessage();
         });
         uiManager.cmdInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                if (_isGeneratingUI) handleStopGeneration();
+                if (globalState.isGeneratingUI) handleStopGeneration();
                 else sendMessage();
             }
         });
@@ -598,7 +620,7 @@ document.addEventListener('DOMContentLoaded', () => {
 uiManager.initSidebarState(safeLocalStorage.getItem('james-sidebar-collapsed'));
 if (isTVDevice()) uiManager.initTVMode();
 
-uiManager.setIdleState(false, (v) => _isGeneratingUI = v);
+uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
 const _savedLastPresetId = safeLocalStorage.getItem('james-last-preset-id');
 workerController.initWorkers(safeLocalStorage);
 uiManager.updateStatusText(_savedLastPresetId ? 'RESUMING LAST MODEL…' : 'INITIALIZING...');
@@ -615,10 +637,9 @@ document.getElementById('sidebarToggle')?.addEventListener('click', () => {
 
 document.getElementById('sidebarOverlay')?.addEventListener('click', () => uiManager.closeSidebar());
 
-// Wire up Message Renderer callbacks
 setupMessageRenderer({
     getChatHistory: () => chatManager.chatHistory,
-    getIsGenerating: () => _isGeneratingUI,
+    getIsGenerating: () => globalState.isGeneratingUI,
     onEditUserMsg: (historyIdx) => {
         if (historyIdx < 0 || historyIdx >= chatManager.chatHistory.length) return;
         const msg = chatManager.chatHistory[historyIdx];
@@ -638,18 +659,17 @@ setupMessageRenderer({
     onAppendMsg: () => setAppendMode(true)
 });
 
-// Wire up Model Panel callbacks
 setupModelPanel({
     onApplyModel: (selectedId) => {
         uiManager.updateProgress(0);
         uiManager.updateStatusMeta('Loading selected model…');
-        uiManager.setIdleState(false, (v) => _isGeneratingUI = v);
+        uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
         uiManager.updateStatusText('LOADING MODEL…');
         workerController.worker.postMessage({ type: 'init', forcePresetId: selectedId });
     }
 });
 
-// Helper imports that were missing or needed at end
+let _noteToastTimeout = null;
 function _showCopyToast() {
     const toast = document.getElementById('copyToast');
     if (!toast) return;
@@ -660,6 +680,15 @@ function _showCopyToast() {
 function _updateNotesUI(notes) {
     const notesContent = document.getElementById('notesContent');
     const notesCount = document.getElementById('notesCount');
+    const btn = document.getElementById('notesBtn');
+    
+    if (btn) {
+        btn.title = notes && notes.length > 0
+            ? `JAMES remembers ${notes.length} thing${notes.length !== 1 ? 's' : ''} about you`
+            : 'No memory notes yet';
+        btn.classList.toggle('notes-active', notes && notes.length > 0);
+    }
+    
     if (!notesContent) return;
 
     if (!notes || notes.length === 0) {
@@ -672,17 +701,71 @@ function _updateNotesUI(notes) {
     notesContent.innerHTML = notes.map(note => `
         <div class="note-item" style="padding:0.75rem;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
             <div style="font-size:0.9rem;line-height:1.4;flex:1;">${escapeHTML(note.text)}</div>
-            <button class="icon-btn" onclick="deleteNote(${note.id})" title="Delete Note" style="padding:4px;color:var(--error-color);">🗑️</button>
+            <button class="icon-btn" onclick="window._deleteNote(${note.id})" title="Delete Note" style="padding:4px;color:var(--error-color);">🗑️</button>
         </div>
     `).join('');
 }
-window.deleteNote = async (id) => {
+window._deleteNote = async (id) => {
     await dbDeleteNote(id);
     _updateNotesUI(await import('./chat-db.js').then(m => m.dbLoadNotes()));
 };
-document.getElementById('clearNotesBtn')?.addEventListener('click', async () => {
+document.getElementById('notesClearBtn')?.addEventListener('click', async () => {
     if (confirm('Clear all notes?')) {
         await dbClearNotes();
         _updateNotesUI([]);
     }
+});
+
+function _setupNotesPanel() {
+    const btn      = document.getElementById('notesBtn');
+    const panel    = document.getElementById('notesPanel');
+    const overlay  = document.getElementById('notesPanelOverlay');
+    const closeBtn = document.getElementById('notesPanelClose');
+    if (!btn || !panel) return;
+
+    const openPanel  = () => { panel.classList.add('active'); overlay?.classList.add('active'); };
+    const closePanel = () => { panel.classList.remove('active'); overlay?.classList.remove('active'); };
+
+    btn.addEventListener('click', openPanel);
+    overlay?.addEventListener('click', closePanel);
+    closeBtn?.addEventListener('click', closePanel);
+}
+_setupNotesPanel();
+
+import('./tools-bridge.js').then(module => {
+    module.setupToolsBridge({
+        worker: workerController.toolsWorker,
+        DOM: { log: document.getElementById('chatLog'), cmd: uiManager.cmdInput },
+        submit: sendMessage
+    });
+}).catch(() => { });
+
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW registration failed:', err));
+}
+
+const installBanner = document.getElementById('installBanner');
+const installBtn = document.getElementById('installBtn');
+const dismissBtn = document.getElementById('dismissInstallBtn');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    globalState.pwaDeferredPrompt = e;
+    if (!safeLocalStorage.getItem('james-pwa-dismissed')) {
+        installBanner?.classList.remove('hidden');
+    }
+});
+
+installBtn?.addEventListener('click', async () => {
+    installBanner?.classList.add('hidden');
+    if (globalState.pwaDeferredPrompt) {
+        globalState.pwaDeferredPrompt.prompt();
+        await globalState.pwaDeferredPrompt.userChoice;
+        globalState.pwaDeferredPrompt = null;
+    }
+});
+
+dismissBtn?.addEventListener('click', () => {
+    installBanner?.classList.add('hidden');
+    safeLocalStorage.setItem('james-pwa-dismissed', 'true');
 });

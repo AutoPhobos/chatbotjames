@@ -1,36 +1,16 @@
-import { smallTalk } from './smalltalk.js';
+import { globalState } from './global-state.js';
+import { chatManager } from './chat-manager.js';
+import { gameController } from './game-controller.js';
+import { attachmentManager } from './attachment-manager.js';
+import { uiManager } from './ui-manager.js';
+import { workerController } from './worker-controller.js';
+
+import { smallTalk, simulateCannedResponse } from './smalltalk.js';
 import { toolRouter } from './tool-router.js';
-import { ChessGame, CheckersGame, parseUserMove, extractAIMove } from './game-logic.js';
-import { renderGameBoard } from './game-ui.js';
 import { CONFIG } from './config.js';
-import {
-    safeLocalStorage,
-    dbSaveChat,
-    dbDeleteChat,
-    dbLoadAllChats,
-    migrateFromLocalStorage,
-    dbSaveNote,
-    dbLoadNotes,
-    dbDeleteNote,
-    dbClearNotes
-} from './chat-db.js';
-import { initEncryption } from './crypto-utils.js';
-import {
-    acquireWakeLock,
-    releaseWakeLock,
-    playSendSound,
-    playDoneSound,
-    playGameMoveSound,
-    playGameWinSound,
-    playGameLoseSound,
-    playGameBuffSound
-} from './audio-wakelock.js';
-import {
-    streamQueues,
-    getNextTargetId,
-    queueStreamText,
-    flushStreamQueue
-} from './stream-manager.js';
+import { safeLocalStorage, dbSaveNote, dbDeleteNote, dbClearNotes } from './chat-db.js';
+import { playSendSound } from './audio-wakelock.js';
+import { getNextTargetId } from './stream-manager.js';
 import {
     setupMessageRenderer,
     updateStatusLight,
@@ -38,1139 +18,43 @@ import {
     appendUserMessage,
     updateLiveBubble,
     appendErrorToChat,
-    renderChatLog
+    renderChatLog as coreRender
 } from './message-renderer.js';
-import {
-    setupModelPanel,
-    updateModelInfo,
-    refreshPresetCards
-} from './model-panel.js';
+import { setupModelPanel, updateModelInfo, refreshPresetCards } from './model-panel.js';
 import { UserInputProcessor } from './input-processor.js';
 
-let activeGame = null;
-let activeGameUI = null;
+// ==========================================
+// MANAGER WIRING & CALLBACKS
+// ==========================================
 
-window.closeActiveGame = function() {
-    activeGame = null;
-    activeGameUI = null;
-    chatHistory.push({ role: 'system', content: '[Game Closed]' });
-    persistCurrentChat();
-    refreshGameBoardUI();
-};
-
-// UI State Locks
-let _isGeneratingUI = false;
-let lastUpdate = 0;
-const activeGenerations = new Map(); // chatId -> targetId
-let _gpuInfo = null;
-let _presets = [];
-let _activePresetId = null;
-let _selectedPresetId = null;
-let _deviceRamGB = 4;
-let attachedFiles = [];
-let _appendMode = false;
-let _userNotes = []; // Personalization notes the AI has saved about this user
-
-// Window Memory Helper
-const MAX_HISTORY = CONFIG.ui.maxHistory;
-const MAX_TOOL_DEPTH = CONFIG.ui.maxToolDepth;
-
-// Chat History State
-let chatHistory = [];
-let allChats = [];
-let currentChatId = null;
-
-// Cached DOM elements
-let _progressFillEl = null;
-let _statusMetaEl = null;
-
-// Initialize Workers
-let worker = new Worker('worker.js?v=2', { type: 'module' });
-const toolsWorker = new Worker('tools-worker.js', { type: 'module' });
-const pythonWorker = new Worker('python-worker.js');
-
-// UI References
-const cmdInput = document.getElementById('cmdInput')
-    || document.getElementById('userInput')
-    || document.getElementById('user-input');
-
-const sendBtn = document.getElementById('sendBtn')
-    || document.getElementById('sendButton')
-    || document.getElementById('send-button');
-
-// Wire up Message Renderer callbacks
-setupMessageRenderer({
-    getChatHistory: () => chatHistory,
-    getIsGenerating: () => _isGeneratingUI,
-    onEditUserMsg: (historyIdx) => {
-        if (historyIdx < 0 || historyIdx >= chatHistory.length) return;
-        const msg = chatHistory[historyIdx];
-        if (!msg || msg.role !== 'user') return;
-        let originalText = msg.displayContent || msg.content;
-        const fileMarker = '\n\n[Attached Files Content]:';
-        const markerIdx = originalText.indexOf(fileMarker);
-        if (markerIdx !== -1) originalText = originalText.substring(0, markerIdx).trim();
-        chatHistory = chatHistory.slice(0, historyIdx);
-        persistCurrentChat();
-        if (cmdInput) {
-            cmdInput.value = originalText;
-            cmdInput.focus();
-        }
-        renderChatLog();
-    },
-    onAppendMsg: () => setAppendMode(true)
-});
-
-// Wire up Model Panel callbacks
-setupModelPanel({
-    onApplyModel: (selectedId) => {
-        const fill = document.querySelector('.progress-fill');
-        if (fill) fill.style.width = '0%';
-        const meta = document.querySelector('.status-meta');
-        if (meta) meta.innerText = 'Loading selected model…';
-
-        setIdleState(false);
-        const statusTextEl = document.getElementById('statusText');
-        if (statusTextEl) statusTextEl.textContent = 'LOADING MODEL…';
-
-        worker.postMessage({ type: 'init', forcePresetId: selectedId });
-    }
-});
-
-function setIdleState(isIdle) {
-    if (!cmdInput || !sendBtn) return;
-    if (isIdle) {
-        cmdInput.disabled = false;
-        sendBtn.innerHTML = '➔';
-        sendBtn.classList.remove('stop-btn');
-        _isGeneratingUI = false;
-
-        cmdInput.classList.remove('loading-state');
-        cmdInput.placeholder = "Message JAMES...";
-        cmdInput.focus();
-    } else {
-        cmdInput.disabled = true;
-        sendBtn.innerHTML = '⏹';
-        sendBtn.classList.add('stop-btn');
-        sendBtn.disabled = false;
-        _isGeneratingUI = true;
-
-        cmdInput.classList.add('loading-state');
-        cmdInput.placeholder = "JAMES is busy...";
-    }
-}
-
-function getMessagesWindow(messages) {
-    if (!messages) return [];
-
-    // isBackground messages (append-mode injections) are always appended at the end
-    // and do NOT count toward MAX_HISTORY.
-    // BUG FIX: System messages that are NOT isBackground (game state, tool injections)
-    // were previously stripped — they're now included so the model sees them.
-    const background = messages.filter(m => m.isBackground);
-    const regular    = messages.filter(m => !m.isBackground);
-
-    let windowed = regular;
-    if (regular.length > MAX_HISTORY) {
-        windowed = regular.slice(-MAX_HISTORY);
-    }
-    // Ensure the window starts with a user message (chat-template requirement)
-    while (windowed.length > 0 && windowed[0].role !== 'user') {
-        windowed = windowed.slice(1);
-    }
-
-    const result = [...windowed, ...background];
-
-    // Prepend personalization notes as a system message the model reads every turn
-    if (_userNotes.length > 0) {
-        const notesText = _userNotes.map(n => `- ${n.text}`).join('\n');
-        result.unshift({ role: 'system', content: `[About this user]\n${notesText}` });
-    }
-
-    return result;
-}
-
-// Unified Worker Message Handler
-function workerMessageHandler(e) {
-    const { status, message, loaded, total, file, targetId } = e.data;
-    const statusText = document.getElementById('statusText');
-
-    if (status === 'done' || status === 'complete' || status === 'error' || status === 'aborted') {
-        
-        setIdleState(true);
-        updateStatusLight('idle');
-        if (statusText) statusText.textContent = 'READY';
-        if (status !== 'error' && status !== 'aborted') playDoneSound();
-        if (status === 'done' || status === 'error') releaseWakeLock();
-        if (status === 'aborted' && e.data.chatId) activeGenerations.delete(e.data.chatId);
-        if (status === 'complete' && e.data.chatId) activeGenerations.delete(e.data.chatId);
-        if (status === 'error' && e.data.chatId) activeGenerations.delete(e.data.chatId);
-    } else {
-        if (!_isGeneratingUI) {
-            setIdleState(false);
-            updateStatusLight('thinking');
-        }
-        if (status === 'thinking' && statusText) statusText.textContent = 'THINKING...';
-        if (status === 'streaming' && statusText) statusText.textContent = 'RESPONDING...';
-        if (status === 'downloading' || status === 'warm-start') acquireWakeLock();
-    }
-
-    switch (status) {
-        case 'clear-last-preset':
-            safeLocalStorage.removeItem('james-last-preset-id');
-            console.log('🗑️ Cleared stale last-preset cache');
-            break;
-
-        case 'model-info': {
-            _gpuInfo = e.data.gpuInfo;
-            _presets = e.data.presets;
-            _deviceRamGB = e.data.ramGB ?? 4;
-            updateModelInfo({ gpuInfo: _gpuInfo, presets: _presets, ramGB: _deviceRamGB });
-            break;
-        }
-
-        case 'warm-start': {
-            const preset = e.data.preset;
-            const meta = document.querySelector('.status-meta');
-            if (meta) meta.innerText = `Resuming: ${preset.label}…`;
-            if (statusText) statusText.textContent = `RESUMING ${preset.label.toUpperCase()}…`;
-            break;
-        }
-
-        case 'downloading': {
-            const now = Date.now();
-            if (now - lastUpdate < 100) return;
-            lastUpdate = now;
-
-            const percent = total ? (loaded / total * 100) : 0;
-            _progressFillEl = _progressFillEl || document.querySelector('.progress-fill');
-            _statusMetaEl = _statusMetaEl || document.querySelector('.status-meta');
-
-            if (_progressFillEl) _progressFillEl.style.width = `${percent}%`;
-            if (_statusMetaEl) {
-                const mbLoaded = (loaded / 1024 / 1024).toFixed(1);
-                const mbTotal = (total / 1024 / 1024).toFixed(1);
-                _statusMetaEl.innerText = `Downloading: ${file || 'weights'} (${mbLoaded}/${mbTotal} MB)`;
-            }
-            if (statusText) statusText.textContent = `DOWNLOADING (${Math.round(percent)}%)...`;
-            break;
-        }
-
-        case 'done': {
-            _statusMetaEl = _statusMetaEl || document.querySelector('.status-meta');
-            const backend = e.data.backend === 'webgpu' ? 'WebGPU' : 'WASM (CPU)';
-            const deviceTag = e.data.isTV ? ' · TV Mode' : e.data.isMobile ? ' · Lightweight Mode' : '';
-            if (_statusMetaEl) _statusMetaEl.innerText = `JAMES is online (${backend}${deviceTag})`;
-
-            _progressFillEl = _progressFillEl || document.querySelector('.progress-fill');
-            if (_progressFillEl) _progressFillEl.style.width = "100%";
-            if (statusText) statusText.textContent = 'READY';
-
-            const runningPreset = _presets.find(
-                p => p.backend === e.data.backend && p.dtype === e.data.dtype && p.model === e.data.model
-            );
-            if (runningPreset) {
-                _activePresetId = runningPreset.id;
-                _selectedPresetId = runningPreset.id;
-                safeLocalStorage.setItem('james-last-preset-id', runningPreset.id);
-                updateModelInfo({ activePresetId: _activePresetId, selectedPresetId: _selectedPresetId });
-                refreshPresetCards();
-                const lbl = document.getElementById('activeModelLabel');
-                if (lbl) lbl.textContent = `Active: ${runningPreset.label}`;
-                const applyBtn = document.getElementById('applyModelBtn');
-                if (applyBtn) applyBtn.disabled = true;
-            }
-
-            // BUG FIX: initRecovery must run AFTER the model is ready so its
-            // re-dispatched query is not silently dropped by the worker.
-            if (!workerMessageHandler._recoveryInitDone) {
-                workerMessageHandler._recoveryInitDone = true;
-                if (window._chatsLoadedForRecovery) initRecovery();
-            }
-            break;
-        }
-
-        case 'streaming':
-            if (e.data.chatId === currentChatId) {
-                queueStreamText(targetId, message);
-            }
-            break;
-
-        case 'thinking':
-            if (e.data.chatId === currentChatId) {
-                updateLiveBubble("...", targetId);
-            }
-            break;
-
-        case 'complete':
-            flushStreamQueue(targetId);
-            handleToolCalls(message, targetId, e.data.chatId);
-            break;
-
-        case 'aborted': {
-            flushStreamQueue(targetId);
-            if (e.data.chatId === currentChatId && message !== undefined && message !== null) {
-                updateLiveBubble(message, targetId);
-                chatHistory.push({ role: 'assistant', content: message });
-                persistCurrentChat();
-            } else if (e.data.chatId !== currentChatId && message) {
-                const bgChat = allChats.find(c => c.id === e.data.chatId);
-                if (bgChat) {
-                    bgChat.messages.push({ role: 'assistant', content: message });
-                    dbSaveChat(bgChat);
-                }
-            }
-            break;
-        }
-
-        case 'error': {
-            const errorText = typeof message === 'string' ? message : (message ? JSON.stringify(message) : 'An error occurred');
-            console.error('James Error payload:', e.data);
-
-            if (errorText.includes('Instance reference no longer exists') || errorText.includes('failed to call OrtRun')) {
-                appendErrorToChat("WebGPU Context Lost (GPU crashed or ran out of memory). Reloading the page in 3 seconds to recover...");
-                setTimeout(() => window.location.reload(), 3000);
-            } else {
-                appendErrorToChat(errorText);
-            }
-
-            const metaErr = document.querySelector('.status-meta');
-            if (metaErr) metaErr.innerText = `Error initializing or generating: ${errorText}`;
-            if (statusText) statusText.textContent = 'ERROR';
-            break;
-        }
-    }
-}
-worker.onmessage = workerMessageHandler;
-worker.onerror = (e) => { console.error('WORKER ERROR:', e); const _sm = document.querySelector('.status-meta'); if (_sm) _sm.innerText = 'Worker failed to load: ' + e.message; };
-
-function initWorker() {
-    if (worker) {
-        worker.terminate();
-    }
-    worker = new Worker('worker.js?v=2', { type: 'module' });
-    worker.onmessage = workerMessageHandler;
-    worker.onerror = (e) => { console.error('WORKER ERROR:', e); const _sm = document.querySelector('.status-meta'); if (_sm) _sm.innerText = 'Worker failed to load: ' + e.message; };
-    const _lastPreset = safeLocalStorage.getItem('james-last-preset-id');
-    worker.postMessage({ type: 'init', lastPresetId: _lastPreset || null });
-}
-
-// File Attachment Setup
-function setupFileAttachment() {
-    const attachButton = document.getElementById('attachButton') || document.getElementById('attach-button');
-    const fileInput = document.getElementById('fileInput') || document.getElementById('file-input');
-
-    if (attachButton && fileInput) {
-        attachButton.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', (e) => {
-            handleFilesSelected(e.target.files);
-            fileInput.value = '';
-        });
-    }
-}
-
-function handleFilesSelected(files) {
-    const TEXT_TYPES = /^(text\/|application\/(json|xml|javascript|x-httpd-php|x-sh|x-python|yaml|toml|csv|rtf|sql|typescript))/i;
-    Array.from(files).forEach(file => {
-        if (file.type && !TEXT_TYPES.test(file.type)) {
-            appendErrorToChat(`⚠️ "${file.name}" appears to be a binary file (${file.type || 'unknown type'}). Only plain-text files can be attached. Try exporting as .txt or .csv.`);
-            return;
-        }
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            attachedFiles.push({
-                name: file.name,
-                content: e.target.result
-            });
-            renderAttachmentPreviews();
-        };
-        reader.readAsText(file);
+function renderChatLog() {
+    coreRender({
+        chatHistory: chatManager.chatHistory,
+        chatLogEl: document.getElementById('chatLog'),
+        activeGenerations: workerController.activeGenerations,
+        currentChatId: chatManager.currentChatId,
+        onCopy: () => _showCopyToast(),
+        onEdit: (idx, txt) => {
+            uiManager.cmdInput.value = txt;
+            chatManager.chatHistory = chatManager.chatHistory.slice(0, idx);
+            chatManager.persistCurrentChat(() => gameController.getGameState());
+            renderChatLog();
+        },
+        onAppendMsg: () => setAppendMode(true)
     });
 }
 
-function renderAttachmentPreviews() {
-    const previewContainer = document.getElementById('attachmentPreview');
-    if (!previewContainer) return;
-
-    previewContainer.innerHTML = '';
-    attachedFiles.forEach((file, index) => {
-        const chip = document.createElement('div');
-        chip.className = 'attachment-chip';
-        chip.innerHTML = `
-        <span>📄 ${escapeHTML(file.name)}</span>
-        <button type="button" onclick="window.removeAttachment(${index})">&times;</button>
-    `;
-        previewContainer.appendChild(chip);
-    });
-}
-
-window.removeAttachment = function (index) {
-    attachedFiles.splice(index, 1);
-    renderAttachmentPreviews();
-};
-
-// Message Sending Logic
-function sendMessage() {
-    // In append mode, the send button injects context instead of a normal turn
-    if (_appendMode) {
-        const text = cmdInput.value.trim();
-        if (!text) return;
-        setAppendMode(false);
-        handleAppend(text);
-        return;
-    }
-
-    const text = cmdInput.value.trim();
-    if ((!text && attachedFiles.length === 0) || _isGeneratingUI) return;
-
-    const processedText = UserInputProcessor.process(text);
-
-    let fullPrompt = processedText;
-    if (attachedFiles.length > 0) {
-        let fileContext = "\n\n[Attached Files Content]:\n";
-        attachedFiles.forEach(file => {
-            fileContext += `\n--- START FILE: ${file.name} ---\n${file.content}\n--- END FILE: ${file.name} ---\n`;
-        });
-        fullPrompt = (processedText ? processedText + "\n" : "Please analyze the attached file(s):") + fileContext;
-    }
-
-    let userMovePlayed = null;
-    if (activeGame) {
-        userMovePlayed = parseUserMove(text, activeGame);
-        if (userMovePlayed) {
-            if (activeGameUI) activeGameUI.update(userMovePlayed.notation);
-            if (userMovePlayed.move.promotion || userMovePlayed.move.jump || userMovePlayed.move.multiJump) {
-                playGameBuffSound();
-            } else {
-                playGameMoveSound();
-            }
-        }
-
-        const turnColor = activeGame.getTurn() === 'w' ? 'White' : 'Black';
-        const aiColor = 'Black';
-        const gameTypeLabel = activeGame.type === 'chess' ? 'FEN' : 'Checkers Board';
-        
-        if (userMovePlayed) {
-            fullPrompt += `\n\n[Game State] Current ${gameTypeLabel}: ${activeGame.getFen()}. You are playing ${aiColor}. The user just played ${userMovePlayed.notation}. It is NOW YOUR TURN. You MUST use the make_move tool immediately to play your move. Do NOT ask the user for their move—they just played it!`;
-        } else {
-            fullPrompt += `\n\n[Game State] Current ${gameTypeLabel}: ${activeGame.getFen()}. You are playing ${aiColor}. It is currently ${turnColor}'s turn. If the user's message is just normal chat, reply normally without using any game tools.`;
-        }
-    }
-
-    const displayMessage = processedText + (attachedFiles.length > 0 ? ` [Attached: ${attachedFiles.map(f => f.name).join(', ')}]` : '');
-
-    chatHistory.push({ role: 'user', content: fullPrompt, displayContent: displayMessage });
-    appendUserMessage(displayMessage, chatHistory.length - 1);
-
-    cmdInput.value = '';
-    const filesToSend = [...attachedFiles];
-    attachedFiles = [];
-    renderAttachmentPreviews();
-    persistCurrentChat();
-
-    playSendSound();
-    sendBtn.classList.add('sending');
-    sendBtn.addEventListener('animationend', () => sendBtn.classList.remove('sending'), { once: true });
-
-    if (currentChatId) {
-        const chat = allChats.find(c => c.id === currentChatId);
-        if (chat && chat.name === 'New Chat') {
-            const titleSource = text || filesToSend.map(f => f.name).join(', ') || 'File upload';
-            chat.name = titleSource.substring(0, 30) + (titleSource.length > 30 ? '...' : '');
-            dbSaveChat(chat);
-            updateChatList();
-            updateChatListActive(currentChatId);
-        }
-    }
-
-    if (filesToSend.length === 0) {
-        const canned = smallTalk.match(processedText);
-        if (canned) {
-            simulateCannedResponse(canned);
-            return;
-        }
-
-        const toolMatch = toolRouter.match(processedText);
-        if (toolMatch) {
-            const simulatedAssistantMessage = "```tool:run\n" + toolMatch.tool + "\n" + Object.entries(toolMatch.params).map(([k, v]) => `${k}: ${v}`).join('\n') + "\n```";
-            setIdleState(false);
-            updateStatusLight('thinking');
-            const statusText = document.getElementById('statusText');
-            if (statusText) statusText.textContent = 'ROUTING...';
-
-            const targetId = getNextTargetId();
-            updateLiveBubble('...', targetId);
-
-            setTimeout(() => {
-                handleToolCalls(simulatedAssistantMessage, targetId, currentChatId);
-            }, 300);
-            return;
-        }
-    }
-
-    setIdleState(false);
-    const messagesForModel = getMessagesWindow(chatHistory);
-    const targetId = getNextTargetId();
-    activeGenerations.set(currentChatId, targetId);
-
-    worker.postMessage({
-        type: 'query',
-        messages: messagesForModel,
-        targetId: targetId,
-        chatId: currentChatId
-    });
-}
-
-/**
- * Toggle append mode on/off.
- * When on, the next Send becomes an append-inject rather than a normal user turn.
- */
 function setAppendMode(active) {
-    _appendMode = active;
-    const banner = document.getElementById('appendModeBanner');
-    const inputWrapper = document.querySelector('.input-wrapper');
-    if (active) {
-        banner?.classList.remove('hidden');
-        inputWrapper?.classList.add('append-active');
-        if (cmdInput) {
-            cmdInput.placeholder = 'Type context to inject...';
-            cmdInput.focus();
-        }
-    } else {
-        banner?.classList.add('hidden');
-        inputWrapper?.classList.remove('append-active');
-        if (cmdInput) {
-            cmdInput.value = '';
-            cmdInput.placeholder = 'Message JAMES...';
-        }
-    }
+    globalState.appendMode = active;
+    uiManager.showAppendBanner(active);
 }
 
-/**
- * Handle an append: inject a hidden background message and re-dispatch
- * the last AI assistant turn for regeneration.
- */
-function handleAppend(text) {
-    if (!text || _isGeneratingUI) return;
-
-    // Inject the context as a hidden background system message
-    chatHistory.push({
-        role: 'system',
-        content: `[Background context from user]: ${text}`,
-        isBackground: true,
-        hidden: false // we skip rendering via isBackground in message-renderer
-    });
-
-    persistCurrentChat();
-    renderChatLog();
-
-    // Re-dispatch generation using the updated history
-    setIdleState(false);
-    updateStatusLight('thinking');
-    const statusText = document.getElementById('statusText');
-    if (statusText) statusText.textContent = 'THINKING...';
-
-    const messagesForModel = getMessagesWindow(chatHistory);
-    const targetId = getNextTargetId();
-    activeGenerations.set(currentChatId, targetId);
-    updateLiveBubble('...', targetId);
-
-    worker.postMessage({
-        type: 'query',
-        messages: messagesForModel,
-        targetId: targetId,
-        chatId: currentChatId
-    });
-
-    if (cmdInput) cmdInput.value = '';
-}
-
-function setupEventListeners() {
-    const sendButton = document.getElementById('sendBtn') || document.getElementById('sendButton');
-    const inputField = document.getElementById('cmdInput') || document.getElementById('userInput');
-    const stopButton = document.getElementById('stopButton') || document.getElementById('stop-button');
-
-    if (sendButton && inputField) {
-        sendButton.addEventListener('click', () => {
-            if (_isGeneratingUI) {
-                handleStopGeneration();
-            } else {
-                sendMessage();
-            }
-        });
-        inputField.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                if (!_isGeneratingUI) sendMessage();
-            }
-        });
-    }
-
-    if (stopButton) {
-        stopButton.addEventListener('click', handleStopGeneration);
-    }
-}
-
-function handleStopGeneration() {
-    if (!_isGeneratingUI) return;
-
-    if (worker) {
-        worker.postMessage({ type: 'abort' });
-    }
-
-    setIdleState(true);
-    updateStatusLight('idle');
-    const statusText = document.getElementById('statusText');
-    if (statusText) statusText.textContent = 'READY';
-
-    streamQueues.forEach((_, targetId) => flushStreamQueue(targetId));
-}
-
-// Tool Execution Handler
-async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
-    // BUG FIX: _depth is per-call (not global) — eliminates cross-generation counter corruption.
-    const toolCalls = parseToolCalls(message);
-
-    if (toolCalls.length === 0 && activeGame && originChatId === currentChatId) {
-        const extracted = extractAIMove(message, activeGame);
-        if (extracted) {
-            toolCalls.push({ tool: 'make_move', params: { move: extracted } });
-        }
-    }
-
-    if (toolCalls.length === 0) {
-
-        if (originChatId === currentChatId) {
-            chatHistory.push({ role: 'assistant', content: message });
-            persistCurrentChat();
-            refreshGameBoardUI();
-        } else {
-            const bgChat = allChats.find(c => c.id === originChatId);
-            if (bgChat) {
-                bgChat.messages.push({ role: 'assistant', content: message });
-                dbSaveChat(bgChat);
-            }
-        }
-        return;
-    }
-
-    const nextDepth = _depth + 1;
-    if (nextDepth > MAX_TOOL_DEPTH) {
-        console.warn(`Tool call depth exceeded (${MAX_TOOL_DEPTH}). Breaking loop.`);
-        const loopError = `[Tool loop broken after ${MAX_TOOL_DEPTH} consecutive tool calls. Please try rephrasing your question.]`;
-        if (originChatId === currentChatId) {
-            updateLiveBubble(loopError, targetId);
-            chatHistory.push({ role: 'assistant', content: loopError });
-            persistCurrentChat();
-        }
-        setIdleState(true);
-        updateStatusLight('idle');
-        return;
-    }
-
-    // ── Silent tool: write_note — save and finish without a model re-query ───
-    const onlyWriteNotes = toolCalls.length > 0 && toolCalls.every(c => c.tool === 'write_note');
-    if (onlyWriteNotes) {
-        for (const call of toolCalls) {
-            try { await executeTool(call.tool, call.params); } catch (e) { console.warn('write_note failed:', e); }
-        }
-        const cleanMsg = message.replace(/```\s*tool:run[\s\S]*?```/g, '').trim();
-        if (originChatId === currentChatId) {
-            if (cleanMsg) chatHistory.push({ role: 'assistant', content: cleanMsg });
-            persistCurrentChat();
-            refreshGameBoardUI();
-        } else {
-            const bgChat = allChats.find(c => c.id === originChatId);
-            if (bgChat && cleanMsg) { bgChat.messages.push({ role: 'assistant', content: cleanMsg }); dbSaveChat(bgChat); }
-        }
-        return;
-    }
-
-    const toolResults = [];
-    for (const call of toolCalls) {
-        try {
-            const result = await executeTool(call.tool, call.params);
-            toolResults.push({ tool: call.tool, result });
-        } catch (error) {
-            toolResults.push({ tool: call.tool, error: error.message });
-        }
-    }
-
-    const toolResultText = toolResults.map(r =>
-        r.error
-            ? `[${r.tool} error]:${r.error}`
-            : `[${r.tool} result]:${JSON.stringify(r.result)}`
-    ).join('\n');
-
-    const isGameTool = toolCalls.some(call => call.tool === 'make_move' || call.tool === 'start_game');
-    const assistantToolTurn = { role: 'assistant', content: message, hidden: isGameTool };
-    const toolResultTurn = { role: 'user', type: 'tool_result', content: '[SYSTEM: Tool results below. Interpret them and reply naturally to the user.]\n' + toolResultText, hidden: isGameTool };
-
-    if (originChatId === currentChatId) {
-        chatHistory.push(assistantToolTurn, toolResultTurn);
-    } else {
-        const bgChat = allChats.find(c => c.id === originChatId);
-        if (bgChat) bgChat.messages.push(assistantToolTurn, toolResultTurn);
-    }
-    if (originChatId === currentChatId) {
-        persistCurrentChat();
-        refreshGameBoardUI();
-    } else {
-        const bgChatToSave = allChats.find(c => c.id === originChatId);
-        if (bgChatToSave) dbSaveChat(bgChatToSave);
-    }
-
-    const activeMessages = originChatId === currentChatId
-        ? chatHistory
-        : (allChats.find(c => c.id === originChatId)?.messages || []);
-
-    const messagesForModel = getMessagesWindow(activeMessages);
-    const nextTargetId = getNextTargetId();
-    activeGenerations.set(originChatId, nextTargetId);
-
-
-
-    worker.postMessage({
-        type: 'query',
-        messages: messagesForModel,
-        targetId: nextTargetId,
-        chatId: originChatId
-    });
-}
-
-function parseToolCalls(text) {
-    // BUG FIX: Require closing backtick — prevents parsing half-emitted tool blocks
-    // when the model hits its token limit mid-generation.
-    const toolRegex = /```\s*tool:run\s*([\s\S]+?)```/g;
-    const calls = [];
-    let match;
-    while ((match = toolRegex.exec(text)) !== null) {
-        try {
-            const lines = match[1].trim().split('\n');
-            if (lines.length > 0) {
-                const toolName = lines[0].trim();
-                const params = {};
-                for (let i = 1; i < lines.length; i++) {
-                    const line = lines[i].trim();
-                    if (!line) continue;
-                    const colonIdx = line.indexOf(':');
-                    if (colonIdx !== -1) {
-                        const key = line.substring(0, colonIdx).trim();
-                        let value = line.substring(colonIdx + 1).trim();
-
-                        if (key === 'code') {
-                            const restLines = lines.slice(i + 1);
-                            params[key] = (value + (restLines.length ? '\n' + restLines.join('\n') : '')).trimEnd();
-                            break;
-                        }
-
-                        if (value === 'true') value = true;
-                        else if (value === 'false') value = false;
-                        else if (!isNaN(Number(value)) && value !== '') value = Number(value);
-
-                        params[key] = value;
-                    }
-                }
-                calls.push({ tool: toolName, params });
-            }
-        } catch (e) {
-            console.error('Failed to parse tool call:', match[1], e);
-        }
-    }
-    return calls;
-}
-
-function callWorkerRPC(targetWorker, messageData, timeoutMs = 30000) {
-    return new Promise((resolve, reject) => {
-        const execId = crypto.randomUUID();
-        let timeoutId;
-        const handler = (e) => {
-            if (e.data?.execId === execId) {
-                clearTimeout(timeoutId);
-                targetWorker.removeEventListener('message', handler);
-                if (e.data.status === 'done') {
-                    resolve(e.data.result !== undefined ? e.data.result : e.data.output);
-                } else if (e.data.status === 'error') {
-                    reject(new Error(e.data.error || 'Worker execution failed'));
-                }
-            }
-        };
-        targetWorker.addEventListener('message', handler);
-        targetWorker.postMessage({ ...messageData, execId });
-        timeoutId = setTimeout(() => {
-            targetWorker.removeEventListener('message', handler);
-            reject(new Error('Worker execution timed out'));
-        }, timeoutMs);
-    });
-}
-
-function refreshGameBoardUI() {
-    if (activeGame) {
-        const idx = chatHistory.findIndex(m => m.type === 'game_board');
-        if (idx !== -1 && idx !== chatHistory.length - 1) {
-            const [msg] = chatHistory.splice(idx, 1);
-            chatHistory.push(msg);
-        }
-    }
-    
-    renderChatLog();
-    
-    if (activeGame) {
-        setTimeout(() => {
-            const placeholders = document.querySelectorAll('.game-board-message');
-            if (placeholders.length > 0) {
-                const container = placeholders[placeholders.length - 1];
-                activeGameUI = renderGameBoard(activeGame, container, handleGameMove);
-            }
-        }, 50);
-    }
-}
-
-function handleGameMove(moveInfo) {
-    const gameOver = activeGame.isGameOver();
-
-    if (gameOver) {
-        const winner = activeGame.getWinner ? activeGame.getWinner() : null; // Checkers only
-        if (winner === 'w') playGameWinSound();
-        else if (winner === 'b') playGameLoseSound();
-        else if (activeGame.type === 'chess' && activeGame.game.isCheckmate()) {
-            if (activeGame.game.turn() === 'b') playGameWinSound();
-            else playGameLoseSound();
-        } else {
-            playGameMoveSound(); // Draw / game over catchall
-        }
-    } else if (moveInfo.promotion || moveInfo.multiJump || moveInfo.jump) {
-        playGameBuffSound();
-    } else {
-        playGameMoveSound();
-    }
-
-    const result = activeGame.type === 'checkers' && activeGame.getWinner
-        ? (activeGame.getWinner() === 'w' ? 'White wins!' : 'Black wins!')
-        : 'Game over!';
-    const msg = `[Game Over] ${result} The board has been updated.`;
-    
-    if (gameOver) {
-        chatHistory.push({ role: 'user', content: msg, hidden: true });
-        chatHistory.push({ role: 'system', content: `[Game Over] ${result}` });
-        persistCurrentChat();
-        setIdleState(false);
-        worker.postMessage({
-            type: 'query',
-            messages: getMessagesWindow(chatHistory),
-            targetId: getNextTargetId(),
-            chatId: currentChatId
-        });
-        return;
-    }
-
-    const moveNotation = moveInfo.notation || '';
-    const aiColor = activeGame.getTurn() === 'w' ? 'White' : 'Black';
-    const checkersAiColor = activeGame.getTurn() === 'w' ? 'White (w/W)' : 'Black (b/B)';
-    const aiPrompt = activeGame.type === 'chess'
-        ? `[Game State] Current FEN: ${activeGame.getFen()}. You are playing ${aiColor}. The user just moved${moveNotation ? ` (${moveNotation})` : ''}. It is NOW YOUR TURN. You MUST immediately use the make_move tool to play your move in standard algebraic notation (e.g. e5, Nf6). Do NOT say 'your turn' — it is your turn right now.`
-        : `[Game State] Current Checkers Board: ${activeGame.getFen()}. You are playing ${checkersAiColor}. The user just moved${moveNotation ? ` (${moveNotation})` : ''}. It is NOW YOUR TURN. You MUST immediately use the make_move tool with 'from_r,from_c to to_r,to_c' format. Do NOT say 'your turn' — it is your turn right now.`;
-
-    chatHistory.push({ role: 'user', content: aiPrompt, hidden: true });
-    chatHistory.push({ role: 'system', content: `[Moved piece: ${moveNotation || 'done'}]` });
-    persistCurrentChat();
-    
-    // Refresh chat log and board to show the new system message
-    refreshGameBoardUI();
-
-    setIdleState(false);
-    const messagesForModel = getMessagesWindow(chatHistory);
-    const targetId = getNextTargetId();
-    activeGenerations.set(currentChatId, targetId);
-
-    worker.postMessage({
-        type: 'query',
-        messages: messagesForModel,
-        targetId: targetId,
-        chatId: currentChatId
-    });
-}
-
-function handleStartGame(params) {
-    const gameType = params.game;
-    activeGame = gameType === 'checkers' ? new CheckersGame() : new ChessGame();
-    
-    chatHistory.push({ role: 'assistant', type: 'game_board', content: '' });
-    persistCurrentChat();
-    
-    refreshGameBoardUI();
-
-    const stateLabel = gameType === 'checkers' ? 'Checkers Board' : 'FEN';
-    return {
-        status: "game_started",
-        game: gameType,
-        message: `[Game State] Current ${stateLabel}: ${activeGame.getFen()}. You are Black. The user is White and plays first. Await the user's move.`
-    };
-}
-
-function handleMakeMove(params) {
-    if (!activeGame) throw new Error("No active game to make a move in.");
-    const moveStr = String(params.move || '');
-    const movesMade = activeGame.makeSanMove(moveStr);
-    if (movesMade) {
-        const moves = Array.isArray(movesMade) ? movesMade : [movesMade];
-        let lastMove = null;
-        for (const move of moves) {
-            let notation = null;
-            if (activeGame.type === 'chess') {
-                notation = move.san || moveStr;
-                lastMove = move;
-            } else {
-                notation = `(${move.from.r},${move.from.c})→(${move.to.r},${move.to.c})`;
-                lastMove = move;
-            }
-            if (activeGameUI) activeGameUI.update(notation);
-        }
-        
-        const newState = activeGame.getFen();
-        const gameOver = activeGame.isGameOver();
-        
-        if (gameOver) {
-            const winner = activeGame.getWinner ? activeGame.getWinner() : null; // Checkers only
-            if (winner === 'w') playGameWinSound();
-            else if (winner === 'b') playGameLoseSound();
-            else if (activeGame.type === 'chess' && activeGame.game.isCheckmate()) {
-                if (activeGame.game.turn() === 'b') playGameWinSound();
-                else playGameLoseSound();
-            } else {
-                playGameMoveSound(); // Draw / game over catchall
-            }
-            
-            const result = activeGame.type === 'checkers' && activeGame.getWinner
-                ? (activeGame.getWinner() === 'w' ? 'White wins!' : 'Black wins!')
-                : 'Game over!';
-            return { status: "moved", move: moveStr, newState, gameOver: true, result };
-        }
-        
-        if (activeGame.type === 'checkers' && lastMove && lastMove.multiJump) {
-            playGameBuffSound();
-            return {
-                status: "multi_jump_required",
-                move: moveStr,
-                mustJumpFrom: activeGame.mustJumpFrom,
-                newState,
-                message: `Jump completed! Multi-jump required from (${activeGame.mustJumpFrom.r},${activeGame.mustJumpFrom.c}). You MUST call make_move again immediately for the next jump.`
-            };
-        }
-        
-        if (lastMove && (lastMove.promotion || lastMove.jump)) {
-            playGameBuffSound();
-        } else {
-            playGameMoveSound();
-        }
-        
-        return { status: "moved", move: moveStr, newState };
-    } else {
-        throw new Error(`Invalid or illegal move: ${moveStr}. Please check the board state and try a valid move.`);
-    }
-}
-
-async function executeTool(toolName, params) {
-    switch (toolName) {
-        case 'start_game':
-            return handleStartGame(params);
-        case 'make_move':
-            return handleMakeMove(params);
-        case 'search_web':
-        case 'web_search':
-        case 'websearch':
-            return import('./tools-search.js').then(m => m.performWebSearch(params.query || params.q));
-        case 'location':
-            return import('./tools-bridge.js').then(m => m.getLocation());
-        case 'clipboard':
-            return import('./tools-bridge.js').then(m => m.readClipboard()).then(content => ({ content, length: content.length }));
-        case 'python':
-            if (!params?.code) throw new Error('Python tool requires a code parameter');
-            return callWorkerRPC(pythonWorker, { type: 'run', code: params.code });
-
-        case 'write_note': {
-            const noteText = String(params.note || '').trim();
-            if (!noteText) return { status: 'error', reason: 'note text is empty' };
-            const note = { id: crypto.randomUUID(), text: noteText, timestamp: Date.now() };
-            _userNotes.push(note);
-            dbSaveNote(note);
-            _updateNotesUI();
-            _showNoteToast(noteText);
-            return { status: 'saved' };
-        }
-
-        case 'read_notes':
-            return { notes: _userNotes.map(n => ({ text: n.text, saved: new Date(n.timestamp).toLocaleString() })) };
-
-        default:
-            return callWorkerRPC(toolsWorker, { tool: toolName, params });
-    }
-}
-
-pythonWorker.onmessage = (e) => {
-    if (e.data.status === 'ready') { console.log('Python worker ready'); }
-};
-
-let _cannedGenId = 0;
-
-async function simulateCannedResponse(canned, targetId = null) {
-    if (!targetId) targetId = getNextTargetId();
-    const myGenId = ++_cannedGenId;
-    const myChatId = currentChatId;
-    const statusText = document.getElementById('statusText');
-
-    setIdleState(false);
-    updateStatusLight('thinking');
-    if (statusText) statusText.textContent = 'THINKING...';
-    updateLiveBubble('...', targetId);
-
-    await new Promise(r => setTimeout(r, 400 + Math.random() * 500));
-
-    if (myGenId !== _cannedGenId || !_isGeneratingUI || currentChatId !== myChatId) return;
-
-    if (statusText) statusText.textContent = 'RESPONDING...';
-    queueStreamText(targetId, canned);
-
-    const wordCount = canned.split(/\s+/).length;
-    await new Promise(r => setTimeout(r, wordCount * 35 + 300));
-
-    if (myGenId !== _cannedGenId || !_isGeneratingUI || currentChatId !== myChatId) return;
-
-    chatHistory.push({ role: 'assistant', content: canned });
-    persistCurrentChat();
-    setIdleState(true);
-    updateStatusLight('idle');
-    if (statusText) statusText.textContent = 'READY';
-}
-
-function isMobileDevice() {
-    const ua = navigator.userAgent;
-    const isMobileUA = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua);
-    const isNarrowScreen = window.screen.width < 1024;
-    const hasTouchPoints = navigator.maxTouchPoints > 1;
-    return isMobileUA || (hasTouchPoints && isNarrowScreen);
-}
-
-function isTVDevice() {
-    const ua = navigator.userAgent;
-    return /SmartTV|SMART-TV|Tizen|WebOS|Web0S|HbbTV|BRAVIA|NetCast|Roku|AFT[A-Z]|CrKey|AppleTV|Android TV|googletv/i.test(ua);
-}
-
-function getLightweightWelcomeMessage(showTools = true) {
-    const toolsBlock = showTools
-        ? `\n───────────────\n🧰 **Tools available**\n───────────────\n🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia · 🌐 web search\n🔑 uuid · 🔐 password · ⏳ timer · 📋 clipboard · 🔤 ascii\n🎨 palette · 📁 file · 🔍 search · ♟️ chess · 🔴 checkers · 🐍 python\n───────────────\n`
-        : '';
-
-    return {
-        role: 'assistant',
-        content: `✨ **JAMES — Your local, private AI assistant.**\n🛡️ Runs entirely in this browser — nothing leaves your device.\n📱 Running in **lightweight mode** — tool use may be limited on this device.\n${toolsBlock}\n💬 Type a message below to begin.`
-    };
-}
-
-function getFullWelcomeMessage(showTools = true) {
-    const toolsBlock = showTools
-        ? `───────────────\n\n🧰 **Tools available**\n───────────────\n🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia · 🌐 web search\n🔑 uuid · 🔐 password · ⏳ timer · 📋 clipboard · 🔤 ascii\n🎨 palette · 📁 file · 🔍 search · ♟️ chess · 🔴 checkers · 🐍 python\n───────────────\n\n`
-        : '';
-
-    return {
-        role: 'assistant',
-        content: `✨ **JAMES — Your local, private AI assistant.**\n🛡️ Runs entirely in this browser — nothing leaves your device.\n🔄 Every session starts fresh.\n\n${toolsBlock}💬 Type a message below to begin.`
-    };
-}
-
-function getTVWelcomeMessage(showTools = true) {
-    const toolsBlock = showTools
-        ? `\n───────────────\n🧰 **Tools available**\n───────────────\n🌤️ weather · ⏰ time · 💱 currency · 📚 wikipedia · 🌐 web search\n🔑 uuid · 🔐 password · ⏳ timer · 📋 clipboard · 🔤 ascii\n🎨 palette · 📁 file · 🔍 search · ♟️ chess · 🔴 checkers · 🐍 python\n───────────────\n`
-        : '';
-
-    return {
-        role: 'assistant',
-        content: `✨ **JAMES — Your local, private AI assistant.**\n🛡️ Runs entirely in this browser — nothing leaves your device.\n📺 Running in **TV mode** — lightweight model loaded for this device.\n${toolsBlock}\n💬 Use a keyboard or remote to type a message below.`
-    };
-}
-
-function getWelcomeMessage() {
-    if (isTVDevice()) return getTVWelcomeMessage();
-    if (isMobileDevice()) return getLightweightWelcomeMessage();
-    return getFullWelcomeMessage();
-}
-
-function persistCurrentChat() {
-    if (!currentChatId) return;
-    const chat = allChats.find(c => c.id === currentChatId);
-    if (chat) {
-        chat.messages = [...chatHistory];
-        if (activeGame) {
-            chat.gameState = { type: activeGame.type, state: activeGame.getState() };
-        } else {
-            chat.gameState = null;
-        }
-        dbSaveChat(chat);
-    }
-}
-
-function loadChatHistory(chatId) {
-    const chat = allChats.find(c => c.id === chatId);
-    if (!chat) return;
-
-    persistCurrentChat();
-    currentChatId = chatId;
-    safeLocalStorage.setItem('james-last-chat-id', currentChatId);
-    chatHistory = [...chat.messages];
-    
-    if (chat.gameState) {
-        if (chat.gameState.type === 'checkers') {
-            activeGame = new CheckersGame(chat.gameState.state);
-        } else {
-            activeGame = new ChessGame(chat.gameState.state.fen, chat.gameState.state.moveHistory);
-        }
-    } else {
-        activeGame = null;
-        activeGameUI = null;
-    }
-
-    refreshGameBoardUI();
-    updateChatListActive(currentChatId);
-    
-    if (activeGenerations.has(chatId)) {
-        const tId = activeGenerations.get(chatId);
-        const hasText = streamQueues.has(tId) && streamQueues.get(tId).displayed.length > 0;
-        if (!hasText) {
-            updateLiveBubble('...', tId, true);
-        }
-    }
-}
-
-function startNewChat() {
-    persistCurrentChat();
-    setAppendMode(false);
-
-    const welcome = getWelcomeMessage();
-    chatHistory = [welcome];
-
-    const newChat = {
-        // BUG FIX: Use crypto.randomUUID() to eliminate ID collision risk
-        // when startNewChat is called twice within the same millisecond.
-        id: parseInt(crypto.randomUUID().replace(/-/g, '').slice(0, 13), 16),
-        name: 'New Chat',
-        messages: [...chatHistory],
-    };
-    currentChatId = newChat.id;
-    safeLocalStorage.setItem('james-last-chat-id', currentChatId);
-    allChats.unshift(newChat);
-    dbSaveChat(newChat);
-
-    updateChatList();
-    renderChatLog();
-    updateChatListActive(currentChatId);
-    if (cmdInput) cmdInput.focus();
-}
-
-function updateChatList() {
+// Chat Manager Callbacks
+chatManager.onChatListUpdated = () => {
     const chatListEl = document.getElementById('chatList');
     if (!chatListEl) return;
     chatListEl.innerHTML = '';
-    allChats.forEach(chat => {
+    chatManager.allChats.forEach(chat => {
         const chatItem = document.createElement('div');
         chatItem.className = 'chat-item';
         chatItem.dataset.chatId = chat.id;
@@ -1180,20 +64,36 @@ function updateChatList() {
         chatText.style.pointerEvents = 'none';
 
         chatItem.onclick = () => {
-            loadChatHistory(chat.id);
-            if (window.innerWidth <= 768) closeSidebar();
+            chatManager.loadChatHistory(
+                chat.id, 
+                () => gameController.getGameState(), 
+                (state) => gameController.restoreGameState(state),
+                safeLocalStorage
+            );
+            if (window.innerWidth <= 768) uiManager.closeSidebar();
         };
 
         const deleteBtn = document.createElement('button');
-        deleteBtn.textContent = '×';
+        deleteBtn.textContent = 'x';
         deleteBtn.className = 'delete-chat-btn';
-        deleteBtn.onclick = (e) => { e.stopPropagation(); deleteChat(chat.id); };
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            chatManager.deleteChat(
+                chat.id, 
+                safeLocalStorage,
+                () => gameController.getGameState(), 
+                (state) => gameController.restoreGameState(state),
+                () => uiManager.getWelcomeMessage(isMobileDevice(), isTVDevice(), true)
+            );
+        };
 
         chatItem.appendChild(chatText);
         chatItem.appendChild(deleteBtn);
         chatListEl.appendChild(chatItem);
     });
-}
+    
+    updateChatListActive(chatManager.currentChatId);
+};
 
 function updateChatListActive(chatId) {
     document.querySelectorAll('#chatList .chat-item').forEach(item => {
@@ -1201,137 +101,423 @@ function updateChatListActive(chatId) {
     });
 }
 
-function deleteChat(chatId) {
-    allChats = allChats.filter(c => c.id !== chatId);
-    dbDeleteChat(chatId);
+chatManager.onChatChanged = (chatId) => {
+    updateChatListActive(chatId);
+    renderChatLog();
+};
 
-    if (chatId === currentChatId) {
-        currentChatId = null;
-        if (allChats.length > 0) {
-            loadChatHistory(allChats[0].id);
-        } else {
-            startNewChat();
+chatManager.onNotesLoaded = (notes) => {
+    _updateNotesUI(notes);
+};
+
+// Game Controller Callbacks
+gameController.onGameStateChange = () => {
+    chatManager.persistCurrentChat(() => gameController.getGameState());
+};
+
+window.closeActiveGame = function() {
+    gameController.closeActiveGame((sysMsg) => {
+        chatManager.chatHistory.push({ role: 'system', content: sysMsg });
+    });
+    chatManager.persistCurrentChat(() => gameController.getGameState());
+};
+
+// Worker Controller Callbacks
+workerController.onWorkerStatus = (status, message, e) => {
+    if (status === 'done' || status === 'complete' || status === 'error' || status === 'aborted') {
+        uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
+        updateStatusLight('idle');
+        uiManager.updateStatusText('READY');
+        if (status === 'aborted' && e.data.chatId) workerController.activeGenerations.delete(e.data.chatId);
+        if (status === 'complete' && e.data.chatId) workerController.activeGenerations.delete(e.data.chatId);
+        if (status === 'error' && e.data.chatId) workerController.activeGenerations.delete(e.data.chatId);
+    } else {
+        if (!globalState.isGeneratingUI) {
+            uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
+            updateStatusLight('thinking');
         }
-    } else {
-        updateChatList();
-        updateChatListActive(currentChatId);
+        if (status === 'thinking') uiManager.updateStatusText('THINKING...');
+        if (status === 'streaming') uiManager.updateStatusText('RESPONDING...');
     }
-}
+};
 
-async function loadSavedChats() {
-    await initEncryption(); // Must init key before any DB read/write
-    await migrateFromLocalStorage();
-    allChats = await dbLoadAllChats();
-    if (allChats.length > 0) updateChatList();
+workerController.onModelInfo = (data) => {
+    globalState.gpuInfo = data.gpuInfo;
+    globalState.presets = data.presets;
+    globalState.deviceRamGB = data.ramGB ?? 4;
+    updateModelInfo({ gpuInfo: globalState.gpuInfo, presets: globalState.presets, ramGB: globalState.deviceRamGB });
+};
 
-    // Load personalization notes
-    _userNotes = await dbLoadNotes();
-    _updateNotesUI();
-}
+workerController.onWarmStart = (preset) => {
+    uiManager.updateStatusMeta(`Resuming: ${preset.label}…`);
+    uiManager.updateStatusText(`RESUMING ${preset.label.toUpperCase()}…`);
+};
 
-// Bootstrap
-document.addEventListener('DOMContentLoaded', () => {
-    setupEventListeners();
-    setupFileAttachment();
-});
+workerController.onDownloadProgress = (loaded, total, file) => {
+    const percent = total ? (loaded / total * 100) : 0;
+    uiManager.updateProgress(percent);
+    const mbLoaded = (loaded / 1024 / 1024).toFixed(1);
+    const mbTotal = (total / 1024 / 1024).toFixed(1);
+    uiManager.updateStatusMeta(`Downloading: ${file || 'weights'} (${mbLoaded}/${mbTotal} MB)`);
+    uiManager.updateStatusText(`DOWNLOADING (${Math.round(percent)}%)...`);
+};
 
-(async () => {
-    await loadSavedChats();
-    const lastChatId = Number(safeLocalStorage.getItem('james-last-chat-id'));
-    const lastChat = allChats.find(c => c.id === lastChatId);
+workerController.onWorkerDone = (data) => {
+    if (data && data.backend) {
+        const backend = data.backend === 'webgpu' ? 'WebGPU' : 'WASM (CPU)';
+        const deviceTag = data.isTV ? ' · TV Mode' : data.isMobile ? ' · Lightweight Mode' : '';
+        uiManager.updateStatusMeta(`JAMES is online (${backend}${deviceTag})`);
+        uiManager.updateProgress(100);
+        uiManager.updateStatusText('READY');
+
+        const runningPreset = globalState.presets.find(
+            p => p.backend === data.backend && p.dtype === data.dtype && p.model === data.model
+        );
+        if (runningPreset) {
+            globalState.activePresetId = runningPreset.id;
+            globalState.selectedPresetId = runningPreset.id;
+            safeLocalStorage.setItem('james-last-preset-id', runningPreset.id);
+            updateModelInfo({ activePresetId: globalState.activePresetId, selectedPresetId: globalState.selectedPresetId });
+            refreshPresetCards();
+            uiManager.updateActiveModelLabel(runningPreset.label);
+        }
+    }
     
-    if (lastChat) {
-        loadChatHistory(lastChatId);
-    } else if (allChats.length > 0) {
-        loadChatHistory(allChats[0].id);
-    } else {
-        startNewChat();
+    if (window._chatsLoadedForRecovery) {
+        initRecovery();
     }
-    
-    window._chatsLoadedForRecovery = true;
-    if (workerMessageHandler._recoveryInitDone) initRecovery();
-})();
+};
 
-if (isTVDevice()) {
-    document.body.classList.add('tv-mode');
-    document.getElementById('sidebar')?.classList.add('collapsed');
-} else {
-    const savedSidebar = safeLocalStorage.getItem('james-sidebar-collapsed');
-    if (savedSidebar === 'true' || window.innerWidth <= 768) {
-        document.getElementById('sidebar')?.classList.add('collapsed');
-    } else if (savedSidebar === 'false') {
-        document.getElementById('sidebar')?.classList.remove('collapsed');
+workerController.onStreaming = (chatId, targetId, message) => {
+    if (chatId === chatManager.currentChatId) {
+        import('./stream-manager.js').then(sm => sm.queueStreamText(targetId, message));
     }
-}
+};
 
-setIdleState(false);
-const _savedLastPresetId = safeLocalStorage.getItem('james-last-preset-id');
-worker.postMessage({
-    type: 'init',
-    lastPresetId: _savedLastPresetId || null,
-});
-pythonWorker.postMessage({ type: 'init' });
+workerController.onThinking = (chatId, targetId) => {
+    if (chatId === chatManager.currentChatId) {
+        updateLiveBubble("...", targetId);
+    }
+};
 
-const statusTextEl = document.getElementById('statusText');
-if (statusTextEl) {
-    statusTextEl.textContent = _savedLastPresetId ? 'RESUMING LAST MODEL…' : 'INITIALIZING...';
-}
+workerController.onComplete = (chatId, targetId, message) => {
+    import('./stream-manager.js').then(sm => sm.flushStreamQueue(targetId));
+};
 
-// Wire up the append mode cancel button
-document.getElementById('appendModeCancelBtn')?.addEventListener('click', () => setAppendMode(false));
+workerController.onToolCalls = (message, targetId, chatId) => {
+    handleToolCalls(message, targetId, chatId);
+};
 
-// Sidebar Controls
-const newChatBtn = document.getElementById('newChatBtn');
-if (newChatBtn) newChatBtn.addEventListener('click', startNewChat);
+workerController.onAborted = (chatId, targetId, message) => {
+    import('./stream-manager.js').then(sm => sm.flushStreamQueue(targetId));
+    if (chatId === chatManager.currentChatId && message !== undefined && message !== null) {
+        updateLiveBubble(message, targetId);
+        chatManager.chatHistory.push({ role: 'assistant', content: message });
+        chatManager.persistCurrentChat(() => gameController.getGameState());
+    } else if (chatId !== chatManager.currentChatId && message) {
+        const bgChat = chatManager.allChats.find(c => c.id === chatId);
+        if (bgChat) {
+            bgChat.messages.push({ role: 'assistant', content: message });
+            import('./chat-db.js').then(db => db.dbSaveChat(bgChat));
+        }
+    }
+    renderChatLog();
+};
 
-function closeSidebar() {
-    document.getElementById('sidebar')?.classList.add('collapsed');
-    document.getElementById('sidebarOverlay')?.classList.remove('visible');
-}
+// Attachment Manager Callbacks
+attachmentManager.onPreviewsUpdated = () => {
+    const previewContainer = document.getElementById('attachmentPreview');
+    if (!previewContainer) return;
 
-document.getElementById('sidebarToggle')?.addEventListener('click', () => {
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebarOverlay');
-    const nowCollapsed = sidebar?.classList.toggle('collapsed');
-    overlay?.classList.toggle('visible', !nowCollapsed);
-    safeLocalStorage.setItem('james-sidebar-collapsed', nowCollapsed);
-});
-
-document.getElementById('sidebarOverlay')?.addEventListener('click', closeSidebar);
+    previewContainer.innerHTML = '';
+    attachmentManager.attachedFiles.forEach((file, index) => {
+        const chip = document.createElement('div');
+        chip.className = 'attachment-chip';
+        chip.innerHTML = `
+            <span>📄 ${escapeHTML(file.name)}</span>
+            <button type="button" onclick="attachmentManager.removeAttachment(${index})">&times;</button>
+        `;
+        previewContainer.appendChild(chip);
+    });
+};
+window.attachmentManager = attachmentManager;
 
 // ==========================================
-// RECOVERY HELPERS
+// CORE SEND LOGIC
 // ==========================================
 
+function getMessagesWindow(messages) {
+    const background = messages.filter(m => m.isBackground);
+    const regular    = messages.filter(m => !m.isBackground);
+
+    let windowed = regular;
+    if (regular.length > CONFIG.ui.maxHistory) {
+        windowed = regular.slice(-CONFIG.ui.maxHistory);
+    }
+    while (windowed.length > 0 && windowed[0].role !== 'user') {
+        windowed = windowed.slice(1);
+    }
+    return [...windowed, ...background];
+}
+
+function handleAppend(text) {
+    if (!text || globalState.isGeneratingUI) return;
+
+    chatManager.chatHistory.push({
+        role: 'system',
+        content: `[Background context from user]: ${text}`,
+        isBackground: true,
+        hidden: false
+    });
+
+    chatManager.persistCurrentChat(() => gameController.getGameState());
+    renderChatLog();
+
+    uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
+    updateStatusLight('thinking');
+    uiManager.updateStatusText('THINKING...');
+
+    const messagesForModel = getMessagesWindow(chatManager.chatHistory);
+    const targetId = getNextTargetId();
+    workerController.postQuery(messagesForModel, targetId, chatManager.currentChatId);
+    updateLiveBubble('...', targetId);
+
+    if (uiManager.cmdInput) uiManager.cmdInput.value = '';
+}
+
+function sendMessage() {
+    if (globalState.appendMode) {
+        const text = uiManager.cmdInput.value.trim();
+        if (!text) return;
+        setAppendMode(false);
+        handleAppend(text);
+        return;
+    }
+
+    const text = uiManager.cmdInput.value.trim();
+    if ((!text && attachmentManager.attachedFiles.length === 0) || globalState.isGeneratingUI) return;
+
+    const processedText = UserInputProcessor.process(text);
+    let fullPrompt = processedText;
+
+    if (attachmentManager.attachedFiles.length > 0) {
+        let fileContext = "\n\n[Attached Files Content]:\n";
+        attachmentManager.attachedFiles.forEach(file => {
+            fileContext += `\n--- START FILE: ${file.name} ---\n${file.content}\n--- END FILE: ${file.name} ---\n`;
+        });
+        fullPrompt = (processedText ? processedText + "\n" : "Please analyze the attached file(s):") + fileContext;
+    }
+
+    let userMovePlayed = null;
+    if (gameController.activeGame) {
+        userMovePlayed = gameController.parseUserMove(text);
+        if (userMovePlayed) {
+            gameController.handleGameMove(
+                userMovePlayed, 
+                null, 
+                (v) => uiManager.setIdleState(v, (x) => globalState.isGeneratingUI = x), 
+                null
+            );
+        }
+
+        const turnColor = gameController.activeGame.getTurn() === 'w' ? 'White' : 'Black';
+        const aiColor = 'Black';
+        const gameTypeLabel = gameController.activeGame.type === 'chess' ? 'FEN' : 'Checkers Board';
+        
+        if (userMovePlayed) {
+            fullPrompt += `\n\n[Game State] Current ${gameTypeLabel}: ${gameController.activeGame.getFen()}. You are playing ${aiColor}. The user just played ${userMovePlayed.notation}. It is NOW YOUR TURN. You MUST use the make_move tool immediately to play your move. Do NOT ask the user for their move—they just played it!`;
+        } else {
+            fullPrompt += `\n\n[Game State] Current ${gameTypeLabel}: ${gameController.activeGame.getFen()}. You are playing ${aiColor}. It is currently ${turnColor}'s turn. If the user's message is just normal chat, reply normally without using any game tools.`;
+        }
+    }
+
+    const displayMessage = processedText + (attachmentManager.attachedFiles.length > 0 ? ` [Attached: ${attachmentManager.attachedFiles.map(f => f.name).join(', ')}]` : '');
+
+    chatManager.chatHistory.push({ role: 'user', content: fullPrompt, displayContent: displayMessage });
+    appendUserMessage(displayMessage, chatManager.chatHistory.length - 1);
+
+    uiManager.cmdInput.value = '';
+    const filesToSend = [...attachmentManager.attachedFiles];
+    attachmentManager.clearAttachments();
+    chatManager.persistCurrentChat(() => gameController.getGameState());
+
+    playSendSound();
+    uiManager.sendBtn.classList.add('sending');
+    uiManager.sendBtn.addEventListener('animationend', () => uiManager.sendBtn.classList.remove('sending'), { once: true });
+
+    chatManager.updateChatName(chatManager.currentChatId, text || filesToSend.map(f => f.name).join(', ') || 'File upload');
+
+    if (filesToSend.length === 0) {
+        const canned = smallTalk.match(processedText);
+        if (canned) {
+            simulateCannedResponse(canned); // Need to patch simulateCannedResponse to use global state
+            return;
+        }
+
+        const toolMatch = toolRouter.match(processedText);
+        if (toolMatch) {
+            const simulatedAssistantMessage = "```tool:run\n" + toolMatch.tool + "\n" + Object.entries(toolMatch.params).map(([k, v]) => `${k}: ${v}`).join('\n') + "\n```";
+            uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
+            updateStatusLight('thinking');
+            uiManager.updateStatusText('ROUTING...');
+            
+            const targetId = getNextTargetId();
+            workerController.activeGenerations.set(chatManager.currentChatId, targetId);
+            updateLiveBubble('...', targetId);
+            
+            setTimeout(() => {
+                chatManager.chatHistory.push({ role: 'assistant', content: simulatedAssistantMessage });
+                chatManager.persistCurrentChat(() => gameController.getGameState());
+                renderChatLog();
+                handleToolCalls(simulatedAssistantMessage, targetId, chatManager.currentChatId);
+            }, 300);
+            return;
+        }
+    }
+
+    uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
+    updateStatusLight('thinking');
+    uiManager.updateStatusText('THINKING...');
+
+    const messagesForModel = getMessagesWindow(chatManager.chatHistory);
+    const targetId = getNextTargetId();
+    updateLiveBubble('...', targetId);
+    workerController.postQuery(messagesForModel, targetId, chatManager.currentChatId);
+}
+
+function handleStopGeneration() {
+    if (workerController.activeGenerations.has(chatManager.currentChatId)) {
+        workerController.worker.postMessage({ type: 'abort', targetId: workerController.activeGenerations.get(chatManager.currentChatId) });
+        uiManager.updateStatusText('STOPPING...');
+    }
+}
+
+window.simulateCannedResponse = function(text) {
+    globalState.cannedGenId++;
+    const currentGenId = globalState.cannedGenId;
+    uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
+    updateStatusLight('thinking');
+    uiManager.updateStatusText('THINKING...');
+    
+    const targetId = getNextTargetId();
+    workerController.activeGenerations.set(chatManager.currentChatId, targetId);
+    updateLiveBubble('...', targetId);
+    
+    let chars = 0;
+    const interval = setInterval(() => {
+        if (!globalState.isGeneratingUI || globalState.cannedGenId !== currentGenId) {
+            clearInterval(interval);
+            return;
+        }
+        chars += 3;
+        uiManager.updateStatusText('RESPONDING...');
+        if (chars >= text.length) {
+            clearInterval(interval);
+            updateLiveBubble(text, targetId);
+            chatManager.chatHistory.push({ role: 'assistant', content: text });
+            chatManager.persistCurrentChat(() => gameController.getGameState());
+            renderChatLog();
+            uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
+            updateStatusLight('idle');
+            uiManager.updateStatusText('READY');
+            workerController.activeGenerations.delete(chatManager.currentChatId);
+        } else {
+            updateLiveBubble(text.substring(0, chars) + '...', targetId);
+        }
+    }, 30);
+};
+
+async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
+    if (_depth > CONFIG.ui.maxToolDepth) {
+        appendErrorToChat("Maximum tool depth exceeded.");
+        uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
+        return;
+    }
+
+    const regex = /```\s*tool:run\n?([\s\S]*?)```/g;
+    let match;
+    const calls = [];
+    while ((match = regex.exec(message)) !== null) {
+        calls.push(match[1].trim());
+    }
+
+    if (calls.length === 0) {
+        uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
+        return;
+    }
+
+    for (const callBlock of calls) {
+        const lines = callBlock.split('\n').map(l => l.trim()).filter(l => l);
+        const toolName = lines[0];
+        const params = {};
+        for (let i = 1; i < lines.length; i++) {
+            const parts = lines[i].split(':');
+            if (parts.length >= 2) {
+                const k = parts[0].trim();
+                const v = parts.slice(1).join(':').trim();
+                params[k] = v;
+            }
+        }
+
+        uiManager.updateStatusText(`RUNNING ${toolName.toUpperCase()}...`);
+        let toolResult = null;
+
+        try {
+            if (toolName === 'web_search' || toolName === 'wikipedia' || toolName === 'get_current_weather' || toolName === 'search_images' || toolName === 'eval_python') {
+                const targetWorker = toolName === 'eval_python' ? workerController.pythonWorker : workerController.toolsWorker;
+                toolResult = await workerController.callWorkerRPC(targetWorker, { type: toolName, params }, 30000);
+            } else if (toolName === 'start_game') {
+                gameController.handleStartGame(
+                    params, 
+                    (msg) => chatManager.chatHistory.push({ role: 'system', content: msg }), 
+                    () => {}
+                );
+                toolResult = `Game started: ${params.game || 'chess'}. Wait for user's move.`;
+            } else if (toolName === 'make_move') {
+                gameController.handleMakeMove(
+                    params, 
+                    (msg) => chatManager.chatHistory.push({ role: 'system', content: msg }), 
+                    (v) => uiManager.setIdleState(v, (x) => globalState.isGeneratingUI = x),
+                    () => {} 
+                );
+                toolResult = `Move ${params.move} played. Wait for user's next move.`;
+            } else {
+                toolResult = `Error: Tool '${toolName}' not found.`;
+            }
+        } catch (e) {
+            toolResult = `Error executing tool: ${e.message}`;
+            appendErrorToChat(toolResult);
+        }
+
+        if (toolResult) {
+            chatManager.chatHistory.push({ role: 'system', content: `[Tool Result: ${toolName}]\n${toolResult}` });
+            chatManager.persistCurrentChat(() => gameController.getGameState());
+            renderChatLog();
+        }
+    }
+
+    uiManager.updateStatusText('THINKING...');
+    const nextTargetId = getNextTargetId();
+    workerController.postQuery(getMessagesWindow(chatManager.chatHistory), nextTargetId, originChatId);
+    updateLiveBubble('...', nextTargetId);
+}
 
 // ==========================================
 // RECOVERY LOGIC
 // ==========================================
 function initRecovery() {
-    // If the chat is empty or the AI already replied, no recovery needed.
-    if (!chatHistory || chatHistory.length === 0) return;
-    
-    // Find the last visible message
-    const lastMsg = chatHistory[chatHistory.length - 1];
-    
-    // If the last message is not from the user, the AI either finished responding
-    // or didn't need to respond.
+    if (!chatManager.chatHistory || chatManager.chatHistory.length === 0) return;
+    const lastMsg = chatManager.chatHistory[chatManager.chatHistory.length - 1];
     if (lastMsg.role !== 'user') return;
 
     const overlay = document.getElementById('recoveryOverlay');
     const modal = document.getElementById('recoveryModal');
-    const noBtn = document.getElementById('recoveryNoBtn');
-    const yesBtn = document.getElementById('recoveryYesBtn');
-    const closeBtn = document.getElementById('recoveryClose');
-
     if (!overlay || !modal) return;
 
     overlay.classList.add('active');
     modal.classList.add('active');
 
     const lastInput = lastMsg.displayContent || lastMsg.content || '(previous message)';
-
-    // Update the modal body to show what the last message was
     const promptTextEl = modal.querySelector('#recoveryPromptText');
     if (promptTextEl) {
         promptTextEl.textContent = `"${lastInput.substring(0, 80)}${lastInput.length > 80 ? '…' : ''}"`;
@@ -1352,85 +538,188 @@ function initRecovery() {
         modal.classList.remove('active');
     };
 
-    noBtn.onclick = closePopup;
-    closeBtn.onclick = closePopup;
+    document.getElementById('recoveryNo')?.addEventListener('click', closePopup);
+    document.getElementById('recoveryClose')?.addEventListener('click', closePopup);
 
-    yesBtn.onclick = () => {
+    document.getElementById('recoveryYes')?.addEventListener('click', () => {
         closePopup();
-
-        // Re-dispatch the generation using the current history
-        setIdleState(false);
+        uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
         updateStatusLight('thinking');
-        const statusText = document.getElementById('statusText');
-        if (statusText) statusText.textContent = 'RESUMING...';
+        uiManager.updateStatusText('RESUMING...');
 
-        const messagesForModel = getMessagesWindow(chatHistory);
         const targetId = getNextTargetId();
-        activeGenerations.set(currentChatId, targetId);
         updateLiveBubble('...', targetId, true);
+        workerController.postQuery(getMessagesWindow(chatManager.chatHistory), targetId, chatManager.currentChatId);
+    });
+}
 
-        worker.postMessage({
-            type: 'query',
-            messages: messagesForModel,
-            targetId,
-            chatId: currentChatId
+window.initRecovery = initRecovery;
+
+// ==========================================
+// INITIALIZATION
+// ==========================================
+function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+function isTVDevice() {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches && navigator.userAgent.toLowerCase().includes('tv');
+}
+
+function setupEventListeners() {
+    if (uiManager.sendBtn && uiManager.cmdInput) {
+        uiManager.sendBtn.addEventListener('click', () => {
+            if (globalState.isGeneratingUI) handleStopGeneration();
+            else sendMessage();
         });
-    };
-}
-
-// NOTE: initRecovery() is now called from workerMessageHandler on the first
-// status='done' event (model ready), so re-dispatched queries are never dropped.
-
-// ==========================================
-// NOTES UI HELPERS
-// ==========================================
-let _noteToastTimeout = null;
-
-function _showNoteToast(text) {
-    let toast = document.getElementById('noteToast');
-    if (!toast) return;
-    const short = text.length > 60 ? text.slice(0, 60) + '…' : text;
-    toast.textContent = `🧠 Noted: "${short}"`;
-    toast.classList.add('visible');
-    clearTimeout(_noteToastTimeout);
-    _noteToastTimeout = setTimeout(() => toast.classList.remove('visible'), 3500);
-}
-
-function _updateNotesUI() {
-    const btn = document.getElementById('notesBtn');
-    const list = document.getElementById('notesList');
-
-    if (btn) {
-        btn.title = _userNotes.length > 0
-            ? `JAMES remembers ${_userNotes.length} thing${_userNotes.length !== 1 ? 's' : ''} about you`
-            : 'No memory notes yet';
-        btn.classList.toggle('notes-active', _userNotes.length > 0);
+        uiManager.cmdInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (globalState.isGeneratingUI) handleStopGeneration();
+                else sendMessage();
+            }
+        });
     }
 
-    if (!list) return;
-    if (_userNotes.length === 0) {
-        list.innerHTML = '<p class="notes-empty">JAMES hasn\'t saved any notes about you yet.<br><small>Notes are saved automatically as you chat.</small></p>';
+    document.getElementById('stopButton')?.addEventListener('click', handleStopGeneration);
+    document.getElementById('stop-button')?.addEventListener('click', handleStopGeneration);
+}
+
+// Bootstrap
+document.addEventListener('DOMContentLoaded', () => {
+    setupEventListeners();
+    attachmentManager.setupFileAttachment('attachButton', 'fileInput', 'chatWindow');
+});
+
+(async () => {
+    await chatManager.loadSavedChats(import('./chat-db.js').then(m => m.migrateFromLocalStorage), import('./crypto-utils.js').then(m => m.initEncryption));
+    const lastChatId = Number(safeLocalStorage.getItem('james-last-chat-id'));
+    const lastChat = chatManager.allChats.find(c => c.id === lastChatId);
+    
+    if (lastChat) {
+        chatManager.loadChatHistory(
+            lastChatId, 
+            () => gameController.getGameState(), 
+            (state) => gameController.restoreGameState(state),
+            safeLocalStorage
+        );
+    } else if (chatManager.allChats.length > 0) {
+        chatManager.loadChatHistory(
+            chatManager.allChats[0].id,
+            () => gameController.getGameState(), 
+            (state) => gameController.restoreGameState(state),
+            safeLocalStorage
+        );
+    } else {
+        chatManager.startNewChat(() => uiManager.getWelcomeMessage(isMobileDevice(), isTVDevice(), true), safeLocalStorage);
+    }
+    
+    window._chatsLoadedForRecovery = true;
+    if (workerController._recoveryInitDone) initRecovery();
+})();
+
+uiManager.initSidebarState(safeLocalStorage.getItem('james-sidebar-collapsed'));
+if (isTVDevice()) uiManager.initTVMode();
+
+uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
+const _savedLastPresetId = safeLocalStorage.getItem('james-last-preset-id');
+workerController.initWorkers(safeLocalStorage);
+uiManager.updateStatusText(_savedLastPresetId ? 'RESUMING LAST MODEL…' : 'INITIALIZING...');
+
+document.getElementById('appendModeCancelBtn')?.addEventListener('click', () => setAppendMode(false));
+
+const newChatBtn = document.getElementById('newChatBtn');
+if (newChatBtn) newChatBtn.addEventListener('click', () => chatManager.startNewChat(() => uiManager.getWelcomeMessage(isMobileDevice(), isTVDevice(), true), safeLocalStorage));
+
+document.getElementById('sidebarToggle')?.addEventListener('click', () => {
+    const nowCollapsed = uiManager.toggleSidebar();
+    safeLocalStorage.setItem('james-sidebar-collapsed', nowCollapsed);
+});
+
+document.getElementById('sidebarOverlay')?.addEventListener('click', () => uiManager.closeSidebar());
+
+setupMessageRenderer({
+    getChatHistory: () => chatManager.chatHistory,
+    getIsGenerating: () => globalState.isGeneratingUI,
+    onEditUserMsg: (historyIdx) => {
+        if (historyIdx < 0 || historyIdx >= chatManager.chatHistory.length) return;
+        const msg = chatManager.chatHistory[historyIdx];
+        if (!msg || msg.role !== 'user') return;
+        let originalText = msg.displayContent || msg.content;
+        const fileMarker = '\n\n[Attached Files Content]:';
+        const markerIdx = originalText.indexOf(fileMarker);
+        if (markerIdx !== -1) originalText = originalText.substring(0, markerIdx).trim();
+        chatManager.chatHistory = chatManager.chatHistory.slice(0, historyIdx);
+        chatManager.persistCurrentChat(() => gameController.getGameState());
+        if (uiManager.cmdInput) {
+            uiManager.cmdInput.value = originalText;
+            uiManager.cmdInput.focus();
+        }
+        renderChatLog();
+    },
+    onAppendMsg: () => setAppendMode(true)
+});
+
+setupModelPanel({
+    onApplyModel: (selectedId) => {
+        uiManager.updateProgress(0);
+        uiManager.updateStatusMeta('Loading selected model…');
+        uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
+        uiManager.updateStatusText('LOADING MODEL…');
+        workerController.worker.postMessage({ type: 'init', forcePresetId: selectedId });
+    }
+});
+
+let _noteToastTimeout = null;
+function _showCopyToast() {
+    const toast = document.getElementById('copyToast');
+    if (!toast) return;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+function _updateNotesUI(notes) {
+    const notesContent = document.getElementById('notesContent');
+    const notesCount = document.getElementById('notesCount');
+    const btn = document.getElementById('notesBtn');
+    
+    if (btn) {
+        btn.title = notes && notes.length > 0
+            ? `JAMES remembers ${notes.length} thing${notes.length !== 1 ? 's' : ''} about you`
+            : 'No memory notes yet';
+        btn.classList.toggle('notes-active', notes && notes.length > 0);
+    }
+    
+    if (!notesContent) return;
+
+    if (!notes || notes.length === 0) {
+        notesContent.innerHTML = '<div style="padding:1rem;color:var(--text-color);opacity:0.6;">No notes saved yet. JAMES will automatically remember important details about you.</div>';
+        if (notesCount) notesCount.textContent = '0';
         return;
     }
-    list.innerHTML = _userNotes.map(n => `
-        <div class="note-item" data-note-id="${n.id}">
-            <span class="note-text">${escapeHTML(n.text)}</span>
-            <button class="note-delete-btn" onclick="window._deleteNote('${n.id}')" title="Delete note">×</button>
+
+    if (notesCount) notesCount.textContent = notes.length.toString();
+    notesContent.innerHTML = notes.map(note => `
+        <div class="note-item" style="padding:0.75rem;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
+            <div style="font-size:0.9rem;line-height:1.4;flex:1;">${escapeHTML(note.text)}</div>
+            <button class="icon-btn" onclick="window._deleteNote(${note.id})" title="Delete Note" style="padding:4px;color:var(--error-color);">🗑️</button>
         </div>
     `).join('');
 }
-
-window._deleteNote = async function(id) {
-    _userNotes = _userNotes.filter(n => n.id !== id);
-    dbDeleteNote(id);
-    _updateNotesUI();
+window._deleteNote = async (id) => {
+    await dbDeleteNote(id);
+    _updateNotesUI(await import('./chat-db.js').then(m => m.dbLoadNotes()));
 };
+document.getElementById('notesClearBtn')?.addEventListener('click', async () => {
+    if (confirm('Clear all notes?')) {
+        await dbClearNotes();
+        _updateNotesUI([]);
+    }
+});
 
 function _setupNotesPanel() {
     const btn      = document.getElementById('notesBtn');
     const panel    = document.getElementById('notesPanel');
     const overlay  = document.getElementById('notesPanelOverlay');
-    const clearBtn = document.getElementById('notesClearBtn');
     const closeBtn = document.getElementById('notesPanelClose');
     if (!btn || !panel) return;
 
@@ -1440,38 +729,28 @@ function _setupNotesPanel() {
     btn.addEventListener('click', openPanel);
     overlay?.addEventListener('click', closePanel);
     closeBtn?.addEventListener('click', closePanel);
-    clearBtn?.addEventListener('click', async () => {
-        if (!confirm('Clear all memory notes? JAMES will forget everything about you.')) return;
-        _userNotes = [];
-        await dbClearNotes();
-        _updateNotesUI();
-    });
 }
-
 _setupNotesPanel();
 
 import('./tools-bridge.js').then(module => {
     module.setupToolsBridge({
-        worker: toolsWorker,
-        DOM: { log: document.getElementById('chatLog'), cmd: cmdInput },
+        worker: workerController.toolsWorker,
+        DOM: { log: document.getElementById('chatLog'), cmd: uiManager.cmdInput },
         submit: sendMessage
     });
 }).catch(() => { });
 
-// PWA Installation
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW registration failed:', err));
 }
 
-let deferredPrompt;
 const installBanner = document.getElementById('installBanner');
 const installBtn = document.getElementById('installBtn');
 const dismissBtn = document.getElementById('dismissInstallBtn');
 
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
-    deferredPrompt = e;
-
+    globalState.pwaDeferredPrompt = e;
     if (!safeLocalStorage.getItem('james-pwa-dismissed')) {
         installBanner?.classList.remove('hidden');
     }
@@ -1479,10 +758,10 @@ window.addEventListener('beforeinstallprompt', (e) => {
 
 installBtn?.addEventListener('click', async () => {
     installBanner?.classList.add('hidden');
-    if (deferredPrompt) {
-        deferredPrompt.prompt();
-        await deferredPrompt.userChoice;
-        deferredPrompt = null;
+    if (globalState.pwaDeferredPrompt) {
+        globalState.pwaDeferredPrompt.prompt();
+        await globalState.pwaDeferredPrompt.userChoice;
+        globalState.pwaDeferredPrompt = null;
     }
 });
 
