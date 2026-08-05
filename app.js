@@ -39,8 +39,7 @@ function renderChatLog() {
             chatManager.chatHistory = chatManager.chatHistory.slice(0, idx);
             chatManager.persistCurrentChat(() => gameController.getGameState());
             renderChatLog();
-        },
-        onAppendMsg: () => setAppendMode(true)
+        }
     });
 }
 
@@ -48,10 +47,6 @@ window.gameController = gameController;
 window.chatManager = chatManager;
 window.renderChatLog = renderChatLog;
 
-function setAppendMode(active) {
-    globalState.appendMode = active;
-    uiManager.showAppendBanner(active);
-}
 
 // Chat Manager Callbacks
 chatManager.onChatListUpdated = () => {
@@ -274,40 +269,7 @@ function getMessagesWindow(messages) {
     return [...windowed, ...background];
 }
 
-function handleAppend(text) {
-    if (!text || globalState.isGeneratingUI) return;
-
-    chatManager.chatHistory.push({
-        role: 'system',
-        content: `[Background context from user]: ${text}`,
-        isBackground: true,
-        hidden: false
-    });
-
-    chatManager.persistCurrentChat(() => gameController.getGameState());
-    renderChatLog();
-
-    uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
-    updateStatusLight('thinking');
-    uiManager.updateStatusText('THINKING...');
-
-    const messagesForModel = getMessagesWindow(chatManager.chatHistory);
-    const targetId = getNextTargetId();
-    workerController.postQuery(messagesForModel, targetId, chatManager.currentChatId);
-    updateLiveBubble('...', targetId);
-
-    if (uiManager.cmdInput) uiManager.cmdInput.value = '';
-}
-
 function sendMessage() {
-    if (globalState.appendMode) {
-        const text = uiManager.cmdInput.value.trim();
-        if (!text) return;
-        setAppendMode(false);
-        handleAppend(text);
-        return;
-    }
-
     const text = uiManager.cmdInput.value.trim();
     if ((!text && attachmentManager.attachedFiles.length === 0) || globalState.isGeneratingUI) return;
 
@@ -645,8 +607,6 @@ const _savedLastPresetId = safeLocalStorage.getItem('james-last-preset-id');
 workerController.initWorkers(safeLocalStorage);
 uiManager.updateStatusText(_savedLastPresetId ? 'RESUMING LAST MODEL…' : 'INITIALIZING...');
 
-document.getElementById('appendModeCancelBtn')?.addEventListener('click', () => setAppendMode(false));
-
 const newChatBtn = document.getElementById('newChatBtn');
 if (newChatBtn) {
     newChatBtn.addEventListener('click', () => chatManager.startNewChat(
@@ -682,8 +642,7 @@ setupMessageRenderer({
             uiManager.cmdInput.focus();
         }
         renderChatLog();
-    },
-    onAppendMsg: () => setAppendMode(true)
+    }
 });
 
 setupModelPanel({
