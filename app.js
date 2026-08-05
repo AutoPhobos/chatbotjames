@@ -66,7 +66,6 @@ let _userNotes = []; // Personalization notes the AI has saved about this user
 // Window Memory Helper
 const MAX_HISTORY = CONFIG.ui.maxHistory;
 const MAX_TOOL_DEPTH = CONFIG.ui.maxToolDepth;
-let _toolCallDepth = 0;
 
 // Chat History State
 let chatHistory = [];
@@ -1153,7 +1152,9 @@ function startNewChat() {
     chatHistory = [welcome];
 
     const newChat = {
-        id: Date.now() * 1000 + Math.floor(Math.random() * 1000),
+        // BUG FIX: Use crypto.randomUUID() to eliminate ID collision risk
+        // when startNewChat is called twice within the same millisecond.
+        id: parseInt(crypto.randomUUID().replace(/-/g, '').slice(0, 13), 16),
         name: 'New Chat',
         messages: [...chatHistory],
     };
@@ -1375,8 +1376,9 @@ function initRecovery() {
             // Without Number() cast, strict === always fails and the chat is never matched.
             const matchChat = allChats.find(c => c.id === Number(resumeChatId));
             if (matchChat) {
-                persistCurrentChat(); // save current before switching
-                currentChatId = resumeChatId;
+                persistCurrentChat();
+                // BUG FIX: currentChatId must be a number to match allChats IDs
+                currentChatId = Number(resumeChatId);
                 safeLocalStorage.setItem('james-last-chat-id', currentChatId);
                 matchChat.messages = [...chatHistory];
                 dbSaveChat(matchChat);
@@ -1418,6 +1420,75 @@ function initRecovery() {
 
 // NOTE: initRecovery() is now called from workerMessageHandler on the first
 // status='done' event (model ready), so re-dispatched queries are never dropped.
+
+// ==========================================
+// NOTES UI HELPERS
+// ==========================================
+let _noteToastTimeout = null;
+
+function _showNoteToast(text) {
+    let toast = document.getElementById('noteToast');
+    if (!toast) return;
+    const short = text.length > 60 ? text.slice(0, 60) + '…' : text;
+    toast.textContent = `🧠 Noted: "${short}"`;
+    toast.classList.add('visible');
+    clearTimeout(_noteToastTimeout);
+    _noteToastTimeout = setTimeout(() => toast.classList.remove('visible'), 3500);
+}
+
+function _updateNotesUI() {
+    const btn = document.getElementById('notesBtn');
+    const list = document.getElementById('notesList');
+
+    if (btn) {
+        btn.title = _userNotes.length > 0
+            ? `JAMES remembers ${_userNotes.length} thing${_userNotes.length !== 1 ? 's' : ''} about you`
+            : 'No memory notes yet';
+        btn.classList.toggle('notes-active', _userNotes.length > 0);
+    }
+
+    if (!list) return;
+    if (_userNotes.length === 0) {
+        list.innerHTML = '<p class="notes-empty">JAMES hasn\'t saved any notes about you yet.<br><small>Notes are saved automatically as you chat.</small></p>';
+        return;
+    }
+    list.innerHTML = _userNotes.map(n => `
+        <div class="note-item" data-note-id="${n.id}">
+            <span class="note-text">${escapeHTML(n.text)}</span>
+            <button class="note-delete-btn" onclick="window._deleteNote('${n.id}')" title="Delete note">×</button>
+        </div>
+    `).join('');
+}
+
+window._deleteNote = async function(id) {
+    _userNotes = _userNotes.filter(n => n.id !== id);
+    dbDeleteNote(id);
+    _updateNotesUI();
+};
+
+function _setupNotesPanel() {
+    const btn      = document.getElementById('notesBtn');
+    const panel    = document.getElementById('notesPanel');
+    const overlay  = document.getElementById('notesPanelOverlay');
+    const clearBtn = document.getElementById('notesClearBtn');
+    const closeBtn = document.getElementById('notesPanelClose');
+    if (!btn || !panel) return;
+
+    const openPanel  = () => { panel.classList.add('active'); overlay?.classList.add('active'); };
+    const closePanel = () => { panel.classList.remove('active'); overlay?.classList.remove('active'); };
+
+    btn.addEventListener('click', openPanel);
+    overlay?.addEventListener('click', closePanel);
+    closeBtn?.addEventListener('click', closePanel);
+    clearBtn?.addEventListener('click', async () => {
+        if (!confirm('Clear all memory notes? JAMES will forget everything about you.')) return;
+        _userNotes = [];
+        await dbClearNotes();
+        _updateNotesUI();
+    });
+}
+
+_setupNotesPanel();
 
 import('./tools-bridge.js').then(module => {
     module.setupToolsBridge({
