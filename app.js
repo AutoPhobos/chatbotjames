@@ -281,8 +281,7 @@ window.attachmentManager = attachmentManager;
 // ==========================================
 
 function getMessagesWindow(messages) {
-    const background = messages.filter(m => m.isBackground);
-    const regular    = messages.filter(m => !m.isBackground);
+    const regular = messages.filter(m => !m.isBackground);
 
     let windowed = regular;
     if (regular.length > CONFIG.ui.maxHistory) {
@@ -291,7 +290,7 @@ function getMessagesWindow(messages) {
     while (windowed.length > 0 && windowed[0].role !== 'user') {
         windowed = windowed.slice(1);
     }
-    return [...windowed, ...background];
+    return windowed;
 }
 
 function sendMessage(preExecutedMove = null) {
