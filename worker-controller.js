@@ -19,9 +19,9 @@ class WorkerController {
     }
 
     initWorkers(safeLocalStorage) {
-        this.worker = new Worker('worker.js?v=2', { type: 'module' });
-        this.toolsWorker = new Worker('tools-worker.js', { type: 'module' });
-        this.pythonWorker = new Worker('python-worker.js');
+        this.worker = new Worker('worker.js?v=3', { type: 'module' });
+        this.toolsWorker = new Worker('tools-worker.js?v=3', { type: 'module' });
+        this.pythonWorker = new Worker('python-worker.js?v=3');
 
         this.worker.onmessage = this.workerMessageHandler.bind(this);
         this.worker.onerror = (e) => {
