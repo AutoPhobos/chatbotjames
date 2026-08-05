@@ -46,6 +46,7 @@ function renderChatLog() {
 window.gameController = gameController;
 window.chatManager = chatManager;
 window.renderChatLog = renderChatLog;
+window.globalState = globalState;
 
 
 // Chat Manager Callbacks

@@ -27,6 +27,7 @@ class UIManager {
             this.cmdInput.focus();
             if (isGeneratingUIFlagCallback) isGeneratingUIFlagCallback(false);
         } else {
+            this.cmdInput.disabled = true;
             this.cmdInput.classList.add('loading-state');
             this.cmdInput.placeholder = "Generating response...";
 
