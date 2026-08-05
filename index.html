@@ -179,6 +179,23 @@
             <button id="applyModelBtn" class="apply-model-btn" disabled>Apply & Reload</button>
         </div>
     </div>
+
+    <!-- Recovery Modal -->
+    <div id="recoveryOverlay" class="model-panel-overlay"></div>
+    <div id="recoveryModal" class="model-panel" role="dialog" aria-modal="true" aria-label="Interrupted Response">
+        <div class="model-panel-header">
+            <h2>Interrupted Response</h2>
+            <button id="recoveryClose" class="icon-btn" aria-label="Close">✕</button>
+        </div>
+        <div style="padding: 1rem; color: var(--text-color); font-size: 0.95rem; line-height: 1.5;">
+            It looks like the page was refreshed while JAMES was generating a response. Would you like to try regenerating the last message?
+        </div>
+        <div class="model-panel-footer" style="justify-content: flex-end; gap: 10px;">
+            <button id="recoveryNoBtn" class="apply-model-btn" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-color);">No, Dismiss</button>
+            <button id="recoveryYesBtn" class="apply-model-btn">Yes, Regenerate</button>
+        </div>
+    </div>
+
     <script type="module" src="app.js?v=6"></script>
 </body>
 

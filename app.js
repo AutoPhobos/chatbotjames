@@ -166,6 +166,8 @@ function workerMessageHandler(e) {
     const statusText = document.getElementById('statusText');
 
     if (status === 'done' || status === 'complete' || status === 'error' || status === 'aborted') {
+        localStorage.removeItem('james-is-generating');
+        
         setIdleState(true);
         updateStatusLight('idle');
         if (statusText) statusText.textContent = 'READY';
@@ -466,6 +468,11 @@ function sendMessage() {
     const targetId = getNextTargetId();
     activeGenerations.set(currentChatId, targetId);
 
+    localStorage.setItem('james-is-generating', 'true');
+    if (text) {
+        localStorage.setItem('james-last-input', text);
+    }
+
     worker.postMessage({
         type: 'query',
         messages: messagesForModel,
@@ -601,6 +608,8 @@ async function handleToolCalls(message, targetId, originChatId) {
     const nextTargetId = getNextTargetId();
     activeGenerations.set(originChatId, nextTargetId);
 
+    localStorage.setItem('james-is-generating', 'true');
+
     worker.postMessage({
         type: 'query',
         messages: messagesForModel,
@@ -724,6 +733,7 @@ function handleGameMove(moveInfo) {
         chatHistory.push({ role: 'system', content: `[Game Over] ${result}` });
         persistCurrentChat();
         setIdleState(false);
+        localStorage.setItem('james-is-generating', 'true');
         worker.postMessage({
             type: 'query',
             messages: getMessagesWindow(chatHistory),
@@ -751,6 +761,7 @@ function handleGameMove(moveInfo) {
     const messagesForModel = getMessagesWindow(chatHistory);
     const targetId = getNextTargetId();
     activeGenerations.set(currentChatId, targetId);
+    localStorage.setItem('james-is-generating', 'true');
     worker.postMessage({
         type: 'query',
         messages: messagesForModel,
@@ -1132,6 +1143,48 @@ document.getElementById('sidebarToggle')?.addEventListener('click', () => {
 });
 
 document.getElementById('sidebarOverlay')?.addEventListener('click', closeSidebar);
+
+// ==========================================
+// RECOVERY LOGIC
+// ==========================================
+function initRecovery() {
+    const isGenerating = localStorage.getItem('james-is-generating');
+    if (isGenerating === 'true') {
+        localStorage.removeItem('james-is-generating');
+        const overlay = document.getElementById('recoveryOverlay');
+        const modal = document.getElementById('recoveryModal');
+        const noBtn = document.getElementById('recoveryNoBtn');
+        const yesBtn = document.getElementById('recoveryYesBtn');
+        const closeBtn = document.getElementById('recoveryClose');
+
+        if (overlay && modal) {
+            overlay.classList.add('active');
+            modal.classList.add('active');
+
+            const closePopup = () => {
+                overlay.classList.remove('active');
+                modal.classList.remove('active');
+                localStorage.removeItem('james-last-input');
+            };
+
+            noBtn.addEventListener('click', closePopup);
+            closeBtn.addEventListener('click', closePopup);
+
+            yesBtn.addEventListener('click', () => {
+                const lastInput = localStorage.getItem('james-last-input');
+                closePopup();
+                if (lastInput) {
+                    const cmdInput = document.getElementById('cmdInput');
+                    cmdInput.value = lastInput;
+                    sendMessage();
+                }
+            });
+        }
+    }
+}
+
+// Call on load
+initRecovery();
 
 import('./tools-bridge.js').then(module => {
     module.setupToolsBridge({
