@@ -15,23 +15,36 @@ class GameController {
     }
 
     getGameState() {
-        if (this.activeGame) {
-            return { type: this.activeGame.type, state: this.activeGame.getState() };
-        }
-        return null;
+        if (!this.activeGame) return null;
+        return {
+            type: this.activeGame.type,
+            fen: this.activeGame.getFen(),
+            history: this.activeGame.getHistory ? this.activeGame.getHistory() : null,
+            aiColor: this.activeGame.aiColor
+        };
     }
 
-    restoreGameState(gameState) {
-        if (gameState) {
-            if (gameState.type === 'checkers') {
-                this.activeGame = new CheckersGame(gameState.state);
-            } else {
-                this.activeGame = new ChessGame(gameState.state.fen, gameState.state.moveHistory);
-            }
+    restoreGameState(state) {
+        if (!state || !state.type) return;
+        
+        if (state.type === 'checkers') {
+            this.activeGame = new CheckersGame();
         } else {
-            this.activeGame = null;
-            this.activeGameUI = null;
+            this.activeGame = new ChessGame();
         }
+        
+        if (state.fen) {
+            this.activeGame.loadFen(state.fen);
+        }
+        if (state.history && this.activeGame.setHistory) {
+            this.activeGame.setHistory(state.history);
+        }
+        if (state.aiColor) {
+            this.activeGame.aiColor = state.aiColor;
+        } else {
+            this.activeGame.aiColor = 'b';
+        }
+
         this.refreshGameBoardUI();
     }
 
@@ -120,18 +133,24 @@ class GameController {
 
     handleStartGame(params, addSystemMessageCallback, queryModelCallback) {
         const gameType = (params.game || 'chess').toLowerCase();
+        const aiColor = (params.ai_color || 'black').toLowerCase() === 'white' ? 'w' : 'b';
         
         if (gameType === 'checkers') {
             this.activeGame = new CheckersGame();
         } else {
             this.activeGame = new ChessGame();
         }
+        this.activeGame.aiColor = aiColor;
         
         playGameBuffSound();
 
         const boardName = gameType === 'checkers' ? 'Checkers Board' : 'FEN';
         if (addSystemMessageCallback) {
-            addSystemMessageCallback(`[System]: ${gameType} started. Current ${boardName}: ${this.activeGame.getFen()}. You are Black. User is White. Please make the first move using the make_move tool.`);
+            if (aiColor === 'w') {
+                addSystemMessageCallback(`[System]: ${gameType} started. Current ${boardName}: ${this.activeGame.getFen()}. You are White. User is Black. Please make the first move using the make_move tool.`);
+            } else {
+                addSystemMessageCallback(`[System]: ${gameType} started. Current ${boardName}: ${this.activeGame.getFen()}. You are Black. User is White. It is White's turn. Wait for the user to make their move.`);
+            }
         }
         
         if (window.renderChatLog) {
@@ -145,6 +164,15 @@ class GameController {
     handleMakeMove(params, addSystemMessageCallback, setIdleStateCallback, queryModelCallback) {
         if (!this.activeGame) {
             const err = `[System]: Failed to make move. No active game. Please start a game first using start_game.`;
+            if (addSystemMessageCallback) addSystemMessageCallback(err);
+            if (queryModelCallback) queryModelCallback();
+            return { success: false, error: err };
+        }
+
+        if (this.activeGame.getTurn() !== this.activeGame.aiColor) {
+            const currentTurn = this.activeGame.getTurn() === 'w' ? 'White' : 'Black';
+            const aiC = this.activeGame.aiColor === 'w' ? 'White' : 'Black';
+            const err = `[System]: Failed to make move. You are playing ${aiC}, but it is currently ${currentTurn}'s turn. Please wait for the user to make their move.`;
             if (addSystemMessageCallback) addSystemMessageCallback(err);
             if (queryModelCallback) queryModelCallback();
             return { success: false, error: err };

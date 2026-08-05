@@ -225,14 +225,13 @@ export function renderGameBoard(game, container, onMove) {
         b: { p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚' },
     };
 
-    // ── Checkers piece symbols ──────────────────────────────────────────────────
-    // Regular piece = filled circle, King = crown (♛)
     const CHECKERS_SYMBOL = { regular: '⬤', king: '♛' };
 
     function render() {
         if (!game.isGameOver || !game.isGameOver()) {
             const currentTurn = game.type === 'chess' ? game.getTurn() : game.turn;
-            const isUserTurn = currentTurn === 'w'; // User is always White
+            const aiColor = game.aiColor || 'b';
+            const isUserTurn = currentTurn !== aiColor;
             turnLabel.textContent = isUserTurn ? 'Your Turn' : "AI's Turn";
             turnLabel.style.color = isUserTurn ? '#34d399' : '#f87171'; // Green for user, Red for AI
             turnLabel.style.background = isUserTurn ? 'rgba(52, 211, 153, 0.15)' : 'rgba(248, 113, 113, 0.15)';
@@ -421,12 +420,18 @@ export function renderGameBoard(game, container, onMove) {
                     } else {
                         // Nothing selected — select clicked square (only own pieces)
                         let isOwnPiece = false;
-                        if (game.type === 'chess') {
-                            const p = boardState[r][c];
-                            isOwnPiece = p && p.color === game.getTurn();
-                        } else {
-                            const p = boardState[r][c];
-                            isOwnPiece = p !== 0 && ((game.turn === 'w' && p > 0) || (game.turn === 'b' && p < 0));
+                        const aiColor = game.aiColor || 'b';
+                        const currentTurn = game.type === 'chess' ? game.getTurn() : game.turn;
+                        const isUserTurn = currentTurn !== aiColor;
+
+                        if (isUserTurn) {
+                            if (game.type === 'chess') {
+                                const p = boardState[r][c];
+                                isOwnPiece = p && p.color === currentTurn;
+                            } else {
+                                const p = boardState[r][c];
+                                isOwnPiece = p !== 0 && ((currentTurn === 'w' && p > 0) || (currentTurn === 'b' && p < 0));
+                            }
                         }
 
                         if (isOwnPiece) {

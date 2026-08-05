@@ -328,7 +328,7 @@ function sendMessage(preExecutedMove = null) {
         }
 
         const turnColor = gameController.activeGame.getTurn() === 'w' ? 'White' : 'Black';
-        const aiColor = 'Black';
+        const aiColor = gameController.activeGame.aiColor === 'w' ? 'White' : 'Black';
         const gameTypeLabel = gameController.activeGame.type === 'chess' ? 'FEN' : 'Checkers Board';
         const formatReminder = gameController.activeGame.type === 'chess' 
             ? 'IMPORTANT: You must format your move using Standard Algebraic Notation (SAN) for chess (e.g. "e5", "Nf3", "O-O", "Bxc6"). Do NOT use "from to" coordinate format like "c6 to c5".' 
