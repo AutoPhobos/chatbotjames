@@ -188,8 +188,12 @@ export function createMessageElement(msg, historyIdx = -1, isLastAssistant = fal
     }
     if (msg.role === 'system') {
         messageWrap.className = 'message-wrap system-msg';
-        messageWrap.style.cssText = 'text-align: center; color: #888; font-size: 12px; margin: 8px 0; font-family: monospace; opacity: 0.8;';
-        messageWrap.textContent = msg.content;
+        if (msg.displayContent) {
+            messageWrap.innerHTML = DOMPurify.sanitize(msg.displayContent);
+        } else {
+            messageWrap.style.cssText = 'text-align: center; color: #888; font-size: 12px; margin: 8px 0; font-family: monospace; opacity: 0.8;';
+            messageWrap.textContent = msg.content;
+        }
         return messageWrap;
     }
     messageWrap.className = `message-wrap ${msg.role === 'user' ? 'user-msg' : 'assistant-msg'}`;

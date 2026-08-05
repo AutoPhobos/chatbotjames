@@ -1393,4 +1393,47 @@ a:hover {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
 }
+
+.welcome-box {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 16px;
+    margin: 16px auto;
+    max-width: 600px;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    color: #e2e8f0;
+}
+
+.welcome-box-header {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #f8fafc;
+}
+
+.welcome-box-body {
+    font-size: 1rem;
+    color: #cbd5e1;
+    margin-bottom: 12px;
+}
+
+.welcome-box-tools {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.tool-tag {
+    background: rgba(16, 185, 129, 0.1);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-size: 0.85rem;
+    font-family: monospace;
+}
 
