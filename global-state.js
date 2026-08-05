@@ -6,7 +6,6 @@ class GlobalState {
         this.activePresetId = null;
         this.selectedPresetId = null;
         this.deviceRamGB = 4;
-        this.appendMode = false;
         this.cannedGenId = 0;
         this.pwaDeferredPrompt = null;
     }
