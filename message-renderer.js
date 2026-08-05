@@ -231,7 +231,14 @@ export function createMessageElement(msg, historyIdx = -1, isLastAssistant = fal
 
         messageWrap.appendChild(container);
     } else {
-        messageContent.textContent = msg.content;
+        if (msg.displayContent) {
+            messageContent.textContent = msg.displayContent;
+        } else {
+            let display = msg.content;
+            const gameStateIdx = display.indexOf('\n\n[Game State]');
+            if (gameStateIdx !== -1) display = display.substring(0, gameStateIdx);
+            messageContent.textContent = display;
+        }
         const editBtn = document.createElement('button');
         editBtn.className = 'edit-msg-btn';
         editBtn.innerHTML = '\u270f\ufe0f';

@@ -452,7 +452,7 @@ function sendMessage() {
 
     const displayMessage = processedText + (attachedFiles.length > 0 ? ` [Attached: ${attachedFiles.map(f => f.name).join(', ')}]` : '');
 
-    chatHistory.push({ role: 'user', content: fullPrompt });
+    chatHistory.push({ role: 'user', content: fullPrompt, displayContent: displayMessage });
     appendUserMessage(displayMessage, chatHistory.length - 1);
 
     cmdInput.value = '';
