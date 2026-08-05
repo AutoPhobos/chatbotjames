@@ -277,21 +277,6 @@ export class SmallTalkHandler {
                 ],
             },
 
-            // ── Affirmations ───────────────────────────────────────────────────
-            {
-                triggers: [
-                    'ok', 'okay', 'sure', 'got it', 'understood', 'alright', 'sounds good',
-                    'noted', 'roger', 'copy that', 'i see', 'i understand', 'makes sense',
-                    'fair enough', 'ok cool', 'ok great', 'ok thanks', 'yep', 'yup', 'yeah',
-                    'vale', 'de acuerdo', 'entendido',
-                ],
-                responses: [
-                    "Got it! Let me know if you need anything else.",
-                    "Sure! Anything else?",
-                    "Understood! What else can I help with?",
-                    "Noted! Just say the word.",
-                ],
-            },
 
             // ── Compliments ────────────────────────────────────────────────────
             {
@@ -691,8 +676,9 @@ export class SmallTalkHandler {
         }
 
         // ── Pass 3: Fuzzy (Levenshtein ≤ 1) ────────────────────────────────
-        // Only for short inputs so cost stays bounded.
-        if (normalized.length <= 40) {
+        // Only for short inputs so cost stays bounded, and only for inputs >= 4 chars 
+        // to prevent drastic 1-char edits on tiny words (e.g. "ye" matching "bye").
+        if (normalized.length >= 4 && normalized.length <= 40) {
             let bestDist = Infinity;
             let bestPatternIdx = -1;
 

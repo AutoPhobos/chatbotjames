@@ -1,11 +1,11 @@
 import { globalState } from './global-state.js';
 import { chatManager } from './chat-manager.js';
-import { gameController } from './game-controller.js?v=4';
+import { gameController } from './game-controller.js?v=5';
 import { attachmentManager } from './attachment-manager.js';
 import { uiManager } from './ui-manager.js';
 import { workerController } from './worker-controller.js';
 
-import { smallTalk } from './smalltalk.js';
+import { smallTalk } from './smalltalk.js?v=2';
 import { toolRouter } from './tool-router.js';
 import { CONFIG } from './config.js';
 import { safeLocalStorage, dbSaveNote, dbDeleteNote, dbClearNotes } from './chat-db.js';
