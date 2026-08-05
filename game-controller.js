@@ -1,5 +1,5 @@
 import { ChessGame, CheckersGame, parseUserMove } from './game-logic.js';
-import { renderGameBoard } from './game-ui.js';
+import { renderGameBoard } from './game-ui.js?v=2';
 import {
     playGameMoveSound,
     playGameWinSound,

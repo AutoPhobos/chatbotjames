@@ -1,6 +1,6 @@
 import { globalState } from './global-state.js';
 import { chatManager } from './chat-manager.js';
-import { gameController } from './game-controller.js';
+import { gameController } from './game-controller.js?v=2';
 import { attachmentManager } from './attachment-manager.js';
 import { uiManager } from './ui-manager.js';
 import { workerController } from './worker-controller.js';
