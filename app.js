@@ -47,6 +47,7 @@ window.gameController = gameController;
 window.chatManager = chatManager;
 window.renderChatLog = renderChatLog;
 window.globalState = globalState;
+window.sendMessage = sendMessage;
 
 
 // Chat Manager Callbacks
