@@ -265,21 +265,16 @@ export function createMessageElement(msg, historyIdx = -1, isLastAssistant = fal
  * Only the most recent RENDER_WINDOW messages are in the DOM at once.
  * Scrolling to the top auto-loads older batches (20 at a time).
  */
-export function renderChatLog() {
-    const chatLog = document.getElementById('chatLog');
+export function renderChatLog(options = {}) {
+    const chatLog = options.chatLogEl || document.getElementById('chatLog');
     if (!chatLog) return;
 
     if (_chatObserver) { _chatObserver.disconnect(); _chatObserver = null; }
     chatLog.innerHTML = '';
 
-    const history = _getChatHistory();
-    if (window.gameController && window.gameController.activeGame) {
-        const hasBoard = history.some(m => m.type === 'game_board');
-        if (!hasBoard) {
-            history.push({ type: 'game_board', role: 'assistant' });
-        }
-    }
-    _renderOffset = Math.max(0, history.length - RENDER_WINDOW);
+    const history = options.chatHistory || _getChatHistory();
+    const displayHistory = history.filter(m => m.type !== 'game_board');
+    _renderOffset = Math.max(0, displayHistory.length - RENDER_WINDOW);
 
     if (_renderOffset > 0) {
         const sentinel = _makeSentinel();
@@ -288,14 +283,25 @@ export function renderChatLog() {
     }
 
     // Find the index of the last assistant message so we can add the append button
-    const sliced = history.slice(_renderOffset);
+    const sliced = displayHistory.slice(_renderOffset);
     const lastAssistantRelIdx = sliced.map((m, i) => ({ m, i })).filter(({ m }) => m.role === 'assistant' && !m.hidden && !m.isBackground).map(({ i }) => i).at(-1);
     sliced.forEach((msg, i) => chatLog.appendChild(createMessageElement(msg, _renderOffset + i, i === lastAssistantRelIdx)));
-    chatLog.scrollTop = chatLog.scrollHeight;
 
-    if (window.gameController && window.gameController.refreshGameBoardUI) {
+    // Render active game board at the bottom of the chat log ONLY IF a game is currently active in this memory context
+    if (window.gameController && window.gameController.activeGame) {
+        const gameWrap = document.createElement('div');
+        gameWrap.className = 'message-wrap assistant-msg game-board-wrap';
+        gameWrap.style.cssText = 'align-items: center; justify-content: center; width: 100%; margin: 12px 0 4px 0;';
+        const gameContent = document.createElement('div');
+        gameContent.className = 'message-content game-board-message live-game-view';
+        gameContent.id = 'liveGameView';
+        gameWrap.appendChild(gameContent);
+        chatLog.appendChild(gameWrap);
+
         window.gameController.refreshGameBoardUI();
     }
+
+    chatLog.scrollTop = chatLog.scrollHeight;
 }
 
 /** Create the "N earlier messages" banner at the top of the chat log. */
