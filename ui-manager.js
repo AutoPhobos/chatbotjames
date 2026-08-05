@@ -57,19 +57,7 @@ class UIManager {
         if (this.applyModelBtn) this.applyModelBtn.disabled = false;
     }
 
-    showAppendBanner(active) {
-        const banner = document.getElementById('appendModeBanner');
-        const inputWrapper = document.querySelector('.input-wrapper');
 
-        if (active) {
-            banner?.classList.remove('hidden');
-            inputWrapper?.classList.add('append-active');
-            this.cmdInput?.focus();
-        } else {
-            banner?.classList.add('hidden');
-            inputWrapper?.classList.remove('append-active');
-        }
-    }
 
     closeSidebar() {
         document.getElementById('sidebar')?.classList.add('collapsed');

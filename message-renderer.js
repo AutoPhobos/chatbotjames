@@ -266,15 +266,6 @@ export function createMessageElement(msg, historyIdx = -1, isLastAssistant = fal
         container.appendChild(messageContent);
         container.appendChild(copyBtn);
 
-        // Append button — only visible on the last assistant message
-        if (isLastAssistant && _onAppendMsg) {
-            const appendBtn = document.createElement('button');
-            appendBtn.className = 'append-msg-btn';
-            appendBtn.innerHTML = '📝 Append';
-            appendBtn.title = 'Append hidden context to this response';
-            appendBtn.onclick = () => _onAppendMsg();
-            container.appendChild(appendBtn);
-        }
 
         messageWrap.appendChild(container);
     } else {
