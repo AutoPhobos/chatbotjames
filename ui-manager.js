@@ -104,61 +104,42 @@ class UIManager {
     }
 
     getLightweightWelcomeMessage(showTools) {
-        const toolsHtml = showTools ? `
-            <div class="welcome-box-tools-info" style="font-size: 0.9rem; color: #94a3b8; margin: 12px 0 8px;">
-                Ask naturally to use these tools (e.g., "Search the web for news"):
-            </div>
-            <div class="welcome-box-tools">
-                <span class="tool-tag" title="Search the web for up-to-date information">web_search</span>
-                <span class="tool-tag" title="Play a game">make_move</span>
-            </div>
-        ` : '';
-        return {
-            role: 'system',
-            content: `JAMES (Mobile Mode) is online.\n${showTools ? 'Tools enabled.' : 'Tools disabled.'}`,
-            displayContent: `
-                <div class="welcome-box">
-                    <div class="welcome-box-header">⚡ JAMES Mobile Edition</div>
-                    <div class="welcome-box-body">Optimized for lightweight devices. Keep prompts concise.</div>
-                    ${toolsHtml}
-                </div>
-            `
-        };
+        return this.getFullWelcomeMessage(showTools);
     }
 
     getFullWelcomeMessage(showTools) {
-        const toolsHtml = showTools ? `
-            <div class="welcome-box-tools-info" style="font-size: 0.95rem; color: #94a3b8; margin: 12px 0 8px;">
-                I have access to the following tools. Just ask me naturally (e.g., "What's the weather in London?" or "Search the web for recent AI news"):
-            </div>
-            <div class="welcome-box-tools">
-                <span class="tool-tag" title="Search the web for up-to-date information">web_search</span>
-                <span class="tool-tag" title="Look up encyclopedia articles">wikipedia</span>
-                <span class="tool-tag" title="Execute Python code in the browser">eval_python</span>
-                <span class="tool-tag" title="Get current weather for any location">get_current_weather</span>
-                <span class="tool-tag" title="Play chess or checkers">make_move</span>
-            </div>
-        ` : '';
+        const asciiArt = `  █████╗ ██╗
+ ██╔══██╗██║
+ ███████║██║
+ ██╔══██║██║
+ ██║  ██║██║
+ ╚═╝  ╚═╝╚═╝
+ >> NEURAL CORE v9.8.1`;
+
         return {
             role: 'system',
-            content: `JAMES is online and fully initialized.\n${showTools ? 'Tools available:\n- web_search\n- wikipedia\n- eval_python\n- get_current_weather\n- make_move' : 'Tools disabled.'}`,
+            content: `JAMES is online.\nType anything to begin...`,
             displayContent: `
-                <div class="welcome-box">
-                    <div class="welcome-box-header">👋 Hello, I'm JAMES.</div>
-                    <div class="welcome-box-body">I'm a local WebGPU AI. I run entirely on your device for maximum privacy.</div>
-                    ${toolsHtml}
+                <div class="welcome-box hacker-theme">
+                    <pre class="ascii-art">${asciiArt}</pre>
+                    <div class="welcome-box-body hacker-body">
+                        <p class="hacker-greeting">Hey — I'm JAMES. Your fully local AI assistant.</p>
+                        <p class="hacker-text">Everything runs directly in your browser using a local language model loaded via WebAssembly. There's no server, no API call, no cloud — just your machine.</p>
+                        <ul class="hacker-list">
+                            <li><span class="hacker-bullet"></span><strong>Private by design</strong> — your conversations never leave this device</li>
+                            <li><span class="hacker-bullet"></span><strong>Nothing is stored externally</strong> — sessions live in your browser's IndexedDB only</li>
+                            <li><span class="hacker-bullet"></span><strong>Fully offline-capable</strong> — once the model is cached, no internet required</li>
+                            <li><span class="hacker-bullet"></span><strong>Web-native</strong> — built with vanilla JS, WebWorkers & WebAssembly</li>
+                            <li><span class="hacker-bullet"></span><strong>Python runtime</strong> — powered by Pyodide, runs code directly in browser</li>
+                        </ul>
+                        <p class="hacker-prompt">Type anything to begin...</p>
+                    </div>
                 </div>
             `
         };
     }
 
     getTVWelcomeMessage(showTools) {
-        const toolsHtml = showTools ? `
-            <div class="welcome-box-tools-info" style="font-size: 1.1rem; color: #94a3b8; margin: 12px 0 8px;">
-                You can ask me to search the web naturally using your voice!
-            </div>
-            <div class="welcome-box-tools">
-                <span class="tool-tag" title="Search the web for up-to-date information" style="font-size: 1.2rem; padding: 6px 12px;">web_search</span>
             </div>
         ` : '';
         return {

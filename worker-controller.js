@@ -88,7 +88,7 @@ class WorkerController {
     callWorkerRPC(targetWorker, messageData, timeoutMs = 30000) {
         return new Promise((resolve, reject) => {
             const reqId = Date.now() + Math.random().toString(36).substring(2);
-            const msg = { ...messageData, _reqId: reqId };
+            const msg = { ...messageData, execId: reqId };
             
             const timeout = setTimeout(() => {
                 targetWorker.removeEventListener('message', listener);
@@ -96,7 +96,7 @@ class WorkerController {
             }, timeoutMs);
 
             const listener = (e) => {
-                if (e.data && e.data._reqId === reqId) {
+                if (e.data && e.data.execId === reqId) {
                     clearTimeout(timeout);
                     targetWorker.removeEventListener('message', listener);
                     if (e.data.error) reject(new Error(e.data.error));

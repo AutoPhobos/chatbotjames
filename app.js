@@ -463,10 +463,7 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
         let toolResult = null;
 
         try {
-            if (toolName === 'web_search' || toolName === 'wikipedia' || toolName === 'get_current_weather' || toolName === 'search_images' || toolName === 'eval_python') {
-                const targetWorker = toolName === 'eval_python' ? workerController.pythonWorker : workerController.toolsWorker;
-                toolResult = await workerController.callWorkerRPC(targetWorker, { type: toolName, params }, 30000);
-            } else if (toolName === 'start_game') {
+            if (toolName === 'start_game') {
                 gameController.handleStartGame(
                     params, 
                     (msg) => chatManager.chatHistory.push({ role: 'system', content: msg }), 
@@ -481,8 +478,12 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
                     () => {} 
                 );
                 toolResult = `Move ${params.move} played. Wait for user's next move.`;
+            } else if (toolName === 'eval_python' || toolName === 'python') {
+                toolResult = await workerController.callWorkerRPC(workerController.pythonWorker, { type: 'python', code: params.code }, 30000);
             } else {
-                toolResult = `Error: Tool '${toolName}' not found.`;
+                // Route all other tools to toolsWorker
+                // Note: tools-worker expects 'tool', not 'type'
+                toolResult = await workerController.callWorkerRPC(workerController.toolsWorker, { tool: toolName, params }, 30000);
             }
         } catch (e) {
             toolResult = `Error executing tool: ${e.message}`;
