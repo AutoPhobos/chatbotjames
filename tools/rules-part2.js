@@ -18,10 +18,17 @@ export const RULES = [
             } else {
                 toStr = m[1]; val = m[2]; fromStr = m[3];
             }
+            const from = resolveUnit(fromStr);
+            const to = resolveUnit(toStr);
+            
+            if (!from || !to) {
+                throw new Error("Unknown unit");
+            }
+            
             return {
                 value: parseFloat(val),
-                from: resolveUnit(fromStr),
-                to: resolveUnit(toStr)
+                from,
+                to
             };
         },
     },

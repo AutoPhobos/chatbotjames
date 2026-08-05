@@ -1,8 +1,8 @@
 // Currency symbol + name -> ISO code
 export const CURRENCY_MAP = {
-    '$': 'USD', ',': 'EUR', '?': 'GBP', '?': 'JPY', ',x': 'ILS',
-    ',1': 'INR', ',c': 'KRW', ',': 'TRY', ',': 'RUB', 'R$': 'BRL',
-    dollar: 'USD', dollars: 'USD', usd: 'USD', buck: 'USD', bucks: 'USD',
+    '$': 'USD', '€': 'EUR', '£': 'GBP', '¥': 'JPY', '₪': 'ILS',
+    '₹': 'INR', '₩': 'KRW', '₺': 'TRY', '₽': 'RUB', 'R$': 'BRL',
+    dollar: 'USD', dollars: 'USD', usd: 'USD', buck: 'USD', bucks: 'USD', 'us dollar': 'USD', 'us dollars': 'USD',
     euro: 'EUR', euros: 'EUR', eur: 'EUR',
     pound: 'GBP', pounds: 'GBP', gbp: 'GBP', sterling: 'GBP',
     yen: 'JPY', jpy: 'JPY',
@@ -16,7 +16,7 @@ export const CURRENCY_MAP = {
     real: 'BRL', reais: 'BRL', brl: 'BRL',
     peso: 'MXN', mxn: 'MXN', ars: 'ARS', cop: 'COP', clp: 'CLP',
     dirham: 'AED', aed: 'AED',
-    lira: 'TRY', try: 'TRY',
+    lira: 'TRY', 'try': 'TRY',
     krona: 'SEK', sek: 'SEK', krone: 'DKK', dkk: 'DKK', nok: 'NOK',
     zloty: 'PLN', pln: 'PLN', forint: 'HUF', huf: 'HUF',
     baht: 'THB', thb: 'THB', ringgit: 'MYR', myr: 'MYR',
@@ -25,7 +25,14 @@ export const CURRENCY_MAP = {
 
 export function resolveCurrency(str) {
     const key = str.trim().toLowerCase();
-    return CURRENCY_MAP[key] ?? CURRENCY_MAP[str.trim()] ?? str.trim().toUpperCase();
+    if (CURRENCY_MAP[key]) return CURRENCY_MAP[key];
+    if (CURRENCY_MAP[str.trim()]) return CURRENCY_MAP[str.trim()];
+    
+    // Only fallback to ISO code if it strictly looks like a 3-letter code
+    const upper = str.trim().toUpperCase();
+    if (/^[A-Z]{3}$/.test(upper)) return upper;
+    
+    return null;
 }
 
 // City / region -> IANA timezone

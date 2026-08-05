@@ -80,29 +80,31 @@ export const RULES = [
         params: () => ({ action: 'now' }),
     },
 
-    // CURRENCY
     {
         tool: 'currency',
         description: 'Converts an amount between currencies.',
         examples: ['100 USD to EUR', 'convert $50 to pounds', '200 euros in dollars'],
         patterns: [
-            /([,??,x,1,c,,$])(\d+(?:[.,]\d+)?)\s+(?:in|to|into)\s+([A-Za-z]{2,20}(?:\s+[A-Za-z]+)?)/i,
-            /(R\$)(\d+(?:[.,]\d+)?)\s+(?:in|to|into)\s+([A-Za-z]{2,20}(?:\s+[A-Za-z]+)?)/i,
+            /^([€£¥₪₹₩₺₽$]|R\$)\s*(\d+(?:[.,]\d+)?)\s+(?:in|to|into)\s+([A-Za-z]{2,20}(?:\s+[A-Za-z]+)?)/i,
             /(?:how much is |convert )?(\d+(?:[.,]\d+)?)\s+([A-Za-z]{2,20}(?:\s+[A-Za-z]+)?)\s+(?:in|to|into)\s+([A-Za-z]{2,20}(?:\s+[A-Za-z]+)?)/i,
         ],
         params: m => {
-            const isSymbolForm = /^[,??,x,1,c,,$R]/.test(m[1]);
-            if (isSymbolForm) {
-                return {
-                    amount: parseFloat(m[2].replace(',', '.')),
-                    from: resolveCurrency(m[1]),
-                    to: resolveCurrency(m[3]),
-                };
+            const isSymbolForm = /^[€£¥₪₹₩₺₽$]|^R\$/i.test(m[1]);
+            const amountStr = isSymbolForm ? m[2] : m[1];
+            const fromStr = isSymbolForm ? m[1] : m[2];
+            const toStr = m[3];
+
+            const from = resolveCurrency(fromStr);
+            const to = resolveCurrency(toStr);
+
+            if (!from || !to) {
+                throw new Error("Unknown currency");
             }
+
             return {
-                amount: parseFloat(m[1].replace(',', '.')),
-                from: resolveCurrency(m[2]),
-                to: resolveCurrency(m[3]),
+                amount: parseFloat(amountStr.replace(',', '.')),
+                from,
+                to,
             };
         },
     },
