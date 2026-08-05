@@ -500,7 +500,12 @@ export function extractAIMove(text, game) {
         const match = text.match(intentRegex);
         if (match && match[1]) return match[1];
     } else if (game.type === 'checkers') {
-        let match = text.match(/(\d+)\s*[-xX\s→>]+\s*(\d+)/i);
+        const intentRegex = /(?:i (?:will )?(?:play|move)|my move is|here'?s my move[:]?|move:|playing|^)\s*((\d+)\s*[-xX\s→>]+\s*(\d+(?:\s*[-xX\s→>]+\s*\d+)*))/i;
+        let match = text.match(intentRegex);
+        if (match && match[1]) return match[1];
+        
+        // Fallback for just move at end of string
+        match = text.match(/(?:^|\n)\s*(\d+)\s*[-xX\s→>]+\s*(\d+)\s*$/i);
         if (match) return match[0];
         
         // Catch hallucinated chess notation (e.g. "e7 to e5") to trigger an error for the LLM
