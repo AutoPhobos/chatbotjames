@@ -21,7 +21,7 @@ class UIManager {
             this.cmdInput.disabled = false;
             this.sendBtn.innerHTML = '➔';
             this.sendBtn.classList.remove('stop-btn');
-            
+
             this.cmdInput.classList.remove('loading-state');
             this.cmdInput.placeholder = "Message JAMES...";
             this.cmdInput.focus();
@@ -29,7 +29,7 @@ class UIManager {
         } else {
             this.cmdInput.classList.add('loading-state');
             this.cmdInput.placeholder = "Generating response...";
-            
+
             this.sendBtn.innerHTML = '⏸';
             this.sendBtn.classList.add('stop-btn');
             if (isGeneratingUIFlagCallback) isGeneratingUIFlagCallback(true);
@@ -123,14 +123,14 @@ class UIManager {
                 <div class="welcome-box hacker-theme">
                     <pre class="ascii-art">${asciiArt}</pre>
                     <div class="welcome-box-body hacker-body">
-                        <p class="hacker-greeting">Hey — I'm JAMES. Your fully local AI assistant.</p>
+                        <p class="hacker-greeting">Hey - I'm JAMES. Your fully local AI assistant.</p>
                         <p class="hacker-text">Everything runs directly in your browser using a local language model loaded via WebAssembly. There's no server, no API call, no cloud — just your machine.</p>
                         <ul class="hacker-list">
-                            <li><span class="hacker-bullet"></span><strong>Private by design</strong> — your conversations never leave this device</li>
-                            <li><span class="hacker-bullet"></span><strong>Nothing is stored externally</strong> — sessions live in your browser's IndexedDB only</li>
-                            <li><span class="hacker-bullet"></span><strong>Fully offline-capable</strong> — once the model is cached, no internet required</li>
-                            <li><span class="hacker-bullet"></span><strong>Web-native</strong> — built with vanilla JS, WebWorkers & WebAssembly</li>
-                            <li><span class="hacker-bullet"></span><strong>Python runtime</strong> — powered by Pyodide, runs code directly in browser</li>
+                            <li><span class="hacker-bullet"></span><strong>Private by design</strong> - your conversations never leave this device</li>
+                            <li><span class="hacker-bullet"></span><strong>Nothing is stored externally</strong> - sessions live in your browser's IndexedDB only</li>
+                            <li><span class="hacker-bullet"></span><strong>Fully offline-capable</strong> - once the model is cached, no internet required</li>
+                            <li><span class="hacker-bullet"></span><strong>Web-native</strong> - built with vanilla JS, WebWorkers & WebAssembly</li>
+                            <li><span class="hacker-bullet"></span><strong>Python runtime</strong> - powered by Pyodide, runs code directly in browser</li>
                         </ul>
                         <p class="hacker-prompt">Type anything to begin...</p>
                     </div>
