@@ -281,6 +281,7 @@ window.attachmentManager = attachmentManager;
 // ==========================================
 
 function getMessagesWindow(messages) {
+    const background = messages.filter(m => m.isBackground);
     const regular = messages.filter(m => !m.isBackground);
 
     let windowed = regular;
@@ -290,7 +291,15 @@ function getMessagesWindow(messages) {
     while (windowed.length > 0 && windowed[0].role !== 'user') {
         windowed = windowed.slice(1);
     }
-    return windowed;
+
+    // Remove old tool results (system messages) to save context tokens.
+    // We only keep tool results if they occur AFTER the most recent user message.
+    const lastUserIdx = windowed.map(m => m.role).lastIndexOf('user');
+    if (lastUserIdx !== -1) {
+        windowed = windowed.filter((m, i) => !(i < lastUserIdx && m.role === 'system'));
+    }
+
+    return [...windowed, ...background];
 }
 
 function sendMessage(preExecutedMove = null) {
