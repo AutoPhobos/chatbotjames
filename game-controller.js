@@ -70,13 +70,13 @@ class GameController {
         }
     }
 
-    handleGameMove(moveInfo, addSystemMessageCallback, setIdleStateCallback, queryModelCallback) {
+    handleGameMove(moveInfo, addSystemMessageCallback, setIdleStateCallback, queryModelCallback, skipUIUpdate = false) {
         if (!this.activeGame) return;
 
         let notation = moveInfo.notation || moveInfo.san;
         const actualMove = moveInfo.move || moveInfo;
         
-        if (this.activeGameUI) {
+        if (this.activeGameUI && !skipUIUpdate) {
             this.activeGameUI.update(notation);
         }
 

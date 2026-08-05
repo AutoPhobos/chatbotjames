@@ -292,9 +292,9 @@ function getMessagesWindow(messages) {
     return [...windowed, ...background];
 }
 
-function sendMessage() {
+function sendMessage(preExecutedMove = null) {
     const text = uiManager.cmdInput.value.trim();
-    if ((!text && attachmentManager.attachedFiles.length === 0) || globalState.isGeneratingUI) return;
+    if ((!text && attachmentManager.attachedFiles.length === 0 && !preExecutedMove) || globalState.isGeneratingUI) return;
 
     const processedText = UserInputProcessor.process(text);
     let fullPrompt = processedText;
@@ -309,13 +309,19 @@ function sendMessage() {
 
     let userMovePlayed = null;
     if (gameController.activeGame) {
-        userMovePlayed = gameController.parseUserMove(text);
+        if (preExecutedMove) {
+            userMovePlayed = preExecutedMove;
+        } else {
+            userMovePlayed = gameController.parseUserMove(text);
+        }
+        
         if (userMovePlayed) {
             gameController.handleGameMove(
                 userMovePlayed, 
                 null, 
                 (v) => uiManager.setIdleState(v, (x) => globalState.isGeneratingUI = x), 
-                null
+                null,
+                !!preExecutedMove // indicates UI already handled notation update
             );
         }
 

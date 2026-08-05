@@ -365,6 +365,9 @@ export function renderGameBoard(game, container, onMove) {
 
                 // ── Click handler ─────────────────────────────────────────────
                 square.onclick = () => {
+                    // Ignore clicks if the AI is currently thinking/generating
+                    if (window.globalState && window.globalState.isGeneratingUI) return;
+
                     if (selectedSquare !== null) {
                         let moveResult = null;
 
