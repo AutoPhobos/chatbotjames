@@ -106,7 +106,7 @@ setupMessageRenderer({
         if (historyIdx < 0 || historyIdx >= chatHistory.length) return;
         const msg = chatHistory[historyIdx];
         if (!msg || msg.role !== 'user') return;
-        let originalText = msg.content;
+        let originalText = msg.displayContent || msg.content;
         const fileMarker = '\n\n[Attached Files Content]:';
         const markerIdx = originalText.indexOf(fileMarker);
         if (markerIdx !== -1) originalText = originalText.substring(0, markerIdx).trim();
@@ -581,6 +581,8 @@ function handleAppend(text) {
         targetId: targetId,
         chatId: currentChatId
     });
+
+    if (cmdInput) cmdInput.value = '';
 }
 
 function setupEventListeners() {
