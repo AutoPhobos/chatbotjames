@@ -25,7 +25,11 @@ class GameController {
     }
 
     restoreGameState(state) {
-        if (!state || !state.type) return;
+        if (!state || !state.type) {
+            this.activeGame = null;
+            this.refreshGameBoardUI();
+            return;
+        }
         
         if (state.type === 'checkers') {
             this.activeGame = new CheckersGame();
