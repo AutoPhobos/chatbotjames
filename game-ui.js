@@ -15,6 +15,48 @@ export function renderGameBoard(game, container, onMove) {
     const wrapper = document.createElement('div');
     wrapper.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
 
+    // ── Header with Close Button ──────────────────────────────────────────────
+    const gameHeader = document.createElement('div');
+    gameHeader.style.cssText = `
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(0,0,0,0.25);
+        border-radius: 4px;
+        padding: 6px 12px;
+        margin-bottom: 4px;
+        color: #eee;
+        font-family: sans-serif;
+        font-size: 13px;
+        width: 472px;
+        box-sizing: border-box;
+    `;
+    const titleText = document.createElement('div');
+    titleText.textContent = game.type === 'chess' ? '♟️ Chess' : '🔴 Checkers';
+    titleText.style.fontWeight = 'bold';
+    
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = 'Close Game';
+    closeBtn.style.cssText = `
+        background: rgba(239, 68, 68, 0.2);
+        color: #fca5a5;
+        border: 1px solid rgba(239, 68, 68, 0.4);
+        border-radius: 4px;
+        padding: 4px 8px;
+        font-size: 11px;
+        cursor: pointer;
+        transition: background 0.2s;
+    `;
+    closeBtn.onmouseover = () => closeBtn.style.background = 'rgba(239, 68, 68, 0.4)';
+    closeBtn.onmouseout = () => closeBtn.style.background = 'rgba(239, 68, 68, 0.2)';
+    closeBtn.onclick = () => {
+        if (window.closeActiveGame) window.closeActiveGame();
+    };
+    
+    gameHeader.appendChild(titleText);
+    gameHeader.appendChild(closeBtn);
+    wrapper.appendChild(gameHeader);
+
     // ── Board with coordinate labels ──────────────────────────────────────────
     // Layout: [ rank-labels (20px) ] [ 8×8 board (352px) ]
     //                                [ file-labels row   ]

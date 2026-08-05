@@ -50,6 +50,14 @@ import { UserInputProcessor } from './input-processor.js';
 let activeGame = null;
 let activeGameUI = null;
 
+window.closeActiveGame = function() {
+    activeGame = null;
+    activeGameUI = null;
+    chatHistory.push({ role: 'system', content: '[Game Closed]' });
+    persistCurrentChat();
+    refreshGameBoardUI();
+};
+
 // UI State Locks
 let _isGeneratingUI = false;
 let lastUpdate = 0;
