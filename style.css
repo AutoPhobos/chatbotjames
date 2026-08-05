@@ -1436,4 +1436,126 @@ a:hover {
     font-size: 0.85rem;
     font-family: monospace;
 }
-
+
+/* HACKER THEME WELCOME */
+.hacker-theme {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 24px;
+    font-family: monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: left;
+    margin: 20px auto;
+    width: 90%;
+    max-width: 700px;
+}
+
+.ascii-art {
+    background: linear-gradient(90deg, #3b82f6 0%, #10b981 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: bold;
+    font-size: 14px;
+    line-height: 1.2;
+    margin-bottom: 24px;
+    text-shadow: none;
+    white-space: pre;
+    font-family: monospace;
+}
+
+.hacker-body {
+    max-width: 600px;
+    width: 100%;
+}
+
+.hacker-greeting {
+    color: #10b981;
+    font-weight: bold;
+    margin-bottom: 12px;
+}
+
+.hacker-text {
+    color: #94a3b8;
+    margin-bottom: 16px;
+    line-height: 1.5;
+}
+
+.hacker-list {
+    list-style: none;
+    padding: 0;
+    margin-bottom: 16px;
+    color: #94a3b8;
+}
+
+.hacker-list li {
+    margin-bottom: 8px;
+    display: flex;
+    align-items: flex-start;
+}
+
+.hacker-bullet {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: #10b981;
+    border-radius: 50%;
+    margin-top: 6px;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+
+.hacker-list strong {
+    color: #10b981;
+}
+
+.hacker-prompt {
+    color: #10b981;
+    margin-top: 16px;
+}
+
+/* PURPLE ACCENTS */
+.new-thread-btn {
+    background: transparent !important;
+    border: 1px solid #a855f7 !important;
+    color: #a855f7 !important;
+}
+.new-thread-btn:hover {
+    background: rgba(168, 85, 247, 0.1) !important;
+}
+
+.chat-session-item.active {
+    background: rgba(168, 85, 247, 0.1) !important;
+    border-left-color: #a855f7 !important;
+    color: #a855f7 !important;
+}
+.chat-session-item.active .session-title::before {
+    content: "> ";
+    color: #a855f7;
+    margin-right: 4px;
+}
+
+.input-container:focus-within {
+    border-color: #a855f7 !important;
+    box-shadow: 0 0 0 2px rgba(168,85,247,0.2) !important;
+}
+#sendBtn {
+    background: #a855f7 !important;
+    color: #fff !important;
+}
+#sendBtn:hover:not(:disabled) {
+    background: #9333ea !important;
+}
+
+
+.live-game-view {
+    margin: 16px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 16px;
+    display: none;
+    max-width: 500px;
+}
