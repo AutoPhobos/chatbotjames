@@ -175,39 +175,22 @@ export function renderGameBoard(game, container, onMove) {
     wrapper.appendChild(boardWithLabels);
     wrapper.appendChild(notationPanel);
 
-    // Move history: array of { moveNumber, white, black }
-    const moveHistory = game.moveHistory || []; // { moveNumber, white?: string, black?: string }
-    let halfMoveCount = 0; // incremented per full side-move applied
-    moveHistory.forEach(m => {
-        if (m.white) halfMoveCount++;
-        if (m.black) halfMoveCount++;
-    });
-
-    function addNotation(san) {
-        halfMoveCount++;
-        if (halfMoveCount % 2 === 1) {
-            // White/first-player move
-            moveHistory.push({ moveNumber: Math.ceil(halfMoveCount / 2), white: san });
-        } else {
-            // Black/second-player move
-            if (moveHistory.length > 0) {
-                moveHistory[moveHistory.length - 1].black = san;
-            } else {
-                moveHistory.push({ moveNumber: 1, black: san });
-            }
-        }
-        game.moveHistory = moveHistory;
-        renderNotation();
-    }
-
+    // Move history: array of strings
     function renderNotation() {
-        if (moveHistory.length === 0) {
+        const history = game.moveHistory || [];
+        if (history.length === 0) {
             notationPanel.textContent = 'No moves yet.';
             return;
         }
-        notationPanel.textContent = moveHistory.map(m =>
-            `${m.moveNumber}. ${m.white || '...'}${m.black ? '  ' + m.black : ''}`
-        ).join('   ');
+        let txt = '';
+        for (let i = 0; i < history.length; i++) {
+            if (i % 2 === 0) {
+                txt += `${(i / 2) + 1}. ${history[i]}`;
+            } else {
+                txt += `  ${history[i]}   `;
+            }
+        }
+        notationPanel.textContent = txt.trim();
         notationPanel.scrollTop = notationPanel.scrollHeight;
     }
 
@@ -402,7 +385,6 @@ export function renderGameBoard(game, container, onMove) {
                                 // Turn complete — flush notation and reset chain
                                 selectedSquare = null;
                                 multiJumpChain = null;
-                                if (notationStr) addNotation(notationStr);
                             }
                             render();
                             scrollChat();
@@ -491,8 +473,8 @@ export function renderGameBoard(game, container, onMove) {
 
     return {
         update: (notation) => {
-            // Called by app.js when AI makes a move; notation is the SAN/coord string
-            if (notation) addNotation(notation);
+            // Called by app.js when AI makes a move
+            renderNotation();
             render();
             scrollChat();
         }

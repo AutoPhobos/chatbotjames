@@ -1,6 +1,6 @@
 import { globalState } from './global-state.js';
 import { chatManager } from './chat-manager.js';
-import { gameController } from './game-controller.js?v=2';
+import { gameController } from './game-controller.js?v=3';
 import { attachmentManager } from './attachment-manager.js';
 import { uiManager } from './ui-manager.js';
 import { workerController } from './worker-controller.js';
@@ -454,9 +454,24 @@ window.simulateCannedResponse = function(text) {
 };
 
 async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
+    const isActiveChat = originChatId === chatManager.currentChatId;
+    let targetHistory = chatManager.chatHistory;
+    let bgChat = null;
+
+    if (!isActiveChat) {
+        bgChat = chatManager.allChats.find(c => c.id === originChatId);
+        if (!bgChat) return;
+        targetHistory = bgChat.messages;
+    }
+
     if (_depth > CONFIG.ui.maxToolDepth) {
-        appendErrorToChat("Maximum tool depth exceeded.");
-        uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
+        if (isActiveChat) {
+            appendErrorToChat("Maximum tool depth exceeded.");
+            uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
+        } else {
+            targetHistory.push({ role: 'system', content: '[Error: Maximum tool depth exceeded]' });
+            import('./chat-db.js').then(db => db.dbSaveChat(bgChat));
+        }
         return;
     }
 
@@ -468,13 +483,19 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
     }
 
     if (calls.length === 0) {
-        uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
+        if (isActiveChat) {
+            uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
+        }
         return;
     }
 
     // Push the assistant's message with tool calls to history
-    chatManager.chatHistory.push({ role: 'assistant', content: message });
-    chatManager.persistCurrentChat(() => gameController.getGameState());
+    targetHistory.push({ role: 'assistant', content: message });
+    if (isActiveChat) {
+        chatManager.persistCurrentChat(() => gameController.getGameState());
+    } else {
+        await import('./chat-db.js').then(db => db.dbSaveChat(bgChat));
+    }
 
     for (const callBlock of calls) {
         const lines = callBlock.split('\n').map(l => l.trim()).filter(l => l);
@@ -489,56 +510,97 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
             }
         }
 
-        uiManager.updateStatusText(`RUNNING ${toolName.toUpperCase()}...`);
+        if (isActiveChat) uiManager.updateStatusText(`RUNNING ${toolName.toUpperCase()}...`);
         let toolResult = null;
 
         try {
             if (toolName === 'start_game') {
-                gameController.handleStartGame(
-                    params, 
-                    (msg) => chatManager.chatHistory.push({ role: 'system', content: msg }), 
-                    () => {}
-                );
-                toolResult = `Game started: ${params.game || 'chess'}. Wait for user's move.`;
-            } else if (toolName === 'make_move') {
-                const moveResult = gameController.handleMakeMove(
-                    params, 
-                    (msg) => {
-                        if (!msg.includes('Failed to make move')) {
-                            chatManager.chatHistory.push({ role: 'system', content: msg });
-                        }
-                    }, 
-                    (v) => uiManager.setIdleState(v, (x) => globalState.isGeneratingUI = x),
-                    () => {} 
-                );
-                if (moveResult && moveResult.success === false) {
-                    toolResult = moveResult.error;
+                if (isActiveChat) {
+                    gameController.handleStartGame(
+                        params, 
+                        (msg) => targetHistory.push({ role: 'system', content: msg }), 
+                        () => {}
+                    );
+                    toolResult = `Game started: ${params.game || 'chess'}. Wait for user's move.`;
                 } else {
-                    toolResult = `Move ${params.move} played. Wait for user's next move.`;
+                    toolResult = `Error: Cannot start game in background chat.`;
+                }
+            } else if (toolName === 'make_move') {
+                if (isActiveChat) {
+                    const moveResult = gameController.handleMakeMove(
+                        params, 
+                        (msg) => {
+                            if (!msg.includes('Failed to make move')) {
+                                targetHistory.push({ role: 'system', content: msg });
+                            }
+                        }, 
+                        (v) => uiManager.setIdleState(v, (x) => globalState.isGeneratingUI = x),
+                        () => {} 
+                    );
+                    if (moveResult && moveResult.success === false) {
+                        toolResult = moveResult.error;
+                    } else {
+                        toolResult = `Move ${params.move} played. Wait for user's next move.`;
+                    }
+                } else {
+                    if (bgChat.gameState) {
+                        const { ChessGame, CheckersGame } = await import('./game-logic.js');
+                        let tempGame = bgChat.gameState.type === 'checkers' ? new CheckersGame() : new ChessGame();
+                        if (bgChat.gameState.fen) tempGame.loadFen(bgChat.gameState.fen);
+                        if (bgChat.gameState.history && tempGame.setHistory) tempGame.setHistory(bgChat.gameState.history);
+                        tempGame.aiColor = bgChat.gameState.aiColor || 'b';
+
+                        const moveInfo = tempGame.move(params.move);
+                        if (moveInfo) {
+                            let notation = moveInfo.notation || moveInfo.san;
+                            if (!tempGame.moveHistory) tempGame.moveHistory = [];
+                            if (notation) tempGame.moveHistory.push(notation);
+                            
+                            bgChat.gameState = {
+                                type: tempGame.type,
+                                fen: tempGame.getFen(),
+                                history: tempGame.getHistory ? tempGame.getHistory() : null,
+                                aiColor: tempGame.aiColor
+                            };
+                            toolResult = `Move ${params.move} played. Wait for user's next move.`;
+                        } else {
+                            toolResult = `[System]: Failed to make move ${params.move}. Invalid move.`;
+                        }
+                    } else {
+                        toolResult = `[System]: Failed to make move. No active game.`;
+                    }
                 }
             } else if (toolName === 'eval_python' || toolName === 'python') {
                 toolResult = await workerController.callWorkerRPC(workerController.pythonWorker, { type: 'python', code: params.code }, 30000);
             } else {
                 // Route all other tools to toolsWorker
-                // Note: tools-worker expects 'tool', not 'type'
                 toolResult = await workerController.callWorkerRPC(workerController.toolsWorker, { tool: toolName, params }, 30000);
             }
         } catch (e) {
             toolResult = `Error executing tool: ${e.message}`;
-            appendErrorToChat(toolResult);
+            if (isActiveChat) appendErrorToChat(toolResult);
         }
 
         if (toolResult) {
-            chatManager.chatHistory.push({ role: 'system', content: `[Tool Result: ${toolName}]\n${toolResult}` });
-            chatManager.persistCurrentChat(() => gameController.getGameState());
-            renderChatLog();
+            targetHistory.push({ role: 'system', content: `[Tool Result: ${toolName}]\n${toolResult}` });
+            if (isActiveChat) {
+                chatManager.persistCurrentChat(() => gameController.getGameState());
+                renderChatLog();
+            } else {
+                await import('./chat-db.js').then(db => db.dbSaveChat(bgChat));
+            }
         }
     }
 
-    uiManager.updateStatusText('THINKING...');
-    const nextTargetId = getNextTargetId();
-    workerController.postQuery(getMessagesWindow(chatManager.chatHistory), nextTargetId, originChatId);
-    updateLiveBubble('...', nextTargetId);
+    if (isActiveChat) {
+        uiManager.updateStatusText('THINKING...');
+        const nextTargetId = getNextTargetId();
+        workerController.postQuery(getMessagesWindow(targetHistory), nextTargetId, originChatId);
+        updateLiveBubble('...', nextTargetId);
+    } else {
+        const nextTargetId = Date.now().toString(36);
+        workerController.postQuery(getMessagesWindow(targetHistory), nextTargetId, originChatId);
+    }
 }
 
 // ==========================================
