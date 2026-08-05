@@ -1332,9 +1332,19 @@ function initRecovery() {
     const lastInput = lastMsg.displayContent || lastMsg.content || '(previous message)';
 
     // Update the modal body to show what the last message was
-    const modalBody = modal.querySelector('.recovery-body');
-    if (modalBody) {
-        modalBody.textContent = `It looks like the page was refreshed while JAMES was generating a response to: "${lastInput.substring(0, 80)}${lastInput.length > 80 ? '…' : ''}". Would you like to try regenerating?`;
+    const promptTextEl = modal.querySelector('#recoveryPromptText');
+    if (promptTextEl) {
+        promptTextEl.textContent = `"${lastInput.substring(0, 80)}${lastInput.length > 80 ? '…' : ''}"`;
+    } else {
+        const modalBody = modal.querySelector('.recovery-body');
+        if (modalBody) {
+            modalBody.innerHTML = `
+            It looks like the page was refreshed while JAMES was generating a response to:<br><br>
+            <strong id="recoveryPromptText" style="color: var(--primary-blue);"></strong><br><br>
+            Would you like to try regenerating the last message?
+        `;
+            modal.querySelector('#recoveryPromptText').textContent = `"${lastInput.substring(0, 80)}${lastInput.length > 80 ? '…' : ''}"`;
+        }
     }
 
     const closePopup = () => {
