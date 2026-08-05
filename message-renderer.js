@@ -198,10 +198,11 @@ export function createMessageElement(msg, historyIdx = -1, isLastAssistant = fal
     }
     messageWrap.className = `message-wrap ${msg.role === 'user' ? 'user-msg' : 'assistant-msg'}`;
     if (msg.type === 'game_board') {
-        messageWrap.classList.add('game-board-placeholder');
+        messageWrap.className = 'message-wrap assistant-msg game-board-wrap';
+        messageWrap.style.cssText = 'align-items: center; justify-content: center; width: 100%; margin: 8px 0;';
         const messageContent = document.createElement('div');
-        messageContent.className = 'message-content game-board-message';
-        messageContent.id = `game-board-container`;
+        messageContent.className = 'message-content game-board-message live-game-view';
+        messageContent.id = 'liveGameView';
         messageWrap.appendChild(messageContent);
         return messageWrap;
     }
@@ -272,6 +273,12 @@ export function renderChatLog() {
     chatLog.innerHTML = '';
 
     const history = _getChatHistory();
+    if (window.gameController && window.gameController.activeGame) {
+        const hasBoard = history.some(m => m.type === 'game_board');
+        if (!hasBoard) {
+            history.push({ type: 'game_board', role: 'assistant' });
+        }
+    }
     _renderOffset = Math.max(0, history.length - RENDER_WINDOW);
 
     if (_renderOffset > 0) {
@@ -285,6 +292,10 @@ export function renderChatLog() {
     const lastAssistantRelIdx = sliced.map((m, i) => ({ m, i })).filter(({ m }) => m.role === 'assistant' && !m.hidden && !m.isBackground).map(({ i }) => i).at(-1);
     sliced.forEach((msg, i) => chatLog.appendChild(createMessageElement(msg, _renderOffset + i, i === lastAssistantRelIdx)));
     chatLog.scrollTop = chatLog.scrollHeight;
+
+    if (window.gameController && window.gameController.refreshGameBoardUI) {
+        window.gameController.refreshGameBoardUI();
+    }
 }
 
 /** Create the "N earlier messages" banner at the top of the chat log. */

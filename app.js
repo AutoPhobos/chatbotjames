@@ -44,6 +44,10 @@ function renderChatLog() {
     });
 }
 
+window.gameController = gameController;
+window.chatManager = chatManager;
+window.renderChatLog = renderChatLog;
+
 function setAppendMode(active) {
     globalState.appendMode = active;
     uiManager.showAppendBanner(active);

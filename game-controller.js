@@ -38,10 +38,17 @@ class GameController {
     closeActiveGame(addSystemMessageCallback) {
         this.activeGame = null;
         this.activeGameUI = null;
+        if (window.chatManager && window.chatManager.chatHistory) {
+            window.chatManager.chatHistory = window.chatManager.chatHistory.filter(m => m.type !== 'game_board');
+        }
         if (addSystemMessageCallback) {
             addSystemMessageCallback('[Game Closed]');
         }
-        this.refreshGameBoardUI();
+        if (window.renderChatLog) {
+            window.renderChatLog();
+        } else {
+            this.refreshGameBoardUI();
+        }
     }
 
     refreshGameBoardUI() {
@@ -94,11 +101,19 @@ class GameController {
             this.activeGame = new ChessGame();
         }
         
-        this.refreshGameBoardUI();
         playGameBuffSound();
 
         const boardName = gameType === 'checkers' ? 'Checkers Board' : 'FEN';
-        if (addSystemMessageCallback) addSystemMessageCallback(`[System]: ${gameType} started. Current ${boardName}: ${this.activeGame.getFen()}. You are Black. User is White. Please make the first move using the make_move tool.`);
+        if (addSystemMessageCallback) {
+            addSystemMessageCallback({ type: 'game_board', role: 'assistant' });
+            addSystemMessageCallback(`[System]: ${gameType} started. Current ${boardName}: ${this.activeGame.getFen()}. You are Black. User is White. Please make the first move using the make_move tool.`);
+        }
+        
+        if (window.renderChatLog) {
+            window.renderChatLog();
+        } else {
+            this.refreshGameBoardUI();
+        }
         if (queryModelCallback) queryModelCallback();
     }
 
