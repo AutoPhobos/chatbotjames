@@ -31,9 +31,23 @@ export function renderGameBoard(game, container, onMove) {
         width: 472px;
         box-sizing: border-box;
     `;
+    
+    const titleContainer = document.createElement('div');
+    titleContainer.style.cssText = 'display: flex; align-items: center; gap: 12px;';
+    
     const titleText = document.createElement('div');
     titleText.textContent = game.type === 'chess' ? '♟️ Chess' : '🔴 Checkers';
     titleText.style.fontWeight = 'bold';
+    
+    const turnLabel = document.createElement('div');
+    turnLabel.style.cssText = `
+        font-size: 11px;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    `;
     
     const closeBtn = document.createElement('button');
     closeBtn.textContent = 'Close Game';
@@ -53,7 +67,9 @@ export function renderGameBoard(game, container, onMove) {
         if (window.closeActiveGame) window.closeActiveGame();
     };
     
-    gameHeader.appendChild(titleText);
+    titleContainer.appendChild(titleText);
+    titleContainer.appendChild(turnLabel);
+    gameHeader.appendChild(titleContainer);
     gameHeader.appendChild(closeBtn);
     wrapper.appendChild(gameHeader);
 
@@ -214,6 +230,18 @@ export function renderGameBoard(game, container, onMove) {
     const CHECKERS_SYMBOL = { regular: '⬤', king: '♛' };
 
     function render() {
+        if (!game.isGameOver || !game.isGameOver()) {
+            const currentTurn = game.type === 'chess' ? game.getTurn() : game.turn;
+            const isUserTurn = currentTurn === 'w'; // User is always White
+            turnLabel.textContent = isUserTurn ? 'Your Turn' : "AI's Turn";
+            turnLabel.style.color = isUserTurn ? '#34d399' : '#f87171'; // Green for user, Red for AI
+            turnLabel.style.background = isUserTurn ? 'rgba(52, 211, 153, 0.15)' : 'rgba(248, 113, 113, 0.15)';
+        } else {
+            turnLabel.textContent = 'Game Over';
+            turnLabel.style.color = '#9ca3af';
+            turnLabel.style.background = 'rgba(156, 163, 175, 0.15)';
+        }
+
         boardContainer.innerHTML = '';
 
         // Compute valid destinations for the selected square (for highlighting)
