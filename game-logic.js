@@ -148,6 +148,20 @@ export class CheckersGame {
         return fen.slice(0, -1) + ' ' + this.turn;
     }
 
+    loadFen(fen) {
+        if (!fen) return;
+        const parts = fen.split(' ');
+        const rows = parts[0].split('/');
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const p = rows[r][c];
+                this.board[r][c] = p === '.' ? 0 : p === 'w' ? 1 : p === 'W' ? 2 : p === 'b' ? -1 : -2;
+            }
+        }
+        this.turn = parts[1] || 'w';
+        this.mustJumpFrom = null;
+    }
+
     // ── Internal helpers ────────────────────────────────────────────────────────
 
     /** All jump destinations from square (sr, sc). Does NOT check turn. */
