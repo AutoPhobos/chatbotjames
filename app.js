@@ -206,6 +206,16 @@ workerController.onThinking = (chatId, targetId) => {
 
 workerController.onComplete = (chatId, targetId, message) => {
     import('./stream-manager.js').then(sm => sm.flushStreamQueue(targetId));
+    if (chatId === chatManager.currentChatId) {
+        if (!message || message.trim() === '') {
+            const bubble = document.getElementById(`bubble-${targetId}`);
+            if (bubble && bubble.parentElement) {
+                bubble.parentElement.remove();
+            }
+        } else {
+            updateLiveBubble(message, targetId, true);
+        }
+    }
 };
 
 workerController.onToolCalls = (message, targetId, chatId) => {
