@@ -15,6 +15,14 @@ export class ChessGame {
         return { fen: this.game.fen(), moveHistory: this.moveHistory };
     }
 
+    getHistory() {
+        return this.moveHistory;
+    }
+
+    setHistory(history) {
+        this.moveHistory = history || [];
+    }
+
     getTurn() {
         return this.game.turn(); // returns 'w' or 'b'
     }
@@ -118,6 +126,14 @@ export class CheckersGame {
 
     getState() {
         return { board: JSON.stringify(this.board), turn: this.turn, mustJumpFrom: this.mustJumpFrom, moveHistory: this.moveHistory };
+    }
+
+    getHistory() {
+        return this.moveHistory;
+    }
+
+    setHistory(history) {
+        this.moveHistory = history || [];
     }
 
     getFen() {

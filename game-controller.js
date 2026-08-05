@@ -93,6 +93,9 @@ class GameController {
             this.activeGameUI.update(notation);
         }
 
+        if (!this.activeGame.moveHistory) this.activeGame.moveHistory = [];
+        if (notation) this.activeGame.moveHistory.push(notation);
+
         const isPromotion = actualMove.promotion || (actualMove.flags && actualMove.flags.includes('p'));
         const isJump = actualMove.jumped || actualMove.multiJump;
 

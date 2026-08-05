@@ -342,10 +342,18 @@ function sendMessage(preExecutedMove = null) {
             ? 'IMPORTANT: You must format your move using Standard Algebraic Notation (SAN) for chess (e.g. "e5", "Nf3", "O-O", "Bxc6"). Do NOT use "from to" coordinate format like "c6 to c5".' 
             : 'IMPORTANT: You must format your move using Standard Checkers Notation (1-32) (e.g. "11-15", or "11x18x25" for multi-jumps). Do NOT use coordinates.';
         
+        let moveHistoryStr = '';
+        if (gameController.activeGame.getHistory) {
+            const history = gameController.activeGame.getHistory();
+            if (history && history.length > 0) {
+                moveHistoryStr = ` Move history: ${history.join(' ')}.`;
+            }
+        }
+        
         if (userMovePlayed) {
-            fullPrompt += `\n\n[Game State] Current ${gameTypeLabel}: ${gameController.activeGame.getFen()}. You are playing ${aiColor}. The user just played ${userMovePlayed.notation}. It is NOW YOUR TURN. You MUST use the make_move tool immediately to play your move. ${formatReminder} Do NOT ask the user for their move—they just played it!`;
+            fullPrompt += `\n\n[Game State] Current ${gameTypeLabel}: ${gameController.activeGame.getFen()}.${moveHistoryStr} You are playing ${aiColor}. The user just played ${userMovePlayed.notation}. It is NOW YOUR TURN. You MUST use the make_move tool immediately to play your move. ${formatReminder} Do NOT ask the user for their move—they just played it!`;
         } else {
-            fullPrompt += `\n\n[Game State] Current ${gameTypeLabel}: ${gameController.activeGame.getFen()}. You are playing ${aiColor}. It is currently ${turnColor}'s turn. If the user's message is just normal chat, reply normally without using any game tools. If you are making a move, remember: ${formatReminder}`;
+            fullPrompt += `\n\n[Game State] Current ${gameTypeLabel}: ${gameController.activeGame.getFen()}.${moveHistoryStr} You are playing ${aiColor}. It is currently ${turnColor}'s turn. If the user's message is just normal chat, reply normally without using any game tools. If you are making a move, remember: ${formatReminder}`;
         }
     }
 
