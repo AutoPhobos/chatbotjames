@@ -1551,11 +1551,13 @@ a:hover {
 
 
 .live-game-view {
-    margin: 16px;
+    margin: 16px auto;
     background: var(--bg-surface);
     border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 16px;
     display: none;
-    max-width: 500px;
+    width: fit-content;
+    max-width: 100%;
+    box-sizing: border-box;
 }

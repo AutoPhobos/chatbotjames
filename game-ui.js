@@ -13,7 +13,7 @@
 export function renderGameBoard(game, container, onMove) {
     // ── Wrapper: board + notation panel ────────────────────────────────────────
     const wrapper = document.createElement('div');
-    wrapper.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
+    wrapper.style.cssText = 'display: flex; flex-direction: column; gap: 8px; align-items: center;';
 
     // ── Header with Close Button ──────────────────────────────────────────────
     const gameHeader = document.createElement('div');

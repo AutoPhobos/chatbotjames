@@ -50,7 +50,8 @@ class GameController {
 
         if (this.activeGame) {
             boardWrapper.innerHTML = '';
-            boardWrapper.style.display = 'block';
+            boardWrapper.style.display = 'flex';
+            boardWrapper.style.justifyContent = 'center';
             this.activeGameUI = renderGameBoard(this.activeGame, boardWrapper);
         } else {
             boardWrapper.style.display = 'none';

@@ -252,6 +252,13 @@ export class CheckersGame {
      * Handles captures, king promotion, multi-jump continuation, and turn switching.
      */
     move(sr, sc, tr, tc) {
+        if (typeof sr === 'string' && sc === undefined) {
+            const parsed = this.makeSanMove(sr);
+            if (parsed && parsed.length > 0) {
+                return parsed[0];
+            }
+            return null;
+        }
         if (!this.isValidMove(sr, sc, tr, tc)) return null;
 
         const piece = this.board[sr][sc];
