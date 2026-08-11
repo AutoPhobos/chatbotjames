@@ -104,7 +104,7 @@ class UIManager {
  ██╔══██║██║
  ██║  ██║██║
  ╚═╝  ╚═╝╚═╝
- >> NEURAL CORE v9.8.1`;
+ >> NEURAL CORE v10.0.0`;
 
         return {
             role: 'system',
