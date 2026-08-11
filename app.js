@@ -655,6 +655,20 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
                         toolResult = `[System]: Failed to make move. No active game.`;
                     }
                 }
+            } else if (toolName === 'write_note') {
+                const db = await import('./chat-db.js');
+                const note = params.note;
+                if (!note) throw new Error("No note provided");
+                db.dbSaveNote({ id: crypto.randomUUID(), text: note, timestamp: Date.now() });
+                toolResult = "Note saved silently.";
+            } else if (toolName === 'read_notes') {
+                const db = await import('./chat-db.js');
+                const notes = await db.dbLoadNotes();
+                if (!notes || notes.length === 0) {
+                    toolResult = "No notes found.";
+                } else {
+                    toolResult = "Saved Notes:\n" + notes.map(n => `- ${n.text}`).join("\n");
+                }
             } else if (toolName === 'eval_python' || toolName === 'python') {
                 toolResult = await workerController.callWorkerRPC(workerController.pythonWorker, { type: 'python', code: params.code }, 30000);
             } else {
