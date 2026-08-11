@@ -97,7 +97,8 @@ class UIManager {
     }
 
     getFullWelcomeMessage(showTools) {
-        const asciiArt = `  █████╗ ██╗
+        const asciiArt = `
+ ███████╗██╗
  ██╔══██╗██║
  ███████║██║
  ██╔══██║██║

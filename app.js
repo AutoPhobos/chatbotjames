@@ -681,7 +681,8 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
         }
 
         if (toolResult) {
-            targetHistory.push({ role: 'system', content: `[Tool Result: ${toolName}]\n${toolResult}` });
+            const formattedResult = typeof toolResult === 'object' ? JSON.stringify(toolResult, null, 2) : toolResult;
+            targetHistory.push({ role: 'system', content: `[Tool Result: ${toolName}]\n${formattedResult}` });
             if (isActiveChat) {
                 chatManager.persistCurrentChat(() => gameController.getGameState());
                 renderChatLog();
