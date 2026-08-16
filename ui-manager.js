@@ -97,8 +97,7 @@ class UIManager {
     }
 
     getFullWelcomeMessage(showTools) {
-        const asciiArt = `
- ███████╗██╗
+        const asciiArt = ` ███████╗██╗
  ██╔══██╗██║
  ███████║██║
  ██╔══██║██║
@@ -116,11 +115,11 @@ class UIManager {
                         <p class="hacker-greeting">Hey - I'm JAMES. Your fully local AI assistant.</p>
                         <p class="hacker-text">Everything runs directly in your browser using a local language model loaded via WebAssembly. There's no server, no API call, no cloud — just your machine.</p>
                         <ul class="hacker-list">
-                            <li><span class="hacker-bullet"></span><strong>Private by design</strong> - \nyour conversations never leave this device</li>
-                            <li><span class="hacker-bullet"></span><strong>Nothing is stored externally</strong> - \nsessions live in your browser's IndexedDB only</li>
-                            <li><span class="hacker-bullet"></span><strong>Fully offline-capable</strong> - \nonce the model is cached, no internet required</li>
-                            <li><span class="hacker-bullet"></span><strong>Web-native</strong> - \nbuilt with vanilla JS, WebWorkers & WebAssembly</li>
-                            <li><span class="hacker-bullet"></span><strong>Python runtime</strong> - \npowered by Pyodide, runs code directly in browser</li>
+                            <li><span class="hacker-bullet"></span><strong>Private by design</strong> — your conversations never leave this device</li>
+                            <li><span class="hacker-bullet"></span><strong>Nothing is stored externally</strong> — sessions live in your browser's IndexedDB only</li>
+                            <li><span class="hacker-bullet"></span><strong>Fully offline-capable</strong> — once the model is cached, no internet required</li>
+                            <li><span class="hacker-bullet"></span><strong>Web-native</strong> — built with vanilla JS, WebWorkers & WebAssembly</li>
+                            <li><span class="hacker-bullet"></span><strong>Python runtime</strong> — powered by Pyodide, runs code directly in browser</li>
                         </ul>
                         <p class="hacker-prompt">Type anything to begin...</p>
                     </div>
