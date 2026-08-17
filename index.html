@@ -25,6 +25,8 @@
     <meta name="language" content="English">
     <link rel="canonical" href="https://chatbotjames.onrender.com/">
 
+    <meta name="google-site-verification" content="706qdfPXFXzI_yp0C5jQIii19fSxhf616nNb_4VpdUM" />
+
     <!-- Open Graph / Facebook / LinkedIn -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://chatbotjames.onrender.com/">
@@ -42,7 +44,8 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="https://chatbotjames.onrender.com/">
     <meta name="twitter:title" content="JAMES AI — Free Private Local AI Chatbot | No Server, No Tracking">
-    <meta name="twitter:description" content="100% private AI chatbot in your browser. WebGPU-powered, offline-capable, open-source. No login, no cloud, no data collection. Run Llama, Qwen, DeepSeek locally.">
+    <meta name="twitter:description"
+        content="100% private AI chatbot in your browser. WebGPU-powered, offline-capable, open-source. No login, no cloud, no data collection. Run Llama, Qwen, DeepSeek locally.">
     <meta name="twitter:image" content="https://chatbotjames.onrender.com/preview.png">
     <meta name="twitter:image:alt" content="JAMES AI chatbot interface">
     <meta name="twitter:creator" content="@AndreyLopukhov">
@@ -133,7 +136,9 @@
     <div class="main-layout">
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
-            <div class="sidebar-section-title" style="font-size: 0.75rem; font-weight: bold; color: var(--text-muted); letter-spacing: 0.05em; margin: 16px 16px 8px;">THREADS</div>
+            <div class="sidebar-section-title"
+                style="font-size: 0.75rem; font-weight: bold; color: var(--text-muted); letter-spacing: 0.05em; margin: 16px 16px 8px;">
+                THREADS</div>
             <button id="newChatBtn" class="new-thread-btn">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">
@@ -171,7 +176,8 @@
                 </div>
                 <div class="header-right">
                     <span class="version-tag">Genesis</span>
-                    <button id="notesBtn" class="icon-btn" title="No memory notes yet" aria-label="View personalization notes">
+                    <button id="notesBtn" class="icon-btn" title="No memory notes yet"
+                        aria-label="View personalization notes">
                         🧠
                     </button>
                     <button id="modelPanelBtn" class="icon-btn" title="Model Settings" aria-label="Open model settings">
@@ -201,10 +207,12 @@
                     <div id="attachmentPreview" class="attachment-preview" aria-live="polite"></div>
 
                     <div class="input-wrapper">
-                        <input type="file" id="fileInput" style="display: none;" multiple aria-hidden="true" tabindex="-1">
-                        <button type="button" id="attachButton" class="icon-btn"
-                            title="Attach files or archives" aria-label="Attach file">+</button>
-                        <input type="text" id="cmdInput" placeholder="Ask JAMES anything..." autocomplete="off" aria-label="Type your message">
+                        <input type="file" id="fileInput" style="display: none;" multiple aria-hidden="true"
+                            tabindex="-1">
+                        <button type="button" id="attachButton" class="icon-btn" title="Attach files or archives"
+                            aria-label="Attach file">+</button>
+                        <input type="text" id="cmdInput" placeholder="Ask JAMES anything..." autocomplete="off"
+                            aria-label="Type your message">
                         <button type="button" id="sendBtn" aria-label="Send message">➔</button>
                     </div>
                     <div class="input-footer-text" aria-hidden="true">JAMES runs entirely client-side via WebGPU.</div>
@@ -253,11 +261,15 @@
             <h2>Interrupted Response</h2>
             <button id="recoveryClose" class="icon-btn" aria-label="Close">✕</button>
         </div>
-        <div class="recovery-body" style="padding: 1rem; color: var(--text-color); font-size: 0.95rem; line-height: 1.5;">
-            It looks like the page was refreshed while JAMES was generating a response. Would you like to try regenerating the last message?
+        <div class="recovery-body"
+            style="padding: 1rem; color: var(--text-color); font-size: 0.95rem; line-height: 1.5;">
+            It looks like the page was refreshed while JAMES was generating a response. Would you like to try
+            regenerating the last message?
         </div>
         <div class="model-panel-footer" style="justify-content: flex-end; gap: 10px;">
-            <button id="recoveryNoBtn" class="apply-model-btn" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-color);">No, Dismiss</button>
+            <button id="recoveryNoBtn" class="apply-model-btn"
+                style="background: transparent; border: 1px solid var(--border-color); color: var(--text-color);">No,
+                Dismiss</button>
             <button id="recoveryYesBtn" class="apply-model-btn">Yes, Regenerate</button>
         </div>
     </div>
@@ -270,10 +282,12 @@
             <button id="notesPanelClose" class="icon-btn" aria-label="Close">✕</button>
         </div>
         <div class="notes-panel-description">
-            JAMES silently saves facts about you as you chat — your name, preferences, and anything useful for personalization. Notes are <strong>stored encrypted</strong> on your device only.
+            JAMES silently saves facts about you as you chat — your name, preferences, and anything useful for
+            personalization. Notes are <strong>stored encrypted</strong> on your device only.
         </div>
         <div id="notesList" class="notes-list">
-            <p class="notes-empty">JAMES hasn't saved any notes about you yet.<br><small>Notes are saved automatically as you chat.</small></p>
+            <p class="notes-empty">JAMES hasn't saved any notes about you yet.<br><small>Notes are saved automatically
+                    as you chat.</small></p>
         </div>
         <div class="model-panel-footer" style="justify-content: flex-end;">
             <button id="notesClearBtn" class="apply-model-btn notes-clear-btn">Clear All Memory</button>
@@ -285,7 +299,5 @@
 
     <script type="module" src="app.js?v=23"></script>
 </body>
+
 </html>
-
-
-
