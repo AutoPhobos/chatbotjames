@@ -7,32 +7,26 @@
     <meta name="theme-color" content="#0d1117">
 
     <!-- Primary SEO Meta Tags -->
-    <title>JAMES AI — Free Private Local AI Chatbot | Runs in Browser, No Server</title>
-    <meta name="title" content="JAMES AI — Free Private Local AI Chatbot | Runs in Browser, No Server">
-    <meta name="description"
-        content="JAMES is a free, 100% private AI chatbot that runs entirely in your web browser using WebGPU and WebAssembly — no account, no login, no server, no data collection. Features Llama 3.2, Qwen2.5, DeepSeek, SmolLM, in-browser Python (Pyodide), live web search, chess, checkers, unit conversion, weather, Wikipedia, password generator, UUID, ASCII art, and more. Works offline as a PWA.">
-    <meta name="keywords"
-        content="local AI chatbot, browser AI, WebGPU AI, private AI assistant, offline AI chatbot, no server AI, free AI chatbot, open source AI chatbot, client-side AI, local LLM browser, in-browser language model, on-device AI, edge AI browser, AI without account, AI without login, AI without internet, JAMES AI chatbot, Transformers.js chatbot, Llama 3.2 browser, Qwen2.5 browser, DeepSeek browser, SmolLM browser, Phi browser, Gemma browser, WebGPU LLM, WASM AI, WebAssembly chatbot, in-browser Python execution, Pyodide AI, AI web search, AI weather tool, AI Wikipedia, AI chess game, AI checkers game, AI unit converter, AI password generator, AI UUID generator, AI timer, AI clipboard, AI currency converter, AI ASCII art, AI color palette, AI code runner, private chatbot no tracking, GDPR-friendly AI, zero telemetry AI, self-hosted AI browser, installable AI PWA, offline AI assistant, AI no cloud, ChatGPT alternative offline, local ChatGPT, run AI in browser, AI in Chrome, AI in Edge, AI in Firefox, privacy-first AI, secure AI chat, encrypted AI chat, chat history stored locally, IndexedDB AI storage">
+    <title>JAMES AI — Free Private Local AI Chatbot | Runs in Browser</title>
+    <meta name="title" content="JAMES AI — Free Private Local AI Chatbot | Runs in Browser">
+    <meta name="description" content="100% private, free AI chatbot running in your browser via WebGPU & WASM. Run Llama 3.2, Qwen2.5 & Python (Pyodide) offline with zero data tracking.">
+    
+    <!-- Keywords for secondary search engines & indexers -->
+    <meta name="keywords" content="local AI chatbot, browser AI, WebGPU AI, private AI assistant, offline AI chatbot, no server AI, client-side AI, local LLM browser, in-browser language model, on-device AI, edge AI browser, free AI chatbot, open source AI, JAMES AI, Transformers.js chatbot, Llama 3.2 browser, Qwen2.5 browser, DeepSeek browser, SmolLM browser, WebGPU LLM, WASM AI, WebAssembly chatbot, in-browser Python execution, Pyodide AI, private chatbot no tracking, zero telemetry AI, installable AI PWA, offline AI assistant, local ChatGPT alternative">
+    
     <meta name="author" content="Andrey Lopukhov">
-    <meta name="robots" content="index, follow">
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
     <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
     <meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large">
-    <meta name="category" content="Artificial Intelligence, Privacy Tools, Developer Tools">
-    <meta name="classification" content="AI Chatbot, Local LLM, Privacy Software">
-    <meta name="coverage" content="Worldwide">
-    <meta name="rating" content="general">
-    <meta name="revisit-after" content="7 days">
-    <meta name="language" content="English">
     <link rel="canonical" href="https://chatbotjames.onrender.com/">
 
-    <meta name="google-site-verification" content="706qdfPXFXzI_yp0C5jQIii19fSxhf616nNb_4VpdUM" />
+    <meta name="google-site-verification" content="706qdfPXFXzI_yp0C5jQIii19fSxhf616nNb_4VpdUM">
 
-    <!-- Open Graph / Facebook / LinkedIn -->
+    <!-- Open Graph / Facebook / LinkedIn / WhatsApp -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://chatbotjames.onrender.com/">
     <meta property="og:title" content="JAMES AI — Free Private Local AI Chatbot | No Server, No Tracking">
-    <meta property="og:description"
-        content="Run a powerful AI chatbot 100% in your browser — no account, no server, no tracking. Powered by WebGPU. Chat, code in Python, search the web, play chess, and more. Completely private and free.">
+    <meta property="og:description" content="Run a powerful local AI chatbot 100% in your browser. Powered by WebGPU with offline support, Pyodide Python execution, web tools, and zero data collection.">
     <meta property="og:image" content="https://chatbotjames.onrender.com/preview.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
@@ -44,42 +38,42 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="https://chatbotjames.onrender.com/">
     <meta name="twitter:title" content="JAMES AI — Free Private Local AI Chatbot | No Server, No Tracking">
-    <meta name="twitter:description"
-        content="100% private AI chatbot in your browser. WebGPU-powered, offline-capable, open-source. No login, no cloud, no data collection. Run Llama, Qwen, DeepSeek locally.">
+    <meta name="twitter:description" content="100% private AI chatbot in your browser. WebGPU-powered, offline-capable, open-source. Run Llama, Qwen, and DeepSeek locally with zero login.">
     <meta name="twitter:image" content="https://chatbotjames.onrender.com/preview.png">
     <meta name="twitter:image:alt" content="JAMES AI chatbot interface">
     <meta name="twitter:creator" content="@AndreyLopukhov">
     <meta name="twitter:site" content="@AndreyLopukhov">
 
-    <!-- Structured Data (Schema.org) -->
+    <!-- Structured Data 1: Site Metadata -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "JAMES AI",
+      "url": "https://chatbotjames.onrender.com/",
+      "description": "Free, open-source, private local AI chatbot running in the browser via WebGPU and WebAssembly."
+    }
+    </script>
+
+    <!-- Structured Data 2: Software & Web Application Schema -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": ["SoftwareApplication", "WebApplication"],
       "name": "JAMES AI",
-      "alternateName": ["JAMES", "JAMES chatbot", "JAMES AI chatbot"],
+      "alternateName": ["JAMES", "JAMES Chatbot", "JAMES Local AI"],
       "url": "https://chatbotjames.onrender.com/",
       "operatingSystem": "Any modern web browser (Chrome, Edge, Firefox, Safari)",
       "applicationCategory": "UtilitiesApplication",
-      "applicationSubCategory": "AI Chatbot, Privacy Tool, Local LLM",
-      "browserRequirements": "Requires Chrome 113+, Edge 113+, or Firefox 120+ for WebGPU. WebAssembly fallback available in all modern browsers.",
-      "description": "JAMES is a free, open-source, 100% private AI chatbot that runs entirely in the browser via WebGPU and WebAssembly. No server, no account, no data collection. Features on-device inference with Llama 3.2, Qwen2.5, DeepSeek R1, SmolLM2, Phi-3.5, and Gemma 2. Includes in-browser Python execution (Pyodide), live web search, weather, Wikipedia, chess, checkers, unit converter, password generator, currency converter, timer, clipboard reader, ASCII art, and color palette tools.",
+      "applicationSubCategory": "AI Chatbot, Local LLM, Privacy Tool",
+      "browserRequirements": "Requires WebGPU or WebAssembly support.",
+      "description": "JAMES is a free, open-source, 100% private local AI chatbot that runs entirely inside your browser via WebGPU and WASM without servers or data logging.",
       "featureList": [
-        "100% private — all inference runs locally in the browser",
-        "No account, login, or server required",
-        "WebGPU-accelerated inference (Llama 3.2, Qwen2.5, DeepSeek, SmolLM2, Phi-3.5, Gemma 2)",
-        "WebAssembly CPU fallback for any device",
-        "In-browser Python execution via Pyodide",
-        "Live web search, Wikipedia, and weather tools",
-        "Interactive chess and checkers games",
-        "Unit converter, currency converter, calculator",
-        "Password generator, UUID generator",
-        "ASCII art, color palette generator",
-        "Countdown timer, clipboard reader",
-        "Installable as a Progressive Web App (PWA)",
-        "Works fully offline after first load",
-        "Persistent encrypted chat history (IndexedDB)",
-        "Open source (MIT License)"
+        "100% private on-device LLM inference",
+        "WebGPU and WebAssembly execution",
+        "In-browser Python code execution (Pyodide)",
+        "Works offline as an installable Progressive Web App (PWA)",
+        "Zero tracking, no login, open source"
       ],
       "screenshot": "https://chatbotjames.onrender.com/preview.png",
       "softwareVersion": "Genesis",
@@ -89,37 +83,84 @@
         "price": "0",
         "priceCurrency": "USD",
         "availability": "https://schema.org/InStock",
-        "description": "Free — no subscription, no API key, no hidden costs"
+        "description": "Free and open source under MIT License"
       },
       "author": {
         "@type": "Person",
         "name": "Andrey Lopukhov",
         "url": "https://github.com/tripping-alien"
       },
-      "publisher": {
-        "@type": "Person",
-        "name": "Andrey Lopukhov"
-      },
       "license": "https://opensource.org/licenses/MIT",
       "isAccessibleForFree": true,
-      "inLanguage": "en",
-      "keywords": "local AI chatbot, browser AI, WebGPU LLM, private AI, offline AI, Llama 3.2 browser, Qwen2.5 browser, in-browser Python, Pyodide, free AI chatbot, no server AI, on-device AI"
+      "inLanguage": "en"
     }
     </script>
 
-    <!-- BreadcrumbList for search result appearance -->
+    <!-- Structured Data 3: FAQ Schema (Unlocks Search Engine Accordions) -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "BreadcrumbList",
-      "itemListElement": [
-        { "@type": "ListItem", "position": 1, "name": "JAMES AI", "item": "https://chatbotjames.onrender.com/" }
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Does JAMES AI collect or store my chat data?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. JAMES AI operates 100% client-side inside your web browser using WebGPU and WebAssembly. Your prompts, chats, and model weights stay strictly on your device in local IndexedDB storage and are never uploaded to a server."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does JAMES AI work offline?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. After the initial load and model caching in your browser, JAMES AI functions completely offline as an installable Progressive Web App (PWA) with zero active internet connection required."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Which AI models can I run locally in the browser?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "JAMES AI supports on-device browser inference for popular open-weight LLMs including Llama 3.2, Qwen2.5, DeepSeek R1, SmolLM2, Phi-3.5, and Gemma 2."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What are the system and browser requirements to run JAMES AI?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "For GPU acceleration, you need a WebGPU-enabled browser like Chrome 113+, Edge 113+, or Firefox 120+ with a modern GPU. Devices without WebGPU support will automatically fall back to WebAssembly (WASM) CPU execution."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How is JAMES AI different from ChatGPT or Claude?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Unlike cloud-based services like ChatGPT, JAMES AI runs language models locally on your hardware. There are no monthly subscriptions, API costs, user logins, server queues, or privacy concerns regarding data harvesting."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How does in-browser Python execution work in JAMES AI?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "JAMES AI embeds Pyodide (Python compiled to WebAssembly) directly in the browser sandbox. You can execute Python scripts, run calculations, and generate visualizations locally without external backend servers."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is JAMES AI open source and free to use?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, JAMES AI is 100% free, open source under the MIT License, and requires no registration, API keys, or accounts."
+          }
+        }
       ]
     }
     </script>
-
-    <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
