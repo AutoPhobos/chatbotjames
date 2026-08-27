@@ -1,11 +1,8 @@
 export const MODEL_PRESETS = [
     // GPU - WebGPU (Capable Computers, 3B+ Params)
-    { id: 'gpu-llama31-8b-q4f16', label: 'Llama 3.1 8B', backend: 'webgpu', model: 'onnx-community/Meta-Llama-3.1-8B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 4800, ram: '16 GB', params: 8.0 },
-    { id: 'gpu-qwen25-7b-q4f16', label: 'Qwen2.5 7B', backend: 'webgpu', model: 'onnx-community/Qwen2.5-7B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 4200, ram: '12 GB', params: 7.0 },
-    { id: 'gpu-phi35-mini-q4f16', label: 'Phi-3.5-mini 3.8B', backend: 'webgpu', model: 'onnx-community/Phi-3.5-mini-instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 2200, ram: '8 GB', params: 3.8 },
     { id: 'gpu-llama32-3b-q4f16', label: 'Llama 3.2 3B', backend: 'webgpu', model: 'onnx-community/Llama-3.2-3B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 2100, ram: '6 GB', params: 3.2 },
     { id: 'gpu-qwen25-3b-q4f16', label: 'Qwen2.5 3B', backend: 'webgpu', model: 'onnx-community/Qwen2.5-3B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 1800, ram: '6 GB', params: 3.0 },
-    
+
     // GPU - WebGPU (Mid-Range Laptops, 1B - 2B Params)
     { id: 'gpu-gemma2-2b-q4f16', label: 'Gemma 2 2B', backend: 'webgpu', model: 'onnx-community/gemma-2-2b-it', dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 1400, ram: '4 GB', params: 2.0 },
     { id: 'gpu-smollm-17b-q4f16', label: 'SmolLM2 1.7B', backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 950, ram: '3 GB', params: 1.7 },
@@ -14,14 +11,14 @@ export const MODEL_PRESETS = [
 
     // GPU - WebGPU (Low-Power / Mobile, < 1B Params)
     { id: 'gpu-qwen25-05b-q4f16', label: 'Qwen2.5 0.5B', backend: 'webgpu', model: 'onnx-community/Qwen2.5-0.5B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 400, ram: '2 GB', params: 0.5 },
-    
+
     // CPU - WASM (General Fallbacks)
     { id: 'cpu-llama32-1b-q4', label: 'Llama 3.2 1B', backend: 'wasm', model: 'onnx-community/Llama-3.2-1B-Instruct', dtype: 'q4', requires: 'cpu', autoSelect: true, sizeMB: 650, ram: '2 GB', params: 1.2 },
     { id: 'cpu-tinyllama-q4', label: 'TinyLlama 1.1B', backend: 'wasm', model: 'Xenova/TinyLlama-1.1B-Chat-v1.0', dtype: 'q4', requires: 'cpu', autoSelect: true, sizeMB: 600, ram: '2 GB', params: 1.1 },
     { id: 'cpu-tinyllama-q8', label: 'TinyLlama 1.1B q8', backend: 'wasm', model: 'Xenova/TinyLlama-1.1B-Chat-v1.0', dtype: 'q8', requires: 'cpu', autoSelect: true, sizeMB: 1100, ram: '3 GB', params: 1.1 },
     { id: 'cpu-qwen25-05b-q4', label: 'Qwen2.5 0.5B', backend: 'wasm', model: 'onnx-community/Qwen2.5-0.5B-Instruct', dtype: 'q4', requires: 'cpu', autoSelect: true, sizeMB: 400, ram: '1 GB', params: 0.5 },
     { id: 'cpu-smollm-17b-q4', label: 'SmolLM2 1.7B', backend: 'wasm', model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct', dtype: 'q4', requires: 'cpu', autoSelect: false, sizeMB: 950, ram: '3 GB', params: 1.7 },
-    
+
     // Lite (Absolute Fallbacks for constrained devices)
     { id: 'lite-smollm-135m-q8', label: 'SmolLM2 135M q8', backend: 'wasm', model: 'HuggingFaceTB/SmolLM2-135M-Instruct', dtype: 'q8', requires: 'cpu', autoSelect: true, sizeMB: 150, ram: '512 MB', params: 0.135 },
     { id: 'lite-smollm-135m-q4', label: 'SmolLM2 135M q4', backend: 'wasm', model: 'HuggingFaceTB/SmolLM2-135M-Instruct', dtype: 'q4', requires: 'cpu', autoSelect: true, sizeMB: 90, ram: '256 MB', params: 0.135 },

@@ -735,7 +735,7 @@ async function ipTool(params) {
 async function asciiArtTool(params) {
     const { text, font = 'standard' } = params;
     if (!text) throw new Error('ascii_art requires a text parameter');
-    
+
     // We try asciified first, fallback to basic text if it fails
     try {
         const url = new URL('https://asciified.thelicato.io/api/v2/ascii');
