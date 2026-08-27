@@ -6,7 +6,7 @@ import { uiManager } from './ui-manager.js';
 import { workerController } from './worker-controller.js';
 
 import { smallTalk } from './smalltalk.js?v=2';
-import { toolRouter } from './tool-router.js';
+
 import { CONFIG } from './config.js';
 import { safeLocalStorage, dbSaveNote, dbDeleteNote, dbClearNotes } from './chat-db.js';
 import { playSendSound } from './audio-wakelock.js';
@@ -463,26 +463,6 @@ function sendMessage(preExecutedMove = null) {
             simulateCannedResponse(canned); // Need to patch simulateCannedResponse to use global state
             return;
         }
-
-        const toolMatch = toolRouter.match(processedText);
-        if (toolMatch) {
-            const simulatedAssistantMessage = "```tool:run\n" + toolMatch.tool + "\n" + Object.entries(toolMatch.params).map(([k, v]) => `${k}: ${v}`).join('\n') + "\n```";
-            uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
-            updateStatusLight('thinking');
-            uiManager.updateStatusText('ROUTING...');
-            
-            const targetId = getNextTargetId();
-            workerController.activeGenerations.set(chatManager.currentChatId, targetId);
-            updateLiveBubble('...', targetId);
-            
-            setTimeout(() => {
-                chatManager.chatHistory.push({ role: 'assistant', content: simulatedAssistantMessage });
-                chatManager.persistCurrentChat(() => gameController.getGameState());
-                renderChatLog();
-                handleToolCalls(simulatedAssistantMessage, targetId, chatManager.currentChatId);
-            }, 300);
-            return;
-        }
     }
 
     uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
@@ -739,10 +719,10 @@ function initRecovery() {
         modal.classList.remove('active');
     };
 
-    document.getElementById('recoveryNo')?.addEventListener('click', closePopup, { once: true });
+    document.getElementById('recoveryNoBtn')?.addEventListener('click', closePopup, { once: true });
     document.getElementById('recoveryClose')?.addEventListener('click', closePopup, { once: true });
 
-    document.getElementById('recoveryYes')?.addEventListener('click', () => {
+    document.getElementById('recoveryYesBtn')?.addEventListener('click', () => {
         closePopup();
         uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
         updateStatusLight('thinking');
@@ -889,8 +869,7 @@ function _showCopyToast() {
 }
 
 function _updateNotesUI(notes) {
-    const notesContent = document.getElementById('notesContent');
-    const notesCount = document.getElementById('notesCount');
+    const notesList = document.getElementById('notesList');
     const btn = document.getElementById('notesBtn');
     
     if (btn) {
@@ -900,19 +879,17 @@ function _updateNotesUI(notes) {
         btn.classList.toggle('notes-active', notes && notes.length > 0);
     }
     
-    if (!notesContent) return;
+    if (!notesList) return;
 
     if (!notes || notes.length === 0) {
-        notesContent.innerHTML = '<div style="padding:1rem;color:var(--text-color);opacity:0.6;">No notes saved yet. JAMES will automatically remember important details about you.</div>';
-        if (notesCount) notesCount.textContent = '0';
+        notesList.innerHTML = '<p class="notes-empty">JAMES hasn\'t saved any notes about you yet.<br><small>Notes are saved automatically as you chat.</small></p>';
         return;
     }
 
-    if (notesCount) notesCount.textContent = notes.length.toString();
-    notesContent.innerHTML = notes.map(note => `
+    notesList.innerHTML = notes.map(note => `
         <div class="note-item" style="padding:0.75rem;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
             <div style="font-size:0.9rem;line-height:1.4;flex:1;">${escapeHTML(note.text)}</div>
-            <button class="icon-btn" onclick="window._deleteNote(${note.id})" title="Delete Note" style="padding:4px;color:var(--error-color);">🗑️</button>
+            <button class="icon-btn" onclick="window._deleteNote('${note.id}')" title="Delete Note" style="padding:4px;color:var(--error-color);">🗑️</button>
         </div>
     `).join('');
 }

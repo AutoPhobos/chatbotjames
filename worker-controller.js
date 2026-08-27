@@ -76,9 +76,13 @@ class WorkerController {
                 if (this.onThinking) this.onThinking(chatId, targetId);
                 break;
             case 'complete':
-                if (this.onComplete) this.onComplete(chatId, targetId, message);
-                if (this.onToolCalls && message && /```\s*tool:run\n/.test(message)) {
-                    this.onToolCalls(message, targetId, chatId);
+                if (message && /```\s*tool:run\n/.test(message)) {
+                    // Message contains tool calls — route exclusively to tool handler.
+                    // handleToolCalls will push the assistant message to history itself,
+                    // so we must NOT call onComplete here to avoid a duplicate entry.
+                    if (this.onToolCalls) this.onToolCalls(message, targetId, chatId);
+                } else {
+                    if (this.onComplete) this.onComplete(chatId, targetId, message);
                 }
                 break;
             case 'aborted':
