@@ -2,7 +2,7 @@ export const CONFIG = {
     "ui": {
         "renderWindowMessages": 50,
         "maxHistory": 30,
-        "maxToolDepth": 30,
+        "maxToolDepth": 5,
         "throttleFpsMs": 33,
         "streamRenderIntervalMs": 15
     },

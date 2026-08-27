@@ -695,8 +695,8 @@ function initRecovery() {
     const modal = document.getElementById('recoveryModal');
     if (!overlay || !modal) return;
 
-    overlay.classList.add('active');
-    modal.classList.add('active');
+    overlay.classList.add('visible');
+    modal.classList.add('open');
 
     const lastInput = lastMsg.displayContent || lastMsg.content || '(previous message)';
     const promptTextEl = modal.querySelector('#recoveryPromptText');
@@ -715,8 +715,8 @@ function initRecovery() {
     }
 
     const closePopup = () => {
-        overlay.classList.remove('active');
-        modal.classList.remove('active');
+        overlay.classList.remove('visible');
+        modal.classList.remove('open');
     };
 
     document.getElementById('recoveryNoBtn')?.addEventListener('click', closePopup, { once: true });
@@ -862,10 +862,11 @@ setupModelPanel({
 
 
 function _showCopyToast() {
-    const toast = document.getElementById('copyToast');
+    const toast = document.getElementById('noteToast');
     if (!toast) return;
-    toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), 2000);
+    toast.textContent = 'Copied!';
+    toast.classList.add('visible');
+    setTimeout(() => toast.classList.remove('visible'), 2000);
 }
 
 function _updateNotesUI(notes) {
@@ -911,8 +912,8 @@ function _setupNotesPanel() {
     const closeBtn = document.getElementById('notesPanelClose');
     if (!btn || !panel) return;
 
-    const openPanel  = () => { panel.classList.add('active'); overlay?.classList.add('active'); };
-    const closePanel = () => { panel.classList.remove('active'); overlay?.classList.remove('active'); };
+    const openPanel  = () => { panel.classList.add('open'); overlay?.classList.add('visible'); };
+    const closePanel = () => { panel.classList.remove('open'); overlay?.classList.remove('visible'); };
 
     btn.addEventListener('click', openPanel);
     overlay?.addEventListener('click', closePanel);
