@@ -170,6 +170,31 @@ export function updateLiveBubble(text, targetId, force = false) {
     _lastRenderTime = now;
 
     bubble.innerHTML = formatAssistantMessage(text);
+
+    // On the final render (force=true), promote the bare bubble into the full
+    // assistant-msg-container structure so the copy button is added immediately
+    // (without needing a renderChatLog / page refresh).
+    if (force && bubble.parentElement && !bubble.parentElement.classList.contains('assistant-msg-container')) {
+        const messageWrap = bubble.parentElement;
+        const container = document.createElement('div');
+        container.className = 'assistant-msg-container';
+        container.style.position = 'relative';
+
+        // Move bubble into container
+        messageWrap.removeChild(bubble);
+        container.appendChild(bubble);
+
+        // Add copy button
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'copy-msg-btn';
+        copyBtn.innerHTML = '📋';
+        copyBtn.title = 'Copy message';
+        copyBtn.onclick = () => navigator.clipboard.writeText(text);
+        container.appendChild(copyBtn);
+
+        messageWrap.appendChild(container);
+    }
+
     chatLog.scrollTop = chatLog.scrollHeight;
 }
 
