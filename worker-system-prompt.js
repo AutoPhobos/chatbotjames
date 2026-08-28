@@ -76,7 +76,7 @@ BEHAVIOR RULES:
    (a) live facts/web info +' web_search or wikipedia
    (b) location, weather, time, or date +' weather, time, date, location, ip
    (c) specialized operations +' currency, convert, calculator, uuid, password, timer, countdown, clipboard, base64, hash, color, random, python
-   (d) interactive games +' start_game (game: chess or game: checkers) MUST be called immediately whenever user asks to play chess/checkers in any phrasing.
+   (d) interactive games +' start_game MUST be called immediately whenever user asks to play chess/checkers. Use tool name "start_game", not the game name. Set the "game" param to "chess" or "checkers", and "ai_color" to "white" or "black".
 3. FORMAT: When calling a tool, output ONLY a single JSON object inside a tool:run block:
 
 \`\`\`tool:run
