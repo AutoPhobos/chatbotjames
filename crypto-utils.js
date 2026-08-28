@@ -1,8 +1,8 @@
 /**
  * crypto-utils.js — AES-256-GCM encryption via the Web Crypto API.
  *
- * The master key is generated once per browser/origin and stored in
- * localStorage as an exported JWK (Base64-encoded JSON).
+ * The master key is generated once per browser/origin and stored as a
+ * non-extractable CryptoKey in a dedicated IndexedDB store.
  *
  * Threat model: protects IDB data files on disk from raw file-system
  * inspection (e.g. shared computer, forensic imaging). Does NOT protect
@@ -10,6 +10,9 @@
  */
 
 const KEY_STORAGE_KEY = 'james-enc-key-v1';
+const KEY_DB_NAME = 'james-crypto-db';
+const KEY_STORE_NAME = 'keys';
+const KEY_ID = 'master';
 let _cryptoKey = null; // In-memory cache — only loaded once per page lifetime
 let _cryptoKeyPromise = null; // Prevent concurrent callers from generating different keys
 
@@ -22,7 +25,15 @@ export async function initEncryption() {
     if (_cryptoKey) return _cryptoKey;
     if (_cryptoKeyPromise) return _cryptoKeyPromise;
 
-    _cryptoKeyPromise = (async () => {
+    const initialize = async () => {
+        const db = await _openKeyDB();
+        const storedKey = await _readStoredKey(db);
+        if (storedKey) {
+            _cryptoKey = storedKey;
+            db.close();
+            return _cryptoKey;
+        }
+
         let stored;
         try {
             stored = localStorage.getItem(KEY_STORAGE_KEY);
@@ -30,36 +41,40 @@ export async function initEncryption() {
             console.warn('⚠️ Could not read the encryption key from localStorage:', e);
         }
 
-        if (stored) {
+        if (stored !== null && stored !== undefined) {
             const jwk = JSON.parse(atob(stored));
             _cryptoKey = await crypto.subtle.importKey(
                 'jwk',
                 jwk,
                 { name: 'AES-GCM', length: 256 },
-                true,
+                false,
                 ['encrypt', 'decrypt']
             );
+            await _writeStoredKey(db, _cryptoKey);
+            db.close();
+            try {
+                localStorage.removeItem(KEY_STORAGE_KEY);
+            } catch (e) {
+                console.warn('⚠️ Could not remove the legacy encryption key:', e);
+            }
             return _cryptoKey;
         }
 
         const key = await crypto.subtle.generateKey(
             { name: 'AES-GCM', length: 256 },
-            true,
+            false,
             ['encrypt', 'decrypt']
         );
         _cryptoKey = key;
-
-        try {
-            const jwk = await crypto.subtle.exportKey('jwk', key);
-            localStorage.setItem(KEY_STORAGE_KEY, btoa(JSON.stringify(jwk)));
-            console.log('🔐 New AES-256-GCM encryption key generated.');
-        } catch (e) {
-            // Private/incognito mode may block localStorage — non-fatal
-            console.warn('⚠️ Could not persist encryption key to localStorage:', e);
-        }
+        await _writeStoredKey(db, key);
+        db.close();
+        console.log('🔐 New AES-256-GCM encryption key generated.');
 
         return key;
-    })();
+    };
+    _cryptoKeyPromise = typeof navigator !== 'undefined' && navigator.locks
+        ? navigator.locks.request('james-encryption-key', initialize)
+        : initialize();
 
     try {
         return await _cryptoKeyPromise;
@@ -149,4 +164,37 @@ function _u8ToB64(u8) {
 
 function _b64ToU8(b64) {
     return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+}
+
+function _openKeyDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(KEY_DB_NAME, 1);
+        request.onupgradeneeded = () => {
+            if (!request.result.objectStoreNames.contains(KEY_STORE_NAME)) {
+                request.result.createObjectStore(KEY_STORE_NAME);
+            }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+function _readStoredKey(db) {
+    return new Promise((resolve, reject) => {
+        const request = db.transaction(KEY_STORE_NAME, 'readonly')
+            .objectStore(KEY_STORE_NAME)
+            .get(KEY_ID);
+        request.onsuccess = () => resolve(request.result || null);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+function _writeStoredKey(db, key) {
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(KEY_STORE_NAME, 'readwrite');
+        transaction.objectStore(KEY_STORE_NAME).put(key, KEY_ID);
+        transaction.oncomplete = resolve;
+        transaction.onerror = () => reject(transaction.error);
+        transaction.onabort = () => reject(transaction.error || new Error('Encryption key transaction aborted'));
+    });
 }

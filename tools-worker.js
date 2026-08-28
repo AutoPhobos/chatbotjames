@@ -122,12 +122,13 @@ async function getWikipedia(params) {
 // ── Currency exchange (frankfurter.app, no key) ───────────────────────────
 async function getCurrency(params) {
     const { from, to, amount = 1 } = params;
+    const numericAmount = Number(amount);
+    if (!Number.isFinite(numericAmount)) throw new Error('Currency amount must be a finite number');
     const fromCode = from.toUpperCase();
     const toCode = to.toUpperCase();
 
     if (fromCode === toCode) {
-        const amt = parseFloat(amount);
-        return { from: fromCode, to: toCode, rate: 1, amount: amt, converted: amt.toFixed(2) };
+        return { from: fromCode, to: toCode, rate: 1, amount: numericAmount, converted: numericAmount.toFixed(2) };
     }
 
     const res = await fetch(
@@ -146,8 +147,8 @@ async function getCurrency(params) {
         from: fromCode,
         to: toCode,
         rate,
-        amount: parseFloat(amount),
-        converted: (parseFloat(amount) * rate).toFixed(2)
+        amount: numericAmount,
+        converted: (numericAmount * rate).toFixed(2)
     };
 }
 
@@ -166,7 +167,8 @@ async function getTime(params) {
 
 // ── UUID generator ────────────────────────────────────────────────────────
 function generateUUID(params) {
-    const count = Math.min(parseInt(params?.count ?? 1), 20);
+    const parsedCount = Number.parseInt(params?.count ?? 1, 10);
+    const count = Number.isFinite(parsedCount) ? Math.max(1, Math.min(parsedCount, 20)) : 1;
     const uuids = [];
     for (let i = 0; i < count; i++) uuids.push(crypto.randomUUID());
     return { uuids };
@@ -174,8 +176,10 @@ function generateUUID(params) {
 
 // ── Password generator ────────────────────────────────────────────────────
 function generatePassword(params) {
-    const length = Math.min(parseInt(params?.length ?? 16), 128);
-    const count = Math.min(parseInt(params?.count ?? 1), 10);
+    const parsedLength = Number.parseInt(params?.length ?? 16, 10);
+    const parsedCount = Number.parseInt(params?.count ?? 1, 10);
+    const length = Number.isFinite(parsedLength) ? Math.max(1, Math.min(parsedLength, 128)) : 16;
+    const count = Number.isFinite(parsedCount) ? Math.max(1, Math.min(parsedCount, 10)) : 1;
     const upper = params?.uppercase !== false;
     // Accept both 'digits' (new handler) and 'numbers' (legacy) for compat
     const digits = (params?.digits ?? params?.numbers) !== false;
@@ -185,6 +189,7 @@ function generatePassword(params) {
     if (upper) chars += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     if (digits) chars += '0123456789';
     if (symbols) chars += '!@#$%^&*()_+-=[]{}|;:,.<>?';
+    if (!chars.length) throw new Error('At least one password character set must be enabled');
 
     const passwords = [];
     for (let p = 0; p < count; p++) {
@@ -234,7 +239,8 @@ function generatePalette(params) {
 
     const [h, s, l] = hexToHsl(base);
     const colors = [];
-    const n = Math.max(1, parseInt(count));
+    const parsedCount = Number.parseInt(count, 10);
+    const n = Number.isFinite(parsedCount) ? Math.max(1, Math.min(parsedCount, 20)) : 5;
 
     if (scheme === 'analogous') {
         for (let i = 0; i < n; i++) colors.push(hslToHex((h + i * 30) % 360, s, l));
@@ -420,6 +426,8 @@ function getUnitType(unit) {
 
 function convertUnits(params) {
     const { amount, from, to, fromType } = params;
+    const numericAmount = Number(amount);
+    if (!Number.isFinite(numericAmount)) throw new Error('Conversion amount must be a finite number');
     const fromKey = from.toLowerCase();
     const toKey = to.toLowerCase();
 
@@ -431,9 +439,9 @@ function convertUnits(params) {
     if (fromTemp || toTemp) {
         if (!fromTemp || !toTemp) throw new Error(`Mixed temperature/non-temperature units`);
         let celsius;
-        if (fromTemp === 'C') celsius = amount;
-        else if (fromTemp === 'F') celsius = (amount - 32) * 5 / 9;
-        else celsius = amount - 273.15; // K
+        if (fromTemp === 'C') celsius = numericAmount;
+        else if (fromTemp === 'F') celsius = (numericAmount - 32) * 5 / 9;
+        else celsius = numericAmount - 273.15; // K
 
         let result;
         if (toTemp === 'C') result = celsius;
@@ -441,7 +449,7 @@ function convertUnits(params) {
         else result = celsius + 273.15; // K
 
         return {
-            amount, from, to,
+            amount: numericAmount, from, to,
             result: parseFloat(result.toFixed(4)),
             formatted: `${parseFloat(result.toFixed(4))}°${toTemp}`
         };
@@ -459,9 +467,9 @@ function convertUnits(params) {
         throw new Error(`Incompatible units: "${from}" (${fromTypeResolved}) ≠ "${to}" (${toTypeResolved})`);
     }
 
-    const result = (amount * fromFactor) / toFactor;
+    const result = (numericAmount * fromFactor) / toFactor;
     return {
-        amount, from, to,
+        amount: numericAmount, from, to,
         result: parseFloat(result.toPrecision(8)),
         formatted: `${parseFloat(result.toPrecision(8))} ${to}`
     };
@@ -679,15 +687,25 @@ function randomTool(params) {
     }
 
     if (mode === 'range') {
-        const lo = Math.min(parseInt(min), parseInt(max));
-        const hi = Math.max(parseInt(min), parseInt(max));
+        const parsedMin = Number.parseInt(min, 10);
+        const parsedMax = Number.parseInt(max, 10);
+        if (!Number.isFinite(parsedMin) || !Number.isFinite(parsedMax)) {
+            throw new Error('Random range requires integer bounds');
+        }
+        const lo = Math.min(parsedMin, parsedMax);
+        const hi = Math.max(parsedMin, parsedMax);
         const result = Math.floor(_cryptoRandom() * (hi - lo + 1)) + lo;
         return { mode: 'range', min: lo, max: hi, result };
     }
 
     if (mode === 'dice') {
-        const n = Math.min(parseInt(count), 100);
-        const s = Math.min(parseInt(sides), 1000);
+        const parsedCount = Number.parseInt(count, 10);
+        const parsedSides = Number.parseInt(sides, 10);
+        if (!Number.isFinite(parsedCount) || !Number.isFinite(parsedSides)) {
+            throw new Error('Dice requires integer count and sides');
+        }
+        const n = Math.max(1, Math.min(parsedCount, 100));
+        const s = Math.max(2, Math.min(parsedSides, 1000));
         const rolls = Array.from({ length: n }, () => Math.floor(_cryptoRandom() * s) + 1);
         const total = rolls.reduce((a, b) => a + b, 0);
         return { mode: 'dice', dice: `${n}d${s}`, rolls, total };

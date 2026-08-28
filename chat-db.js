@@ -15,6 +15,7 @@ const IDB_STORE       = 'chats';
 const IDB_NOTES_STORE = 'user-notes';
 let _idb = null;
 let _idbPromise = null; // Prevents concurrent open() races — callers share one promise
+const _chatWriteQueues = new Map();
 
 export async function openChatDB() {
     if (_idb) return _idb;
@@ -50,30 +51,46 @@ export function dbSaveChat(chat) {
         messages: chat.messages,
         gameState: chat.gameState ?? null
     };
-    Promise.all([encryptObject(payload), openChatDB()])
-        .then(([data, db]) => {
-            try {
+    const previous = _chatWriteQueues.get(id) || Promise.resolve();
+    const current = previous
+        .catch(() => {})
+        .then(async () => {
+            const [data, db] = await Promise.all([encryptObject(payload), openChatDB()]);
+            await new Promise((resolve, reject) => {
                 const tx = db.transaction(IDB_STORE, 'readwrite');
                 tx.objectStore(IDB_STORE).put({ id, data });
-            } catch (e) {
-                console.warn('IDB save transaction failed:', e);
-            }
-        })
-        .catch(e => console.warn('IDB save failed:', e));
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(tx.error);
+                tx.onabort = () => reject(tx.error || new Error('IDB chat save aborted'));
+            });
+        });
+    _chatWriteQueues.set(id, current);
+    current.catch(e => console.warn('IDB save failed:', e)).finally(() => {
+        if (_chatWriteQueues.get(id) === current) _chatWriteQueues.delete(id);
+    });
+    return current;
 }
 
 /** Fire-and-forget: delete a chat from IndexedDB by id. */
 export function dbDeleteChat(id) {
-    openChatDB()
-        .then(db => {
-            try {
+    const previous = _chatWriteQueues.get(id) || Promise.resolve();
+    const current = previous
+        .catch(() => {})
+        .then(async () => {
+            const db = await openChatDB();
+            await new Promise((resolve, reject) => {
                 const tx = db.transaction(IDB_STORE, 'readwrite');
                 tx.objectStore(IDB_STORE).delete(id);
-            } catch (e) {
-                console.warn('IDB delete transaction failed:', e);
-            }
-        })
-        .catch(e => console.warn('IDB delete failed:', e));
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(tx.error);
+                tx.onabort = () => reject(tx.error || new Error('IDB chat delete aborted'));
+            });
+        });
+    _chatWriteQueues.set(id, current);
+    current.catch(e => console.warn('IDB delete failed:', e)).finally(() => {
+        if (_chatWriteQueues.get(id) === current) _chatWriteQueues.delete(id);
+    });
+    return current;
 }
 
 /** Load all chats, sorted newest-first. Decrypts each row transparently. */
@@ -124,7 +141,7 @@ export async function migrateFromLocalStorage() {
         if (Array.isArray(chats) && chats.length > 0) {
             console.log(`📦 Migrating ${chats.length} chat(s) from localStorage → encrypted IndexedDB…`);
             await openChatDB();
-            for (const chat of chats) dbSaveChat(chat); // encrypted on save
+            await Promise.all(chats.map(chat => dbSaveChat(chat)));
             safeLocalStorage.removeItem('chatbot-chats');
             console.log('✅ Migration complete (chats now encrypted)');
         }

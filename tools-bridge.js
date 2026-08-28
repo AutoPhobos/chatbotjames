@@ -125,7 +125,8 @@ function showTimer(seconds, label, neuralLink) {
     const div = document.createElement('div');
     div.className = 'msg msg-sys timer-widget';
 
-    let remaining = parseInt(seconds);
+    let remaining = Number.isFinite(Number(seconds)) ? Math.max(1, Math.floor(Number(seconds))) : 1;
+    const timerLabel = String(label ?? 'Timer');
 
     function fmt(s) {
         const m = Math.floor(s / 60).toString().padStart(2, '0');
@@ -133,27 +134,40 @@ function showTimer(seconds, label, neuralLink) {
         return `${m}:${sec}`;
     }
 
-    div.innerHTML = `
-        <span style="font-size:1.2em;">⏱️</span>
-        <strong>${label ?? 'Timer'}</strong>
-        <span class="timer-display" style="font-family:monospace; font-size:1.4em; margin: 0 12px;">${fmt(remaining)}</span>
-        <button class="timer-stop-btn" style="font-size:0.8em; padding:2px 8px;">Stop</button>
-    `;
+    const icon = document.createElement('span');
+    icon.style.fontSize = '1.2em';
+    icon.textContent = '⏱️';
+    const title = document.createElement('strong');
+    title.textContent = timerLabel;
+    const display = document.createElement('span');
+    display.className = 'timer-display';
+    display.style.fontFamily = 'monospace';
+    display.style.fontSize = '1.4em';
+    display.style.margin = '0 12px';
+    display.textContent = fmt(remaining);
+    const stopBtn = document.createElement('button');
+    stopBtn.className = 'timer-stop-btn';
+    stopBtn.style.fontSize = '0.8em';
+    stopBtn.style.padding = '2px 8px';
+    stopBtn.textContent = 'Stop';
+    div.append(icon, title, display, stopBtn);
 
     logEl.appendChild(div);
     logEl.scrollTop = logEl.scrollHeight;
-
-    const display = div.querySelector('.timer-display');
-    const stopBtn = div.querySelector('.timer-stop-btn');
 
     const interval = setInterval(() => {
         remaining--;
         if (remaining <= 0) {
             clearInterval(interval);
             display.textContent = '00:00';
-            div.innerHTML = `⏱️ <strong>${label ?? 'Timer'}</strong> — <span style="color:#00ff41">✅ Done!</span>`;
-            if (Notification.permission === 'granted') {
-                new Notification('JAMES Timer', { body: `${label ?? 'Timer'} finished!` });
+            div.replaceChildren();
+            const done = document.createElement('span');
+            done.style.color = '#00ff41';
+            done.textContent = '✅ Done!';
+            div.append('⏱️ ', document.createElement('strong'), ' — ', done);
+            div.querySelector('strong').textContent = timerLabel;
+            if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+                new Notification('JAMES Timer', { body: `${timerLabel} finished!` });
             }
         } else {
             display.textContent = fmt(remaining);
@@ -162,11 +176,14 @@ function showTimer(seconds, label, neuralLink) {
 
     stopBtn.onclick = () => {
         clearInterval(interval);
-        div.innerHTML = `⏱️ <strong>${label ?? 'Timer'}</strong> — stopped at ${fmt(remaining)}`;
+        div.replaceChildren();
+        const stopped = document.createElement('strong');
+        stopped.textContent = timerLabel;
+        div.append('⏱️ ', stopped, ` — stopped at ${fmt(remaining)}`);
     };
 
     // Request notification permission for timer completion
-    if (Notification.permission === 'default') {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
         Notification.requestPermission();
     }
 }
