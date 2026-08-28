@@ -1006,6 +1006,22 @@ function _setupNotesPanel() {
 }
 _setupNotesPanel();
 
+function _setupFaqPanel() {
+    const btn      = document.getElementById('faqBtn');
+    const panel    = document.getElementById('faqPanel');
+    const overlay  = document.getElementById('faqPanelOverlay');
+    const closeBtn = document.getElementById('faqPanelClose');
+    if (!btn || !panel) return;
+
+    const openPanel  = (e) => { e.preventDefault(); panel.classList.add('open'); overlay?.classList.add('visible'); };
+    const closePanel = () => { panel.classList.remove('open'); overlay?.classList.remove('visible'); };
+
+    btn.addEventListener('click', openPanel);
+    overlay?.addEventListener('click', closePanel);
+    closeBtn?.addEventListener('click', closePanel);
+}
+_setupFaqPanel();
+
 import('./tools-bridge.js').then(module => {
     module.setupToolsBridge({
         worker: workerController.toolsWorker,
