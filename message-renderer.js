@@ -143,6 +143,10 @@ export function updateLiveBubble(text, targetId, force = false) {
     let bubble = document.getElementById(`bubble-${targetId}`);
 
     if (!bubble) {
+        // If this is the final forced render (force=true) but the bubble no longer exists in the
+        // DOM (e.g. the user switched chats and renderChatLog already rebuilt for the new chat),
+        // bail out — creating a new element here would insert a ghost bubble into the wrong chat.
+        if (force) return;
         const messageWrap = document.createElement('div');
         messageWrap.className = 'message-wrap assistant-msg';
         bubble = document.createElement('div');

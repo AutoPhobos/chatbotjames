@@ -25,6 +25,9 @@ export function queueStreamText(targetId, fullText) {
 }
 
 export function drainStreamQueue(targetId) {
+    // Guard: if flushStreamQueue already ran (timer fired just before clearTimeout could cancel it),
+    // bail out immediately so we never overwrite the final force-rendered bubble with partial text.
+    if (_finished.has(targetId)) return;
     const state = streamQueues.get(targetId);
     if (!state || state.displayed.length >= state.pending.length) {
         if (state) state.running = false;
