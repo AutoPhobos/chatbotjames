@@ -4,7 +4,7 @@ class AttachmentManager {
         this.onPreviewsUpdated = null; // Callback for UI
     }
 
-    setupFileAttachment(attachButtonId, fileInputId, dropZoneId) {
+    setupFileAttachment(attachButtonId, fileInputId, dropZoneId, appendErrorToChatCallback) {
         const attachButton = document.getElementById(attachButtonId);
         const fileInput = document.getElementById(fileInputId);
         
@@ -13,7 +13,7 @@ class AttachmentManager {
                 fileInput.click();
             });
             fileInput.addEventListener('change', (e) => {
-                this.handleFilesSelected(e.target.files);
+                this.handleFilesSelected(e.target.files, appendErrorToChatCallback);
                 fileInput.value = ''; // reset so same file can be selected again
             });
         }
@@ -31,7 +31,7 @@ class AttachmentManager {
                 e.preventDefault();
                 dropZone.classList.remove('dragover');
                 if (e.dataTransfer.files.length > 0) {
-                    this.handleFilesSelected(e.dataTransfer.files);
+                    this.handleFilesSelected(e.dataTransfer.files, appendErrorToChatCallback);
                 }
             });
         }

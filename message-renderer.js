@@ -263,7 +263,15 @@ export function createMessageElement(msg, historyIdx = -1, isLastAssistant = fal
     copyBtn.className = 'copy-msg-btn';
     copyBtn.innerHTML = '📋';
     copyBtn.title = 'Copy message';
-    copyBtn.onclick = () => navigator.clipboard.writeText(msg.content);
+    
+    let textToCopy = msg.content;
+    if (msg.role === 'user' && msg.displayContent) {
+        textToCopy = msg.displayContent;
+    } else if (msg.role === 'user') {
+        const gameStateIdx = textToCopy.indexOf('\n\n[Game State]');
+        if (gameStateIdx !== -1) textToCopy = textToCopy.substring(0, gameStateIdx).trim();
+    }
+    copyBtn.onclick = () => navigator.clipboard.writeText(textToCopy);
 
     if (msg.role === 'assistant') {
         messageContent.innerHTML = formatAssistantMessage(msg.content);

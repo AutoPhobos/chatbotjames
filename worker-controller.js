@@ -93,7 +93,11 @@ class WorkerController {
                 }
                 break;
             case 'aborted':
-                if (this.onAborted) this.onAborted(chatId, targetId, message);
+                if (hasToolCalls(message)) {
+                    if (this.onToolCalls) this.onToolCalls(message, targetId, chatId);
+                } else {
+                    if (this.onAborted) this.onAborted(chatId, targetId, message);
+                }
                 break;
         }
     }

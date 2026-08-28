@@ -93,7 +93,6 @@ class ChatManager {
         dbDeleteChat(chatId);
 
         if (chatId === this.currentChatId) {
-            this.currentChatId = null;
             if (this.allChats.length > 0) {
                 this.loadChatHistory(this.allChats[0].id, getGameStateCallback, restoreGameStateCallback, safeLocalStorage);
             } else {

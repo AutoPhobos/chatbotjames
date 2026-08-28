@@ -37,13 +37,16 @@ export function drainStreamQueue(targetId) {
     updateLiveBubble(state.displayed, targetId);
 
     // Speed is controlled by CONFIG.ui.streamRenderIntervalMs (default 15 ms)
-    setTimeout(() => drainStreamQueue(targetId), CONFIG.ui.streamRenderIntervalMs);
+    state.timeoutId = setTimeout(() => drainStreamQueue(targetId), CONFIG.ui.streamRenderIntervalMs);
 }
 
 export function flushStreamQueue(targetId) {
     _finished.add(targetId);
     if (_finished.size > 64) _finished.delete(_finished.values().next().value);
     const state = streamQueues.get(targetId);
-    if (state) updateLiveBubble(state.pending, targetId, true);
+    if (state) {
+        if (state.timeoutId) clearTimeout(state.timeoutId);
+        updateLiveBubble(state.pending, targetId, true);
+    }
     streamQueues.delete(targetId);
 }

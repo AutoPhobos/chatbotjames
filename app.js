@@ -279,7 +279,7 @@ workerController.onToolCalls = (message, targetId, chatId) => {
 workerController.onAborted = (chatId, targetId, message) => {
     import('./stream-manager.js').then(sm => sm.flushStreamQueue(targetId));
     if (chatId === chatManager.currentChatId && message !== undefined && message !== null) {
-        updateLiveBubble(message, targetId);
+        updateLiveBubble(message, targetId, true); // force=true: bypass throttle so the final aborted content always renders
         chatManager.chatHistory.push({ role: 'assistant', content: message });
         
         if (window.gameController && window.gameController.activeGame) {
@@ -351,10 +351,17 @@ attachmentManager.onPreviewsUpdated = () => {
     attachmentManager.attachedFiles.forEach((file, index) => {
         const chip = document.createElement('div');
         chip.className = 'attachment-chip';
-        chip.innerHTML = `
-            <span>📄 ${escapeHTML(file.name)}</span>
-            <button type="button" onclick="attachmentManager.removeAttachment(${index})">&times;</button>
-        `;
+        
+        const span = document.createElement('span');
+        span.textContent = `📄 ${file.name}`;
+        
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.innerHTML = '&times;';
+        btn.onclick = () => attachmentManager.removeAttachment(index);
+        
+        chip.appendChild(span);
+        chip.appendChild(btn);
         previewContainer.appendChild(chip);
     });
 };
@@ -507,14 +514,18 @@ window.simulateCannedResponse = function(text) {
         uiManager.updateStatusText('RESPONDING...');
         if (chars >= text.length) {
             clearInterval(interval);
-            updateLiveBubble(text, targetId);
-            chatManager.chatHistory.push({ role: 'assistant', content: text });
-            chatManager.persistCurrentChat(() => gameController.getGameState());
-            renderChatLog();
-            uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
-            updateStatusLight('idle');
-            uiManager.updateStatusText('READY');
-            workerController.activeGenerations.delete(chatManager.currentChatId);
+            try {
+                updateLiveBubble(text, targetId, true); // force=true: bypass throttle for final render
+                chatManager.chatHistory.push({ role: 'assistant', content: text });
+                chatManager.persistCurrentChat(() => gameController.getGameState());
+                renderChatLog();
+            } finally {
+                // Always restore idle state — even if rendering throws
+                uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
+                updateStatusLight('idle');
+                uiManager.updateStatusText('READY');
+                workerController.activeGenerations.delete(chatManager.currentChatId);
+            }
         } else {
             updateLiveBubble(text.substring(0, chars) + '...', targetId);
         }
@@ -642,7 +653,9 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
                 const db = await import('./chat-db.js');
                 const note = params.note;
                 if (!note) throw new Error("No note provided");
-                db.dbSaveNote({ id: crypto.randomUUID(), text: note, timestamp: Date.now() });
+                await db.dbSaveNote({ id: crypto.randomUUID(), text: note, timestamp: Date.now() });
+                const updatedNotes = await db.dbLoadNotes();
+                if (chatManager.onNotesLoaded) chatManager.onNotesLoaded(updatedNotes);
                 toolResult = "Note saved silently.";
             } else if (toolName === 'read_notes') {
                 const db = await import('./chat-db.js');
@@ -778,7 +791,7 @@ function setupEventListeners() {
 // Bootstrap
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
-    attachmentManager.setupFileAttachment('attachButton', 'fileInput', 'chatWindow');
+    attachmentManager.setupFileAttachment('attachButton', 'fileInput', 'chatWindow', appendErrorToChat);
 });
 
 (async () => {

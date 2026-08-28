@@ -154,21 +154,29 @@ export async function migrateFromLocalStorage() {
 // Each note: { id: string (UUID), text: string, timestamp: number }
 // Stored format: { id, data: { iv, ct } }
 
-/** Encrypt and persist a single note. Fire-and-forget. */
+/** Encrypt and persist a single note. Returns a promise. */
 export function dbSaveNote(note) {
-    if (!note) return;
+    if (!note) return Promise.resolve();
     const { id } = note;
     const payload = { text: note.text, timestamp: note.timestamp };
-    Promise.all([encryptObject(payload), openChatDB()])
+    return Promise.all([encryptObject(payload), openChatDB()])
         .then(([data, db]) => {
-            try {
-                const tx = db.transaction(IDB_NOTES_STORE, 'readwrite');
-                tx.objectStore(IDB_NOTES_STORE).put({ id, data });
-            } catch (e) {
-                console.warn('IDB note save failed:', e);
-            }
+            return new Promise((resolve, reject) => {
+                try {
+                    const tx = db.transaction(IDB_NOTES_STORE, 'readwrite');
+                    tx.objectStore(IDB_NOTES_STORE).put({ id, data });
+                    tx.oncomplete = resolve;
+                    tx.onerror = () => reject(tx.error);
+                } catch (e) {
+                    console.warn('IDB note save failed:', e);
+                    reject(e);
+                }
+            });
         })
-        .catch(e => console.warn('IDB note save failed:', e));
+        .catch(e => {
+            console.warn('IDB note save failed:', e);
+            throw e;
+        });
 }
 
 /** Load all notes, sorted oldest-first. Decrypts each row transparently. */

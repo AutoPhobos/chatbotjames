@@ -45,9 +45,11 @@ export function setupToolsBridge(neuralLink) {
     const fileInput = document.getElementById('file-input');
     if (fileInput) {
         fileInput.addEventListener('change', async () => {
-            const file = fileInput.files[0];
-            if (!file) return;
-            await handleFileUpload(file, neuralLink);
+            const files = Array.from(fileInput.files);
+            if (!files.length) return;
+            for (const file of files) {
+                await handleFileUpload(file, neuralLink);
+            }
             fileInput.value = '';
         });
     }

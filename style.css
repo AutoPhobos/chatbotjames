@@ -126,37 +126,38 @@
 
 :root {
     /* Color Palette */
-    --bg-main: #0e0e11;
-    --sidebar-bg: #16161a;
-    --panel-bg: #1a1a21;
+    --bg-main: #000000;
+    --sidebar-bg: #051005;
+    --panel-bg: #000000;
 
     /* Accents */
-    --primary-purple: #8b5cf6;
-    --primary-purple-hover: #7c3aed;
-    --primary-blue: #3b82f6;
-    --primary-green: #10b981;
-    --danger-red: #ef4444;
+    --primary-purple: #33ff00;
+    --primary-purple-hover: #00ff00;
+    --primary-blue: #33ff00;
+    --primary-green: #33ff00;
+    --danger-red: #ff3300;
 
     /* Borders & Bubbles */
-    --border: rgba(255, 255, 255, 0.08);
-    --border-light: rgba(255, 255, 255, 0.15);
-    --input-bg: #1c1c22;
-    --assistant-bubble: #1a1a21;
-    --user-bubble: linear-gradient(135deg, #8b5cf6, #6d28d9);
+    --border: #33ff00;
+    --border-light: rgba(51, 255, 0, 0.3);
+    --input-bg: #000000;
+    --assistant-bubble: #000000;
+    --user-bubble: #001a00;
 
     /* Typography */
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
-    --disabled-gray: #334155;
+    --text-primary: #33ff00;
+    --text-secondary: #00cc00;
+    --text-muted: #008800;
+    --disabled-gray: #004400;
 
     /* Spacing */
     --chat-max-width: 48rem;
-    /* 768px */
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 18px;
-    --radius-xl: 24px;
+    
+    /* Radii */
+    --radius-sm: 0px;
+    --radius-md: 0px;
+    --radius-lg: 0px;
+    --radius-xl: 0px;
 }
 
 * {
@@ -166,12 +167,15 @@
 }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background: var(--bg-main);
+    font-family: 'Courier New', Courier, monospace;
+    background-color: var(--bg-main);
+    background-image: linear-gradient(rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+    background-size: 100% 4px;
     color: var(--text-primary);
+    text-shadow: 0 0 5px rgba(51, 255, 0, 0.5);
     height: 100dvh;
     overflow: hidden;
-    -webkit-font-smoothing: antialiased;
+    -webkit-font-smoothing: none;
     -moz-osx-font-smoothing: grayscale;
 }
 
@@ -541,8 +545,9 @@ a:hover {
 
 .user-msg .message-content {
     background: var(--user-bubble);
-    color: #fff;
-    border-bottom-right-radius: 4px;
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-bottom-right-radius: 0px;
     animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
@@ -550,7 +555,7 @@ a:hover {
     background: var(--assistant-bubble);
     color: var(--text-primary);
     border: 1px solid var(--border);
-    border-bottom-left-radius: 4px;
+    border-bottom-left-radius: 0px;
     animation: slideInLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
