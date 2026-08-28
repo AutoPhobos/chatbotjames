@@ -1479,7 +1479,7 @@ a:hover {
     text-align: left;
     margin: 20px auto;
     width: 90%;
-    max-width: 700px;
+    max-width: 640px;
 }
 
 .ascii-art {
@@ -1488,42 +1488,44 @@ a:hover {
     background-clip: text;
     -webkit-text-fill-color: transparent;
     font-weight: bold;
-    font-size: 14px;
+    font-size: 13px;
     line-height: 1.2;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
     text-shadow: none;
     white-space: pre;
     font-family: monospace;
+    text-align: center;
 }
 
 .hacker-body {
-    max-width: 600px;
     width: 100%;
 }
 
 .hacker-greeting {
     color: #10b981;
     font-weight: bold;
-    margin-bottom: 12px;
+    margin: 0 0 10px 0;
 }
 
 .hacker-text {
     color: #94a3b8;
-    margin-bottom: 16px;
+    margin: 0 0 14px 0;
     line-height: 1.5;
 }
 
 .hacker-list {
     list-style: none;
     padding: 0;
-    margin-bottom: 16px;
+    margin: 0 0 14px 0;
     color: #94a3b8;
 }
 
 .hacker-list li {
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     display: flex;
-    align-items: flex-start;
+    align-items: baseline;
+    gap: 10px;
+    line-height: 1.5;
 }
 
 .hacker-bullet {
@@ -1532,9 +1534,9 @@ a:hover {
     height: 6px;
     background: #10b981;
     border-radius: 50%;
-    margin-top: 6px;
-    margin-right: 12px;
     flex-shrink: 0;
+    position: relative;
+    top: -1px;
 }
 
 .hacker-list strong {
