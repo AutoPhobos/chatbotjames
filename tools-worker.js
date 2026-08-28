@@ -87,6 +87,24 @@ async function getWebSearch(params) {
     return performWebSearch(query);
 }
 
+// ── Fetch Page ────────────────────────────────────────────────────────────
+async function fetchPageTool(params) {
+    const { url } = params;
+    if (!url) throw new Error('fetch_page requires a url parameter');
+    try {
+        const res = await fetch(`https://r.jina.ai/${url}`, {
+            headers: {
+                'Accept': 'text/plain',
+                'X-Max-Tokens': '2000'
+            }
+        });
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        let markdownText = await res.text();
+        return { url, length: markdownText.length, content: markdownText.slice(0, 4000) };
+    } catch (e) {
+        return { error: 'Failed to fetch page', details: e.message };
+    }
+}
 
 // ── Wikipedia summary ─────────────────────────────────────────────────────
 async function getWikipedia(params) {
