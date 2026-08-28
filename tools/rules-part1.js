@@ -19,6 +19,18 @@ export const RULES = [
         },
     },
 
+    // FETCH PAGE
+    {
+        tool: 'fetch_page',
+        description: 'Fetches the content of a specific webpage or URL.',
+        examples: ['fetch page https://example.com', 'read url https://github.com', 'get webpage content https://news.ycombinator.com'],
+        patterns: [
+            /^(?:fetch|read|get)\s+(?:page|url|webpage|content)\s+(https?:\/\/[^\s]+)$/i,
+            /^(?:fetch|read|get)\s+(https?:\/\/[^\s]+)$/i,
+        ],
+        params: m => ({ url: m[1] }),
+    },
+
     // CALCULATOR
     {
         tool: 'calculator',

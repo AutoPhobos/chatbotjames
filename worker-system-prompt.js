@@ -5,6 +5,8 @@ AVAILABLE TOOLS (use only when the user's request explicitly requires it):
 --- SEARCH & KNOWLEDGE ---
 - web_search (query: string) 
   WHEN TO USE: For current events, news, live facts, or general internet searches.
+- fetch_page (url: string) 
+  WHEN TO USE: To read the full content of a specific webpage or URL.
 - wikipedia (query: string) 
   WHEN TO USE: For deep, factual encyclopedia summaries of historical events, people, places, or established concepts. 
 - search (query: string) 

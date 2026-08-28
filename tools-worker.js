@@ -813,6 +813,7 @@ const TOOL_HANDLERS = {
     random: randomTool,
     ip: ipTool,
     ascii_art: asciiArtTool,
+    fetch_page: fetchPageTool
 };
 
 self.onmessage = async (e) => {
