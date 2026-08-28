@@ -782,6 +782,9 @@ const TOOL_HANDLERS = {
 self.onmessage = async (e) => {
     const { execId, tool, params } = e.data;
 
+    // Ignore non-tool messages (e.g. init ping from worker-controller)
+    if (!tool) return;
+
     try {
         const handler = TOOL_HANDLERS[tool];
         if (!handler) throw new Error(`Unknown tool: ${tool}`);

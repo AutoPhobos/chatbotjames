@@ -103,10 +103,21 @@ class WorkerController {
 
             const listener = (e) => {
                 if (e.data && e.data.execId === reqId) {
+                    // Accept both response shapes:
+                    //  - tools-worker: { status:'done'|'error', execId, result? }
+                    //  - python-worker: { status:'done'|'error', execId, stdout?, result?, figures?, error? }
+                    // Skip intermediate messages (e.g. status:'loading', 'stdout', 'ready')
+                    if (e.data.status !== 'done' && e.data.status !== 'error') return;
+
                     clearTimeout(timeout);
                     targetWorker.removeEventListener('message', listener);
-                    if (e.data.error) reject(new Error(e.data.error));
-                    else resolve(e.data.result);
+
+                    if (e.data.status === 'error') {
+                        reject(new Error(e.data.error || 'Worker error'));
+                    } else {
+                        // Resolve with the full response so callers can access stdout/figures/result
+                        resolve(e.data);
+                    }
                 }
             };
             targetWorker.addEventListener('message', listener);

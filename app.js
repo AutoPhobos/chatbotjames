@@ -472,6 +472,9 @@ function sendMessage(preExecutedMove = null) {
     const messagesForModel = getMessagesWindow(chatManager.chatHistory);
     const targetId = getNextTargetId();
     updateLiveBubble('...', targetId);
+    // Scroll to bottom after adding user message + thinking bubble
+    const _chatLog = document.getElementById('chatLog');
+    if (_chatLog) _chatLog.scrollTop = _chatLog.scrollHeight;
     workerController.postQuery(messagesForModel, targetId, chatManager.currentChatId);
 }
 
@@ -650,10 +653,16 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
                     toolResult = "Saved Notes:\n" + notes.map(n => `- ${n.text}`).join("\n");
                 }
             } else if (toolName === 'eval_python' || toolName === 'python') {
-                toolResult = await workerController.callWorkerRPC(workerController.pythonWorker, { type: 'python', code: params.code }, 30000);
+                const pyResp = await workerController.callWorkerRPC(workerController.pythonWorker, { type: 'run', code: params.code }, 30000);
+                // python-worker returns { status, execId, stdout, result, figures }
+                toolResult = pyResp.stdout || pyResp.result || '(no output)';
+                if (pyResp.figures && pyResp.figures.length > 0) {
+                    toolResult += '\n[Matplotlib figures generated: ' + pyResp.figures.length + ']';
+                }
             } else {
                 // Route all other tools to toolsWorker
-                toolResult = await workerController.callWorkerRPC(workerController.toolsWorker, { tool: toolName, params }, 30000);
+                const rpcResp = await workerController.callWorkerRPC(workerController.toolsWorker, { tool: toolName, params }, 30000);
+                toolResult = rpcResp.result ?? rpcResp;
             }
         } catch (e) {
             toolResult = `Error executing tool: ${e.message}`;
@@ -852,6 +861,14 @@ setupMessageRenderer({
 
 setupModelPanel({
     onApplyModel: (selectedId) => {
+        // Abort any in-progress generation so the worker is free to re-init
+        if (workerController.activeGenerations.size > 0) {
+            const currentTargetId = workerController.activeGenerations.get(chatManager.currentChatId);
+            if (currentTargetId) {
+                workerController.worker.postMessage({ type: 'abort', targetId: currentTargetId });
+            }
+            workerController.activeGenerations.clear();
+        }
         uiManager.updateProgress(0);
         uiManager.updateStatusMeta('Loading selected model…');
         uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);

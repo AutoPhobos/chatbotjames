@@ -153,6 +153,7 @@ export function updateLiveBubble(text, targetId, force = false) {
 
     if (text === '...') {
         bubble.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+        chatLog.scrollTop = chatLog.scrollHeight;
         return;
     }
 
