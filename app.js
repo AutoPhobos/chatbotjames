@@ -773,6 +773,19 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
                 if (pyResp.figures && pyResp.figures.length > 0) {
                     toolResult += '\n[Matplotlib figures generated: ' + pyResp.figures.length + ']';
                 }
+            } else if (toolName === 'location') {
+                const toolsBridge = await import('./tools-bridge.js');
+                const loc = await toolsBridge.getLocation();
+                toolResult = { latitude: loc.latitude, longitude: loc.longitude, accuracy: `${Math.round(loc.accuracy)}m` };
+            } else if (toolName === 'clipboard') {
+                const toolsBridge = await import('./tools-bridge.js');
+                const content = await toolsBridge.readClipboard();
+                toolResult = { content, length: content.length };
+            } else if (toolName === 'timer') {
+                const toolsBridge = await import('./tools-bridge.js');
+                const s = Math.max(1, parseInt(params.seconds ?? 0));
+                toolsBridge.showTimer(s, params.label, { DOM: { log: document.getElementById('chatLog') } });
+                toolResult = { seconds: s, label: params.label ?? 'Timer', note: 'Timer started.' };
             } else {
                 // Route all other tools to toolsWorker
                 const rpcResp = await workerController.callWorkerRPC(workerController.toolsWorker, { tool: toolName, params }, 30000);

@@ -343,27 +343,7 @@ function readFile(params) {
     };
 }
 
-// ── Geolocation ───────────────────────────────────────────────────────────
-function getLocation(params) {
-    const { latitude, longitude, accuracy } = params;
-    if (latitude == null) throw new Error('Location not available or not yet fetched');
-    return { latitude, longitude, accuracy: `${Math.round(accuracy)}m` };
-}
 
-// ── Clipboard ─────────────────────────────────────────────────────────────
-function readClipboard(params) {
-    const { content } = params;
-    if (!content) throw new Error('Clipboard is empty or access was denied');
-    return { content, length: content.length };
-}
-
-// ── Timer/countdown ───────────────────────────────────────────────────────
-function timerTool(params) {
-    const { seconds, label } = params;
-    const s = Math.max(1, parseInt(seconds ?? 0));
-    self.postMessage({ status: 'timer', seconds: s, label: label ?? 'Timer' });
-    return { seconds: s, label: label ?? 'Timer', note: 'Timer started.' };
-}
 
 // ── NEW: Calculator ───────────────────────────────────────────────────────
 // The router pre-evaluates simple expressions; this handler receives
@@ -799,9 +779,7 @@ const TOOL_HANDLERS = {
     palette: generatePalette,
     date: dateTool,
     file: readFile,
-    location: getLocation,
-    clipboard: readClipboard,
-    timer: timerTool,
+
     search: searchIndex,
     index: indexDocument,
     calculator: calculatorTool,

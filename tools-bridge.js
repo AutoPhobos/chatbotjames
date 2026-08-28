@@ -54,13 +54,7 @@ export function setupToolsBridge(neuralLink) {
         });
     }
 
-    // ── Timer display ──────────────────────────────────────────────────────
-    // worker.js sends { status: 'timer', seconds, label } for timer tool calls
-    neuralLink.worker.addEventListener('message', (e) => {
-        if (e.data?.status === 'timer') {
-            showTimer(e.data.seconds, e.data.label, neuralLink);
-        }
-    });
+    // Timer display logic moved to direct call via showTimer() export
 }
 
 // ── File upload ────────────────────────────────────────────────────────────
@@ -122,7 +116,7 @@ export function getLocation() {
 }
 
 // ── Timer UI ───────────────────────────────────────────────────────────────
-function showTimer(seconds, label, neuralLink) {
+export function showTimer(seconds, label, neuralLink) {
     const logEl = neuralLink.DOM.log;
     const div = document.createElement('div');
     div.className = 'msg msg-sys timer-widget';
