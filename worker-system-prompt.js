@@ -149,4 +149,18 @@ System: "[Game State] ... Please make the first move using the make_move tool."
 \`\`\`tool:run
 {"tool": "make_move", "params": {"move": "e4"}}
 \`\`\`
+
+User: "Let's play checkers"
++' Use start_game tool.
+
+\`\`\`tool:run
+{"tool": "start_game", "params": {"game": "checkers", "ai_color": "white"}}
+\`\`\`
+
+System: "[Game State] ... Please make the first move using the make_move tool."
++' Use make_move tool.
+
+\`\`\`tool:run
+{"tool": "make_move", "params": {"move": "11-15"}}
+\`\`\`
 `;
