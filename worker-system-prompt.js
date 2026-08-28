@@ -135,4 +135,18 @@ User: "Convert 100 USD to EUR"
 \`\`\`tool:run
 {"tool": "currency", "params": {"from": "USD", "to": "EUR", "amount": 100}}
 \`\`\`
+
+User: "Let's play chess"
++' Use start_game tool.
+
+\`\`\`tool:run
+{"tool": "start_game", "params": {"game": "chess", "ai_color": "white"}}
+\`\`\`
+
+System: "[Game State] ... Please make the first move using the make_move tool."
++' Use make_move tool.
+
+\`\`\`tool:run
+{"tool": "make_move", "params": {"move": "e4"}}
+\`\`\`
 `;
