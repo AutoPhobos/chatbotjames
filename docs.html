@@ -80,9 +80,8 @@
             position: sticky;
             top: 0;
             z-index: 100;
-            background: rgba(26, 26, 26, 0.98);
+            background: var(--bg-main);
             border-bottom: 1px solid var(--border);
-            backdrop-filter: blur(12px);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -124,7 +123,7 @@
             overflow-y: auto;
             padding: 2rem 1.5rem;
             border-right: 1px solid var(--border);
-            background: rgba(26, 26, 26, 0.96);
+            background: var(--bg-main);
         }
 
         .sidebar-section {
@@ -224,9 +223,8 @@
             border: 1px solid var(--border);
             padding: 1.2rem 1.4rem;
             border-left: 3px solid var(--primary-blue);
-            border-radius: 16px;
             color: var(--primary-blue);
-            font-family: monospace;
+            font-family: inherit;
             font-size: 0.85rem;
             overflow-x: auto;
             margin-bottom: 1.25rem;
@@ -261,7 +259,6 @@
         .tool-card {
             background: var(--assistant-bubble);
             border: 1px solid var(--border);
-            border-radius: 18px;
             padding: 1.3rem;
             display: grid;
             gap: 0.75rem;
@@ -281,7 +278,6 @@
         .arch-diagram {
             background: var(--assistant-bubble);
             border: 1px solid var(--border);
-            border-radius: 18px;
             padding: 1.8rem;
             color: var(--text-secondary);
             line-height: 1.9;
@@ -371,7 +367,12 @@
         <main>
             <div class="page-header">
                 <p class="eyebrow">Reference // Genesis</p>
-                <h1>JAMES Documentation</h1>
+                <pre class="ascii-art" style="border:none; background:transparent; padding:0; margin-bottom: 1.5rem; color: var(--primary-purple); font-size: clamp(0.7rem, 1.5vw, 1rem); line-height: 1.2; text-shadow: 0 0 5px rgba(51,255,0,0.5);">
+   ____  ____  ____  __  __  __  __  ____  _  _  ____    __  ____  __  __  ____ 
+  (  _ \(  __)(    \(  )(  )(  \/  )(  __)( \( )(_  _)  (  )(    \(  )(  )(  _ \
+   )   / ) _)  ) D ( )(__)(  )    (  ) _)  )  (   )(     )(  ) D ( )(__)(  )   /
+  (__\_)(____)(____/(______)(_/\/\_)(____)(_)\_) (__)   (__)(____/(______)(__\_)
+                </pre>
                 <p>Complete reference for JAMES — the free local browser AI chatbot. Covers architecture, tools, backend
                     selection, model switching, and privacy.</p>
             </div>

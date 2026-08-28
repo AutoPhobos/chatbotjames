@@ -12,16 +12,7 @@ Allow: /preview.png
 Allow: /favicon.ico
 Allow: /sitemap.xml
 
-# Prevent indexing of heavy worker and internal logic files
-Disallow: /worker.js
-Disallow: /python-worker.js
-Disallow: /tools-worker.js
-Disallow: /app.js
-Disallow: /smalltalk.js
-Disallow: /tool-router.js
-Disallow: /tools-search.js
-Disallow: /tools-bridge.js
-Disallow: /orama.js
+# Let bots crawl JS files to render the application correctly
 
 # Prevent indexing of model weight cache if exposed
 Disallow: /models/

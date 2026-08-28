@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About JAMES AI — Free Private Browser AI Chatbot | No Account, No Server</title>
-    <meta name="description" content="JAMES is a completely free, 100% private AI chatbot that runs entirely in your web browser using WebGPU and WebAssembly. No account, no login, no server, no data collection. Learn how it works: on-device Llama 3.2, Qwen2.5, DeepSeek, and SmolLM inference, in-browser Python (Pyodide), live web search, chess, encrypted local storage, and full offline PWA support.">
-    <meta name="keywords" content="about JAMES AI, local AI chatbot, private AI browser, offline AI chatbot, browser AI no server, WebGPU AI chatbot, WebAssembly AI, on-device AI, edge AI, client-side LLM, free AI assistant, open source AI chatbot, no login AI, no account AI, no tracking AI, GDPR-friendly chatbot, private chatbot browser, Llama 3.2 in browser, Qwen2.5 browser, DeepSeek browser, SmolLM browser, Phi-3.5 browser, Gemma 2 browser, in-browser Python Pyodide, AI web search browser, AI chess game, AI checkers, AI unit converter, AI password generator, AI currency converter, AI timer, AI ASCII art, AI color palette, offline AI PWA, installable AI app, AI no cloud, ChatGPT alternative private, local ChatGPT no internet, run LLM browser, Transformers.js chatbot, self-hosted AI browser, encrypted AI chat, AI IndexedDB storage, AI without API key">
+    <title>About JAMES AI — Free Private Retro Terminal AI Chatbot</title>
+    <meta name="description" content="JAMES is a completely free, 100% private retro terminal AI chatbot that runs entirely in your web browser using WebGPU. No account, no login, no server. On-device Llama 3.2, Qwen2.5, DeepSeek, in-browser Python, live web search, and full offline PWA support.">
+    <meta name="keywords" content="about JAMES AI, local AI chatbot, private AI browser, retro terminal AI, hacker terminal chat, offline AI chatbot, browser AI no server, WebGPU AI chatbot, Llama 3.2 in browser, Qwen2.5 browser, DeepSeek browser, in-browser Python Pyodide, AI web search browser, AI chess game, offline AI PWA, self-hosted AI browser, encrypted AI chat">
     <meta name="author" content="Andrey Lopukhov">
     <meta name="robots" content="index, follow">
     <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large">
@@ -16,8 +16,8 @@
     <meta name="rating" content="general">
     <meta name="language" content="English">
     <link rel="canonical" href="https://chatbotjames.onrender.com/about.html">
-    <meta property="og:title" content="About JAMES AI — Free Private Browser AI Chatbot | No Account, No Server">
-    <meta property="og:description" content="Learn how JAMES runs a full AI chatbot 100% in your browser — no server, no account, no tracking. WebGPU-powered with Llama 3.2, Qwen2.5, DeepSeek. In-browser Python, web search, games, and full offline PWA support.">
+    <meta property="og:title" content="About JAMES AI — Free Private Retro Terminal AI Chatbot">
+    <meta property="og:description" content="Learn how JAMES runs a full AI chatbot 100% in your browser inside a classic retro terminal UI. WebGPU-powered with Llama 3.2, Qwen2.5, DeepSeek.">
     <meta property="og:image" content="https://chatbotjames.onrender.com/preview.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
@@ -26,8 +26,8 @@
     <meta property="og:url" content="https://chatbotjames.onrender.com/about.html">
     <meta property="og:site_name" content="JAMES AI">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="About JAMES AI — Free Private Browser AI Chatbot">
-    <meta name="twitter:description" content="JAMES runs entirely in your browser — WebGPU-powered, offline-capable, zero tracking. Free, open-source, no login. Run Llama, Qwen, DeepSeek locally.">
+    <meta name="twitter:title" content="About JAMES AI — Free Private Retro Terminal AI Chatbot">
+    <meta name="twitter:description" content="JAMES runs entirely in your browser inside a retro terminal UI. WebGPU-powered, offline-capable, zero tracking. Run Llama, Qwen, DeepSeek locally.">
     <meta name="twitter:image" content="https://chatbotjames.onrender.com/preview.png">
     <meta name="twitter:creator" content="@AndreyLopukhov">
     <script type="application/ld+json">
@@ -106,9 +106,8 @@
             position: sticky;
             top: 0;
             z-index: 100;
-            background: rgba(26,26,26,0.98);
+            background: var(--bg-main);
             border-bottom: 1px solid var(--border);
-            backdrop-filter: blur(12px);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -125,9 +124,9 @@
         .hero-copy { max-width: 760px; line-height: 1.85; color: var(--text-primary); margin-bottom: 1.75rem; }
         .hero-actions { display: flex; flex-wrap: wrap; gap: 1rem; }
         .hero-visual { margin: 2rem 0 1.5rem; }
-        .hero-preview { width: 100%; max-width: 880px; border-radius: 22px; border: 1px solid var(--border); box-shadow: 0 30px 90px rgba(0,0,0,0.18); }
-        .btn { display: inline-flex; align-items: center; justify-content: center; padding: 0.95rem 1.6rem; border-radius: 999px; border: 1px solid transparent; font-size: 0.85rem; font-weight: 600; text-decoration: none; transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease; }
-        .btn-primary { background: var(--primary-purple); color: #fff; }
+        .hero-preview { width: 100%; max-width: 880px; border: 1px solid var(--border); box-shadow: none; }
+        .btn { display: inline-flex; align-items: center; justify-content: center; padding: 0.95rem 1.6rem; border: 1px solid transparent; font-size: 0.85rem; font-weight: 600; text-decoration: none; transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease; font-family: inherit; }
+        .btn-primary { background: var(--primary-purple); color: #000; }
         .btn-primary:hover { transform: translateY(-2px); background: #7c3aed; }
         .btn-secondary { background: transparent; color: var(--text-primary); border-color: var(--border); }
         .btn-secondary:hover { transform: translateY(-2px); border-color: var(--primary-blue); color: var(--primary-blue); }
@@ -135,13 +134,13 @@
         .section-title { font-size: 0.92rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.16em; color: var(--text-primary); margin-bottom: 0.75rem; }
         .section-copy { max-width: 780px; color: var(--text-secondary); line-height: 1.85; }
         .grid { display: grid; gap: 1.2rem; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
-        .card { background: var(--assistant-bubble); border: 1px solid var(--border); border-radius: 18px; padding: 1.75rem; transition: transform 0.2s ease, border-color 0.2s ease; }
+        .card { background: var(--assistant-bubble); border: 1px solid var(--border); padding: 1.75rem; transition: transform 0.2s ease, border-color 0.2s ease; }
         .card:hover { transform: translateY(-3px); border-color: var(--primary-purple); }
         .card h3 { margin-bottom: 0.9rem; color: var(--primary-blue); font-size: 1rem; }
         .card p { color: var(--text-secondary); line-height: 1.75; }
-        .hero-note { background: var(--assistant-bubble); border: 1px solid var(--border); border-radius: 18px; padding: 1.6rem 1.8rem; color: var(--text-primary); }
-        .author-section { display: grid; grid-template-columns: 120px 1fr; gap: 1.75rem; background: var(--assistant-bubble); border: 1px solid var(--border); border-radius: 20px; padding: 2rem; }
-        .author-avatar { width: 100px; height: 100px; border-radius: 24px; background: linear-gradient(180deg, var(--primary-purple), var(--primary-blue)); display: grid; place-items: center; color: #fff; font-size: 2rem; font-weight: 700; }
+        .hero-note { background: var(--assistant-bubble); border: 1px solid var(--border); padding: 1.6rem 1.8rem; color: var(--text-primary); }
+        .author-section { display: grid; grid-template-columns: 120px 1fr; gap: 1.75rem; background: var(--assistant-bubble); border: 1px solid var(--border); padding: 2rem; }
+        .author-avatar { width: 100px; height: 100px; background: var(--text-primary); display: grid; place-items: center; color: #000; font-size: 2rem; font-weight: 700; border: 1px solid var(--border); }
         .author-title { margin-bottom: 0.35rem; font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
         .author-subtitle { margin-bottom: 1rem; color: var(--text-secondary); letter-spacing: 0.1em; }
         .author-copy { line-height: 1.85; color: var(--text-secondary); }
@@ -167,7 +166,13 @@
         <main class="page-content">
             <section class="hero">
                 <span class="eyebrow">Project / About</span>
-                <h1 class="hero-title">JAMES &mdash; Private AI That Runs in Your Browser</h1>
+                <pre class="ascii-art" style="border:none; background:transparent; padding:0; margin-bottom: 1.5rem; color: var(--primary-purple); font-size: clamp(0.7rem, 2vw, 1.2rem); line-height: 1.2; text-shadow: 0 0 5px rgba(51,255,0,0.5);">
+    ___   __ 
+   /   | / /_  ____  __  __  __
+  / /| |/ __ \/ __ \/ / / / / /
+ / ___ / /_/ / /_/ / /_/ / / /_
+/_/  |_\____/\____/\____/  \__/
+                </pre>
                 <p class="hero-copy">A free, local-first AI assistant that runs entirely in your browser &mdash; no account, no server, and no data ever sent anywhere. JAMES combines browser-native inference, streaming responses, and a tool-aware architecture so your conversations stay private while still being powerful.</p>                <div class="hero-visual">
                     <img src="preview.png" alt="JAMES preview" class="hero-preview">
                 </div>                <div class="hero-actions">
