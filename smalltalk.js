@@ -2,7 +2,8 @@
  * SmallTalkHandler
  * Intercepts common small-talk messages and returns an instant canned response,
  * bypassing the LLM entirely. Fast, free, and always available even while the
- * model is still loading. Supports multiple top world languages and robust edge cases.
+ * model is still loading. Accepts multilingual trigger words but always replies
+ * in English.
  *
  * Robustness improvements over the original:
  *  - Triggers are pre-normalised once at construction time (no per-call overhead).
@@ -47,11 +48,6 @@ export class SmallTalkHandler {
                     "Hi there! How can I help?",
                     "Hello! Ready to assist — what do you need?",
                     "Hey! What can I do for you today?",
-                    "¡Hola! ¿En qué puedo ayudarte?",
-                    "Bonjour ! Comment puis-je vous aider ?",
-                    "Hallo! Wie kann ich Ihnen helfen?",
-                    "Привет! Чем могу помочь?",
-                    "Olá! Como posso ajudar?",
                 ],
             },
             {
@@ -68,8 +64,6 @@ export class SmallTalkHandler {
                     "Good morning! ☀️ What can I help you with today?",
                     "Morning! Ready to go. What do you need?",
                     "Good morning! Hope the day's treating you well. What's up?",
-                    "¡Buenos días! ☀️ ¿Qué tal tu mañana?",
-                    "Guten Morgen! ☀️ Wie kann ich helfen?",
                 ],
             },
             {
@@ -85,7 +79,6 @@ export class SmallTalkHandler {
                 responses: [
                     "Good afternoon! How can I help?",
                     "Afternoon! What do you need?",
-                    "¡Buenas tardes! ¿En qué te puedo colaborar?",
                 ],
             },
             {
@@ -102,7 +95,6 @@ export class SmallTalkHandler {
                     "Good evening! How can I assist?",
                     "Evening! What do you need?",
                     "Good night! 🌙 Let me know if there's anything before you go.",
-                    "¡Buenas noches! 🌙 ¿En qué te puedo ayudar antes de descansar?",
                 ],
             },
             {
@@ -140,8 +132,6 @@ export class SmallTalkHandler {
                     "All good on my end! What do you need?",
                     "Doing well! Ready to help. What's up?",
                     "Functioning at 100%! What's on your mind?",
-                    "¡Todo excelente por aquí! ¿Y tú, qué tal?",
-                    "¡Funcionando al 100%! ¿En qué te puedo colaborar?",
                 ],
             },
 
@@ -213,6 +203,7 @@ export class SmallTalkHandler {
                 responses: [
                     "Of course! Just tell me what you need — I can answer questions, use tools, or just chat.",
                     "I'm here to help! What do you need?",
+                    "Sure! Ask me anything and I'll do my best.",
                 ],
             },
 
@@ -243,8 +234,6 @@ export class SmallTalkHandler {
                     "Glad I could help!",
                     "Of course! Let me know if there's anything else.",
                     "No problem at all!",
-                    "¡De nada! 😊 Con mucho gusto.",
-                    "¡A ti! Avísame si necesitas algo más.",
                 ],
             },
 
@@ -272,8 +261,6 @@ export class SmallTalkHandler {
                     "Later! 👋",
                     "Bye! Don't be a stranger.",
                     "See you around! 👋",
-                    "¡Cuídate mucho! Vuelve cuando quieras. 👋",
-                    "¡Hasta luego! Que tengas un excelente día.",
                 ],
             },
 
@@ -285,7 +272,6 @@ export class SmallTalkHandler {
                     'impressive', "you're smart", "you're the best", 'you rock',
                     'you are great', 'you are awesome', 'you are the best', 'amazing',
                     'fantastic', 'brilliant', 'well played', 'nicely done',
-                    'muy bien', 'eres genial',
                 ],
                 responses: [
                     "Aw, thanks! 😊 You're pretty great yourself.",
@@ -312,7 +298,6 @@ export class SmallTalkHandler {
                 triggers: [
                     'tell me a joke', 'say something funny', 'make me laugh',
                     'tell a joke', 'tell me something funny', 'joke', 'give me a joke',
-                    'cuentame un chiste', 'chiste',
                 ],
                 responses: [
                     "Why do programmers prefer dark mode? Because light attracts bugs. 🐛",
@@ -326,7 +311,7 @@ export class SmallTalkHandler {
 
             // ── Boredom ────────────────────────────────────────────────────────
             {
-                triggers: ["i'm bored", 'im bored', 'i am bored', 'entertain me', 'amuse me', 'bored', 'estoy aburrido'],
+                triggers: ["i'm bored", 'im bored', 'i am bored', 'entertain me', 'amuse me', 'bored'],
                 responses: [
                     "Let's fix that! Ask me anything — trivia, a joke, currency rates, weather somewhere exotic. 🌍",
                     "How about a joke? Or I can look something up on Wikipedia, generate a color palette, or just chat. What sounds good?",
@@ -384,7 +369,6 @@ export class SmallTalkHandler {
                 triggers: [
                     'who made you', 'who created you', 'who is your creator', 'who is your maker',
                     'who developed you', 'who built you', 'where did you come from',
-                    'quien te creo', "qui t'a cree",
                 ],
                 responses: [
                     "I was developed by Andrey Lopukhov.",
@@ -397,7 +381,7 @@ export class SmallTalkHandler {
             {
                 triggers: [
                     'sorry', 'im sorry', "i'm sorry", 'my bad', 'my apologies', 'apologies',
-                    'forgive me', 'i apologize', 'lo siento', 'perdón',
+                    'forgive me', 'i apologize',
                 ],
                 responses: [
                     "No worries at all!",
@@ -450,7 +434,7 @@ export class SmallTalkHandler {
             {
                 triggers: [
                     'what is the meaning of life', 'meaning of life', 'why are we here',
-                    'what is the purpose of life', 'cual es el sentido de la vida',
+                    'what is the purpose of life',
                 ],
                 responses: [
                     "42. At least, that's what Douglas Adams said. 🌌",
@@ -477,7 +461,7 @@ export class SmallTalkHandler {
             {
                 triggers: [
                     'i love you', 'love you', 'will you marry me', 'do you love me',
-                    'marry me', 'be my valentine', 'te amo', 'te quiero',
+                    'marry me', 'be my valentine',
                 ],
                 responses: [
                     "I appreciate the sentiment! I'm just an AI, though. 🤖💙",

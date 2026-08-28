@@ -451,8 +451,7 @@
                 <p>JAMES can execute Python code in-browser via Pyodide. Ask JAMES to run a Python calculation and it
                     will use the <code>python</code> tool automatically:</p>
                 <pre>```tool:run
-python
-code: import math; print(math.factorial(20))
+{"tool": "eval_python", "params": {"code": "import math; print(math.factorial(20))"}}
 ```</pre>
                 <p>Execution results are returned into the conversation and used to answer your query. Pyodide loads on
                     first use; subsequent calls are instant.</p>
@@ -463,30 +462,27 @@ code: import math; print(math.factorial(20))
                     model emits a tool call block, the app executes it, and feeds the result back to the model for a
                     final answer:</p>
                 <pre>```tool:run
-weather
-location: Tel Aviv
+{"tool": "weather", "params": {"location": "Tel Aviv"}}
 ```</pre>
+                <p>Both <strong>JSON</strong> and <strong>XML</strong> formats are supported in addition to the legacy <code>key: value</code> format. The app auto-detects which format was used.</p>
                 <h3 id="tools-info">Information Tools</h3>
                 <div class="tool-grid">
                     <div class="tool-card"><span class="tool-name">weather</span>
                         <div class="tool-body">
                             <p>Gets current weather conditions via Open-Meteo (no API key needed).</p>
-                            <pre>weather
-location: Tel Aviv</pre>
+                            <pre>{"tool": "weather", "params": {"location": "Tel Aviv"}}</pre>
                         </div>
                     </div>
                     <div class="tool-card"><span class="tool-name">wikipedia</span>
                         <div class="tool-body">
                             <p>Fetches a Wikipedia article summary.</p>
-                            <pre>wikipedia
-query: Bijective numeration</pre>
+                            <pre>{"tool": "wikipedia", "params": {"query": "Bijective numeration"}}</pre>
                         </div>
                     </div>
                     <div class="tool-card"><span class="tool-name">currency</span>
                         <div class="tool-body">
                             <p>Converts currency amounts via frankfurter.app.</p>
-                            <pre>currency
-from: USD, to: EUR, amount: 100</pre>
+                            <pre>{"tool": "currency", "params": {"from": "USD", "to": "EUR", "amount": 100}}</pre>
                         </div>
                     </div>
                     <div class="tool-card"><span class="tool-name">time</span>

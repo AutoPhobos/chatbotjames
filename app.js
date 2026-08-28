@@ -498,38 +498,51 @@ window.simulateCannedResponse = function(text) {
     uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
     updateStatusLight('thinking');
     uiManager.updateStatusText('THINKING...');
-    
+
     const targetId = getNextTargetId();
     workerController.activeGenerations.set(chatManager.currentChatId, targetId);
-    updateLiveBubble('...', targetId);
-    
-    let chars = 0;
-    const interval = setInterval(() => {
-        if (!globalState.isGeneratingUI || globalState.cannedGenId !== currentGenId) {
-            clearInterval(interval);
-            workerController.activeGenerations.delete(chatManager.currentChatId);
-            return;
-        }
-        chars += 3;
+    updateLiveBubble('', targetId);
+
+    // Brief "thinking" pause before streaming starts, then typewriter character-by-character
+    setTimeout(() => {
+        if (!globalState.isGeneratingUI || globalState.cannedGenId !== currentGenId) return;
         uiManager.updateStatusText('RESPONDING...');
-        if (chars >= text.length) {
-            clearInterval(interval);
-            try {
-                updateLiveBubble(text, targetId, true); // force=true: bypass throttle for final render
-                chatManager.chatHistory.push({ role: 'assistant', content: text });
-                chatManager.persistCurrentChat(() => gameController.getGameState());
-                renderChatLog();
-            } finally {
-                // Always restore idle state — even if rendering throws
-                uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
-                updateStatusLight('idle');
-                uiManager.updateStatusText('READY');
+
+        let chars = 0;
+
+        function streamNextChar() {
+            if (!globalState.isGeneratingUI || globalState.cannedGenId !== currentGenId) {
                 workerController.activeGenerations.delete(chatManager.currentChatId);
+                return;
             }
-        } else {
-            updateLiveBubble(text.substring(0, chars) + '...', targetId);
+
+            chars++;
+            if (chars >= text.length) {
+                // Final character — commit and finish
+                try {
+                    updateLiveBubble(text, targetId, true);
+                    chatManager.chatHistory.push({ role: 'assistant', content: text });
+                    chatManager.persistCurrentChat(() => gameController.getGameState());
+                    renderChatLog();
+                } finally {
+                    uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
+                    updateStatusLight('idle');
+                    uiManager.updateStatusText('READY');
+                    workerController.activeGenerations.delete(chatManager.currentChatId);
+                }
+                return;
+            }
+
+            updateLiveBubble(text.substring(0, chars), targetId);
+
+            // Natural typing speed: pause slightly longer after punctuation
+            const ch = text[chars - 1];
+            const delay = /[.!?,;:\n]/.test(ch) ? 60 + Math.random() * 40 : 18 + Math.random() * 14;
+            setTimeout(streamNextChar, delay);
         }
-    }, 30);
+
+        streamNextChar();
+    }, 180);
 };
 
 async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
@@ -577,15 +590,55 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
     }
 
     for (const callBlock of calls) {
-        const lines = callBlock.split('\n').map(l => l.trim()).filter(l => l);
-        const toolName = lines[0];
-        const params = {};
-        for (let i = 1; i < lines.length; i++) {
-            const parts = lines[i].split(':');
-            if (parts.length >= 2) {
-                const k = parts[0].trim();
-                const v = parts.slice(1).join(':').trim();
-                params[k] = v;
+        // ── Multi-format tool call parser ─────────────────────────────────────
+        // Supports JSON, XML, and plain "key: value" formats (auto-detected).
+        let toolName, params;
+
+        const trimmed = callBlock.trim();
+
+        // ── JSON format: {"tool":"name","params":{...}} or {"name":"...","params":{...}} ──
+        if (trimmed.startsWith('{')) {
+            try {
+                const parsed = JSON.parse(trimmed);
+                toolName = parsed.tool ?? parsed.name ?? parsed.tool_name ?? '';
+                params = parsed.params ?? parsed.parameters ?? parsed.args ?? {};
+            } catch {
+                toolName = '';
+                params = {};
+            }
+        }
+        // ── XML format: <tool>name</tool><params><key>val</key>...</params> ──
+        else if (trimmed.startsWith('<')) {
+            try {
+                const parser = new DOMParser();
+                // Wrap in a root element so DOMParser handles it cleanly
+                const doc = parser.parseFromString(`<root>${trimmed}</root>`, 'text/xml');
+                const toolEl = doc.querySelector('tool') ?? doc.querySelector('name') ?? doc.querySelector('tool_name');
+                toolName = toolEl?.textContent?.trim() ?? '';
+                params = {};
+                const paramsEl = doc.querySelector('params') ?? doc.querySelector('parameters') ?? doc.querySelector('args');
+                if (paramsEl) {
+                    for (const child of paramsEl.children) {
+                        params[child.tagName] = child.textContent.trim();
+                    }
+                }
+            } catch {
+                toolName = '';
+                params = {};
+            }
+        }
+        // ── Plain "key: value" format (original / fallback) ──────────────────
+        else {
+            const lines = trimmed.split('\n').map(l => l.trim()).filter(l => l);
+            toolName = lines[0];
+            params = {};
+            for (let i = 1; i < lines.length; i++) {
+                const parts = lines[i].split(':');
+                if (parts.length >= 2) {
+                    const k = parts[0].trim();
+                    const v = parts.slice(1).join(':').trim();
+                    params[k] = v;
+                }
             }
         }
 

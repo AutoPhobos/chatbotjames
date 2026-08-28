@@ -7,10 +7,10 @@ export const CONFIG = {
         "streamRenderIntervalMs": 15
     },
     "worker": {
-        "chunkSizeMb": 4,
-        "maxDownloadConcurrency": 3,
+        "chunkSizeMb": 2,
+        "maxDownloadConcurrency": 8,
         "maxTokens": 1024,
-        "temperature": 1.0,
+        "temperature": 1.15,
         "topK": 20,
         "topP": 0.9
     }
