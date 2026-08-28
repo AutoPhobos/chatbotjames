@@ -1,4 +1,4 @@
-const CACHE_NAME = 'JAMES-v5.12';
+const CACHE_NAME = 'JAMES-v5.13';
 
 // Only cache truly static assets - NOT app logic files
 const STATIC_ASSETS = [
@@ -9,7 +9,6 @@ const STATIC_ASSETS = [
 const NETWORK_FIRST = [
     '/',
     'config.js',
-    'config.json',
     'chat-db.js',
     'chat-manager.js',
     'audio-wakelock.js',
