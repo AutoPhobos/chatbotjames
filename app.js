@@ -1,4 +1,4 @@
-﻿import { globalState } from './global-state.js';
+import { globalState } from './global-state.js';
 import { chatManager } from './chat-manager.js';
 import { gameController } from './game-controller.js?v=5';
 import { attachmentManager } from './attachment-manager.js';
@@ -652,7 +652,7 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
             }
         }
 
-        if (isActiveChat) uiManager.updateStatusText(`RUNNING ${toolName.toUpperCase()}...`);
+        if (isActiveChat) uiManager.updateStatusText(`⚙️ RUNNING ${toolName.toUpperCase()}...`);
         let toolResult = null;
 
         try {
@@ -887,7 +887,7 @@ if (isTVDevice()) uiManager.initTVMode();
 uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
 const _savedLastPresetId = safeLocalStorage.getItem('james-last-preset-id');
 workerController.initWorkers(safeLocalStorage);
-uiManager.updateStatusText(_savedLastPresetId ? 'RESUMING LAST MODEL…' : 'INITIALIZING...');
+uiManager.updateStatusText(_savedLastPresetId ? '⏩ RESUMING LAST MODEL…' : '⚡ INITIALIZING...');
 
 const newChatBtn = document.getElementById('newChatBtn');
 if (newChatBtn) {
@@ -940,7 +940,7 @@ setupModelPanel({
         uiManager.updateProgress(0);
         uiManager.updateStatusMeta('Loading selected model…');
         uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
-        uiManager.updateStatusText('LOADING MODEL…');
+        uiManager.updateStatusText('⬇️ LOADING MODEL…');
         workerController.worker.postMessage({ type: 'init', forcePresetId: selectedId });
     }
 });

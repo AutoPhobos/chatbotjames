@@ -23,13 +23,13 @@ class UIManager {
             this.sendBtn.classList.remove('stop-btn');
 
             this.cmdInput.classList.remove('loading-state');
-            this.cmdInput.placeholder = "Message JAMES...";
+            this.cmdInput.placeholder = "💬 Message JAMES...";
             this.cmdInput.focus();
             if (isGeneratingUIFlagCallback) isGeneratingUIFlagCallback(false);
         } else {
             this.cmdInput.disabled = true;
             this.cmdInput.classList.add('loading-state');
-            this.cmdInput.placeholder = "Generating response...";
+            this.cmdInput.placeholder = "⏳ Generating response...";
 
             this.sendBtn.innerHTML = '⏸';
             this.sendBtn.classList.add('stop-btn');
