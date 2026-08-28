@@ -720,14 +720,6 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
                 const updatedNotes = await db.dbLoadNotes();
                 if (chatManager.onNotesLoaded) chatManager.onNotesLoaded(updatedNotes);
                 toolResult = "Note saved silently.";
-            } else if (toolName === 'read_notes') {
-                const db = await import('./chat-db.js');
-                const notes = await db.dbLoadNotes();
-                if (!notes || notes.length === 0) {
-                    toolResult = "No notes found.";
-                } else {
-                    toolResult = "Saved Notes:\n" + notes.map(n => `- ${n.text}`).join("\n");
-                }
             } else if (toolName === 'eval_python' || toolName === 'python') {
                 const pyResp = await workerController.callWorkerRPC(workerController.pythonWorker, { type: 'run', code: params.code }, 30000);
                 // python-worker returns { status, execId, stdout, result, figures }
