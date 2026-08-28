@@ -14,6 +14,8 @@ let chatbot = null;
 let activePreset = null;
 let isGenerating = false;
 let isAborted = false;
+let _initLock = false;        // prevents concurrent init messages from racing
+let _pendingInitPreset = null; // stores the latest switch request while one is in-flight
 
 function normalizeError(err) {
     let msg = err?.message || String(err);
@@ -60,20 +62,25 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
         const preset = MODEL_PRESETS.find(p => p.id === forcePresetId);
         if (!preset) throw new Error(`Unknown preset id: ${forcePresetId}`);
         self.postMessage({ status: 'warm-start', preset: preset });
-        try {
-            chatbot = await initializeModel(preset.backend, preset.dtype, preset.model);
-            activePreset = preset;
-            self.postMessage({ status: 'done', backend: preset.backend, dtype: preset.dtype, model: preset.model, isMobile, isTV });
-            return;
-        } catch (err) {
-            throw err;
+        // Dispose the old pipeline before loading a new one to free GPU/WASM memory.
+        if (chatbot) {
+            try { chatbot.dispose(); } catch (_) {}
+            chatbot = null;
         }
+        chatbot = await initializeModel(preset.backend, preset.dtype, preset.model);
+        activePreset = preset;
+        self.postMessage({ status: 'done', backend: preset.backend, dtype: preset.dtype, model: preset.model, isMobile, isTV });
+        return;
     }
 
     if (lastPresetId) {
         const last = MODEL_PRESETS.find(p => p.id === lastPresetId);
         if (last) {
             self.postMessage({ status: 'warm-start', preset: last });
+            if (chatbot) {
+                try { chatbot.dispose(); } catch (_) {}
+                chatbot = null;
+            }
             try {
                 chatbot = await initializeModel(last.backend, last.dtype, last.model);
                 activePreset = last;
@@ -90,6 +97,10 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
     for (const preset of ranked) {
         try {
             self.postMessage({ status: 'warm-start', preset: preset });
+            if (chatbot) {
+                try { chatbot.dispose(); } catch (_) {}
+                chatbot = null;
+            }
             chatbot = await initializeModel(preset.backend, preset.dtype, preset.model);
             activePreset = preset;
             self.postMessage({ status: 'done', backend: preset.backend, dtype: preset.dtype, model: preset.model, isMobile, isTV });
@@ -106,6 +117,10 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
     for (const preset of litePresets) {
         try {
             self.postMessage({ status: 'warm-start', preset: preset });
+            if (chatbot) {
+                try { chatbot.dispose(); } catch (_) {}
+                chatbot = null;
+            }
             chatbot = await initializeModel(preset.backend, preset.dtype, preset.model);
             activePreset = preset;
             self.postMessage({ status: 'done', backend: preset.backend, dtype: preset.dtype, model: preset.model, isMobile, isTV });
@@ -127,22 +142,44 @@ self.onmessage = async (e) => {
     }
 
     if (type === 'init') {
-        isAborted = true;
-        isGenerating = false;
-        try {
-            await new Promise((resolve) => setTimeout(resolve, 125));
-            const [gpuInfo, wasmCaps] = await Promise.all([detectGpu(), detectWasmCapabilities()]);
-            const mobile = isMobileDevice();
-            const tv = isTVDevice();
-            await tryInitializeModels(
-                gpuInfo, mobile, tv,
-                e.data.forcePresetId || null,
-                e.data.lastPresetId || null,
-                wasmCaps
-            );
-        } catch (err) {
-            reportWorkerError(err, undefined);
+        const requestedPresetId = e.data.forcePresetId || null;
+        // If an init is already in-flight, record the latest requested preset and bail.
+        // The in-flight handler will pick it up once it finishes.
+        if (_initLock) {
+            _pendingInitPreset = requestedPresetId;
+            console.warn('[worker] init already in-flight, queuing preset:', requestedPresetId);
+            return;
         }
+
+        async function runInit(presetId) {
+            _initLock = true;
+            _pendingInitPreset = null;
+            isAborted = true;
+            isGenerating = false;
+            try {
+                await new Promise((resolve) => setTimeout(resolve, 125));
+                const [gpuInfo, wasmCaps] = await Promise.all([detectGpu(), detectWasmCapabilities()]);
+                const mobile = isMobileDevice();
+                const tv = isTVDevice();
+                await tryInitializeModels(
+                    gpuInfo, mobile, tv,
+                    presetId,
+                    presetId ? null : (e.data.lastPresetId || null),
+                    wasmCaps
+                );
+            } catch (err) {
+                reportWorkerError(err, undefined);
+            } finally {
+                _initLock = false;
+                // If a new switch arrived while we were loading, run it now.
+                if (_pendingInitPreset !== null) {
+                    const next = _pendingInitPreset;
+                    runInit(next);
+                }
+            }
+        }
+
+        runInit(requestedPresetId);
         return;
     }
 
