@@ -126,38 +126,38 @@
 
 :root {
     /* Color Palette */
-    --bg-main: #000000;
-    --sidebar-bg: #051005;
-    --panel-bg: #000000;
+    --bg-main: #060913;
+    --sidebar-bg: #090e1c;
+    --panel-bg: #0b1021;
 
     /* Accents */
-    --primary-purple: #33ff00;
-    --primary-purple-hover: #00ff00;
-    --primary-blue: #33ff00;
-    --primary-green: #33ff00;
-    --danger-red: #ff3300;
+    --primary-purple: #00f3ff;
+    --primary-purple-hover: #00c3cc;
+    --primary-blue: #00ff66;
+    --primary-green: #00ff66;
+    --danger-red: #ff0055;
 
     /* Borders & Bubbles */
-    --border: #33ff00;
-    --border-light: rgba(51, 255, 0, 0.3);
-    --input-bg: #000000;
-    --assistant-bubble: #000000;
-    --user-bubble: #001a00;
+    --border: rgba(0, 243, 255, 0.25);
+    --border-light: rgba(0, 243, 255, 0.15);
+    --input-bg: rgba(9, 14, 28, 0.8);
+    --assistant-bubble: transparent;
+    --user-bubble: rgba(0, 243, 255, 0.05);
 
     /* Typography */
-    --text-primary: #33ff00;
-    --text-secondary: #00cc00;
-    --text-muted: #008800;
-    --disabled-gray: #004400;
+    --text-primary: #e0fbfc;
+    --text-secondary: #94a3b8;
+    --text-muted: #475569;
+    --disabled-gray: #1e293b;
 
     /* Spacing */
     --chat-max-width: 48rem;
     
     /* Radii */
-    --radius-sm: 0px;
-    --radius-md: 0px;
-    --radius-lg: 0px;
-    --radius-xl: 0px;
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --radius-xl: 12px;
 }
 
 * {
@@ -167,15 +167,17 @@
 }
 
 body {
-    font-family: 'Courier New', Courier, monospace;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Roboto Mono', ui-monospace, SFMono-Regular, monospace;
     background-color: var(--bg-main);
-    background-image: linear-gradient(rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
-    background-size: 100% 4px;
+    background-image: 
+        linear-gradient(rgba(0, 243, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 243, 255, 0.03) 1px, transparent 1px);
+    background-size: 20px 20px;
     color: var(--text-primary);
-    text-shadow: 0 0 5px rgba(51, 255, 0, 0.5);
+    text-shadow: 0 0 2px rgba(0, 243, 255, 0.3);
     height: 100dvh;
     overflow: hidden;
-    -webkit-font-smoothing: none;
+    -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
 
@@ -545,18 +547,36 @@ a:hover {
 
 .user-msg .message-content {
     background: var(--user-bubble);
-    color: var(--text-primary);
+    color: var(--primary-purple);
     border: 1px solid var(--border);
-    border-bottom-right-radius: 0px;
+    border-right: 3px solid var(--primary-purple);
+    border-radius: var(--radius-sm);
     animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.user-msg .message-content::before {
+    content: "user@local:~$ ";
+    color: var(--text-muted);
+    font-size: 0.8em;
+    display: block;
+    margin-bottom: 0.5rem;
 }
 
 .assistant-msg .message-content {
     background: var(--assistant-bubble);
     color: var(--text-primary);
     border: 1px solid var(--border);
-    border-bottom-left-radius: 0px;
+    border-left: 3px solid var(--primary-blue);
+    border-radius: var(--radius-sm);
     animation: slideInLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.assistant-msg .message-content::before {
+    content: "root@james:~# ";
+    color: var(--primary-blue);
+    font-size: 0.8em;
+    display: block;
+    margin-bottom: 0.5rem;
 }
 
 .user-msg-container {
@@ -662,11 +682,12 @@ a:hover {
     display: flex;
     background: var(--input-bg);
     border: 1px solid var(--border);
-    border-radius: var(--radius-xl);
+    border-radius: var(--radius-sm);
     padding: 8px 8px 8px 20px;
     transition: border-color 0.3s, box-shadow 0.3s;
     align-items: center;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
 }
 
 .input-wrapper:focus-within {
