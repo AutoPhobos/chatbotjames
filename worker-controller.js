@@ -1,3 +1,10 @@
+// Single source of truth for "does this message carry tool calls?".
+// Note the \b rather than \n — handleToolCalls parses with `\n?`, so requiring
+// a newline here silently routed single-line tool blocks to onComplete and
+// they were never executed.
+export const TOOL_CALL_PATTERN = /```\s*tool:run\b/;
+export const hasToolCalls = (msg) => typeof msg === 'string' && TOOL_CALL_PATTERN.test(msg);
+
 class WorkerController {
     constructor() {
         this.worker = null;
@@ -76,7 +83,7 @@ class WorkerController {
                 if (this.onThinking) this.onThinking(chatId, targetId);
                 break;
             case 'complete':
-                if (message && /```\s*tool:run\n/.test(message)) {
+                if (hasToolCalls(message)) {
                     // Message contains tool calls — route exclusively to tool handler.
                     // handleToolCalls will push the assistant message to history itself,
                     // so we must NOT call onComplete here to avoid a duplicate entry.

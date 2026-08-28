@@ -185,18 +185,19 @@ export async function dbLoadNotes() {
     }
 }
 
-/** Delete a single note by id. Fire-and-forget. */
-export function dbDeleteNote(id) {
-    openChatDB()
-        .then(db => {
-            try {
-                const tx = db.transaction(IDB_NOTES_STORE, 'readwrite');
-                tx.objectStore(IDB_NOTES_STORE).delete(id);
-            } catch (e) {
-                console.warn('IDB note delete failed:', e);
-            }
-        })
-        .catch(e => console.warn('IDB note delete failed:', e));
+/** Delete a single note by id. Resolves once the transaction has committed. */
+export async function dbDeleteNote(id) {
+    try {
+        const db = await openChatDB();
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction(IDB_NOTES_STORE, 'readwrite');
+            tx.objectStore(IDB_NOTES_STORE).delete(id);
+            tx.oncomplete = () => resolve();
+            tx.onerror    = (e) => reject(e.target.error);
+        });
+    } catch (e) {
+        console.warn('IDB note delete failed:', e);
+    }
 }
 
 /** Wipe all notes. Returns a promise. */

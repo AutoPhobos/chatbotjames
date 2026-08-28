@@ -8,7 +8,13 @@ export const streamQueues = new Map();
 let _nextTargetId = 0;
 export const getNextTargetId = () => ++_nextTargetId;
 
+// targetIds whose stream has already been flushed. A 'streaming' message that
+// lands after 'complete' would otherwise rebuild the queue from scratch and
+// resurrect a stale bubble on top of the finished message.
+const _finished = new Set();
+
 export function queueStreamText(targetId, fullText) {
+    if (_finished.has(targetId)) return;
     if (!streamQueues.has(targetId)) {
         streamQueues.set(targetId, { pending: fullText, displayed: '', running: false });
     } else {
@@ -35,6 +41,8 @@ export function drainStreamQueue(targetId) {
 }
 
 export function flushStreamQueue(targetId) {
+    _finished.add(targetId);
+    if (_finished.size > 64) _finished.delete(_finished.values().next().value);
     const state = streamQueues.get(targetId);
     if (state) updateLiveBubble(state.pending, targetId, true);
     streamQueues.delete(targetId);

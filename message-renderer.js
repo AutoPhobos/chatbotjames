@@ -32,7 +32,7 @@ export function updateStatusLight(state) {
 }
 
 export function escapeHTML(raw) {
-    return raw
+    return String(raw ?? '')
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
@@ -41,8 +41,14 @@ export function escapeHTML(raw) {
 }
 
 export function formatAssistantMessage(text) {
+    // A corrupt/legacy history entry with a non-string content would otherwise
+    // throw here and abort renderChatLog mid-loop, blanking the whole chat.
+    text = String(text ?? '');
+
     // ── Step 1: Extract tool:run blocks BEFORE parsing ────────────────────────
     const toolBoxes = [];
+    // The trailing _END terminator matters: without it "…_XYZ_1" is a prefix of
+    // "…_XYZ_10" and the restore loop corrupts the 11th block onwards.
     const TOOL_PLACEHOLDER = 'TOOLBOX_PLACEHOLDER_XYZ_'; // Unique placeholder
     let processedText = text.replace(/```\s*tool:run\n?([\s\S]*?)```/g, (_, code) => {
         const lines = code.trim().split('\n');
@@ -53,7 +59,7 @@ export function formatAssistantMessage(text) {
             <div style="color: #94a3b8;">${params}</div>
         </div>`;
         const idx = toolBoxes.push(html) - 1;
-        return `\n\n${TOOL_PLACEHOLDER}${idx}\n\n`;
+        return `\n\n${TOOL_PLACEHOLDER}${idx}_END\n\n`;
     });
 
     // ── Step 1.5: Extract <think> blocks ─────────────────────────────────────
@@ -65,7 +71,7 @@ export function formatAssistantMessage(text) {
         const parsedContent = DOMPurify.sanitize(marked.parse(content.trim(), { async: false }));
         const html = `<details class="think-box" style="margin: 8px 0; background: rgba(0,0,0,0.1); border-left: 3px solid #8b5cf6; padding: 8px 12px; border-radius: 4px; font-size: 0.9em;"><summary style="color: #a78bfa; font-weight: bold; cursor: pointer; user-select: none;">🤔 Thinking Process</summary><div style="margin-top: 8px; color: #94a3b8;">${parsedContent}</div></details>`;
         const idx = thinkBoxes.push(html) - 1;
-        return `\n\n${THINK_PLACEHOLDER}${idx}\n\n`;
+        return `\n\n${THINK_PLACEHOLDER}${idx}_END\n\n`;
     });
 
     // Match unclosed <think> block (for streaming)
@@ -75,7 +81,7 @@ export function formatAssistantMessage(text) {
         const parsedContent = DOMPurify.sanitize(marked.parse(content.trim(), { async: false }));
         const html = `<details class="think-box" open style="margin: 8px 0; background: rgba(0,0,0,0.1); border-left: 3px solid #8b5cf6; padding: 8px 12px; border-radius: 4px; font-size: 0.9em;"><summary style="color: #a78bfa; font-weight: bold; cursor: pointer; user-select: none;">🤔 Thinking Process...</summary><div style="margin-top: 8px; color: #94a3b8;">${parsedContent}</div></details>`;
         const idx = thinkBoxes.push(html) - 1;
-        processedText = processedText.substring(0, unclosedThinkIdx) + `\n\n${THINK_PLACEHOLDER}${idx}\n\n`;
+        processedText = processedText.substring(0, unclosedThinkIdx) + `\n\n${THINK_PLACEHOLDER}${idx}_END\n\n`;
     }
 
     // ── Step 2: Apply markdown formatting ────────────────────────────────────
@@ -85,11 +91,11 @@ export function formatAssistantMessage(text) {
     html = DOMPurify.sanitize(html);
 
     // ── Step 4: Restore tool blocks & think blocks ────────────────────────────
-    toolBoxes.forEach((box, i) => { 
-        html = html.replace(`<p>${TOOL_PLACEHOLDER}${i}</p>`, box).replace(`${TOOL_PLACEHOLDER}${i}`, box); 
+    toolBoxes.forEach((box, i) => {
+        html = html.replace(`<p>${TOOL_PLACEHOLDER}${i}_END</p>`, box).replace(`${TOOL_PLACEHOLDER}${i}_END`, box);
     });
-    thinkBoxes.forEach((box, i) => { 
-        html = html.replace(`<p>${THINK_PLACEHOLDER}${i}</p>`, box).replace(`${THINK_PLACEHOLDER}${i}`, box); 
+    thinkBoxes.forEach((box, i) => {
+        html = html.replace(`<p>${THINK_PLACEHOLDER}${i}_END</p>`, box).replace(`${THINK_PLACEHOLDER}${i}_END`, box);
     });
 
     return html;
@@ -211,7 +217,7 @@ export function createMessageElement(msg, historyIdx = -1, isLastAssistant = fal
     const messageWrap = document.createElement('div');
     if (msg.type === 'tool_result') {
         messageWrap.className = 'message-wrap tool-result-msg';
-        const displayContent = msg.content.replace('[SYSTEM: Tool results below. Interpret them and reply naturally to the user.]\n', '');
+        const displayContent = String(msg.content ?? '').replace('[SYSTEM: Tool results below. Interpret them and reply naturally to the user.]\n', '');
         
         const details = document.createElement('details');
         details.style.cssText = 'background: rgba(0, 0, 0, 0.1); border-left: 3px solid #10b981; padding: 8px 12px; border-radius: 4px; margin: 8px 0; font-family: monospace; font-size: 0.85em; cursor: pointer; color: #94a3b8;';

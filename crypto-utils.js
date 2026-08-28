@@ -112,7 +112,15 @@ export async function decryptObject(envelope) {
 // ── Internal helpers ───────────────────────────────────────────────────────────
 
 function _u8ToB64(u8) {
-    return btoa(String.fromCharCode(...u8));
+    // Chunked on purpose: spreading a large Uint8Array into String.fromCharCode
+    // exceeds the engine's argument limit (~64-125k) and throws RangeError,
+    // which silently broke persistence for any chat over ~64 KB.
+    const CHUNK = 0x8000;
+    let str = '';
+    for (let i = 0; i < u8.length; i += CHUNK) {
+        str += String.fromCharCode.apply(null, u8.subarray(i, i + CHUNK));
+    }
+    return btoa(str);
 }
 
 function _b64ToU8(b64) {
