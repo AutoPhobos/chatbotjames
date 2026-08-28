@@ -124,11 +124,25 @@ window.closeActiveGame = function() {
 };
 
 // Worker Controller Callbacks
+
+// ── Bug #1 guard: true while a canned typewriter animation owns isGeneratingUI.
+// Prevents a late worker 'done'/'complete' from calling setIdleState(true) and
+// stopping the animation mid-stream.
+let _cannedGenActive = false;
+
+// ── Bug #3 guard: tracks consecutive invalid-move retries per background chat.
+// Without this a bad AI move causes an unbounded postQuery loop on the worker.
+const _bgChatMoveRetries = new Map(); // chatId → retry count
+
 workerController.onWorkerStatus = (status, message, e) => {
     if (status === 'done' || status === 'complete' || status === 'error' || status === 'aborted') {
-        uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
-        updateStatusLight('idle');
-        uiManager.updateStatusText('✅ READY');
+        // Don't let a worker status reset the UI while a canned animation owns isGeneratingUI.
+        // (The canned handler will call setIdleState itself when it finishes.)
+        if (!_cannedGenActive) {
+            uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
+            updateStatusLight('idle');
+            uiManager.updateStatusText('✅ READY');
+        }
         if (status === 'aborted' && e.data.chatId) workerController.activeGenerations.delete(e.data.chatId);
         if (status === 'complete' && e.data.chatId) workerController.activeGenerations.delete(e.data.chatId);
         if (status === 'error' && e.data.chatId) workerController.activeGenerations.delete(e.data.chatId);
@@ -316,6 +330,8 @@ workerController.onAborted = (chatId, targetId, message) => {
                     if (aiMove) {
                         const moveInfo = tempGame.move(aiMove);
                         if (moveInfo) {
+                            // Successful move — reset the retry counter for this chat.
+                            _bgChatMoveRetries.delete(chatId);
                             let notation = moveInfo.notation || moveInfo.san;
                             if (bgChat.gameState.history && tempGame.setHistory) tempGame.setHistory(bgChat.gameState.history);
                             if (!tempGame.moveHistory) tempGame.moveHistory = [];
@@ -327,9 +343,17 @@ workerController.onAborted = (chatId, targetId, message) => {
                                 aiColor: tempGame.aiColor
                             };
                         } else {
-                            bgChat.messages.push({ role: 'system', content: `[System]: Failed to make move ${aiMove}. Invalid move.` });
-                            const nextTargetId = Date.now().toString(36);
-                            workerController.postQuery(getMessagesWindow(bgChat.messages), nextTargetId, chatId);
+                            // Invalid move — cap retries at 3 to prevent an unbounded query storm.
+                            const _retries = (_bgChatMoveRetries.get(chatId) || 0) + 1;
+                            if (_retries > 3) {
+                                _bgChatMoveRetries.delete(chatId);
+                                bgChat.messages.push({ role: 'system', content: '[System]: AI could not produce a valid move after several attempts. Please resume the game manually.' });
+                            } else {
+                                _bgChatMoveRetries.set(chatId, _retries);
+                                bgChat.messages.push({ role: 'system', content: `[System]: Failed to make move ${aiMove}. Invalid move. Try again.` });
+                                const nextTargetId = Date.now().toString(36);
+                                workerController.postQuery(getMessagesWindow(bgChat.messages), nextTargetId, chatId);
+                            }
                         }
                     }
                     import('./chat-db.js').then(db => db.dbSaveChat(bgChat));
@@ -505,6 +529,11 @@ function handleStopGeneration() {
 window.simulateCannedResponse = function(text) {
     globalState.cannedGenId++;
     const currentGenId = globalState.cannedGenId;
+
+    // Lock: prevents worker 'done'/'complete' messages from calling setIdleState(true)
+    // and interrupting this animation. Cleared in every exit path below.
+    _cannedGenActive = true;
+
     uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
     updateStatusLight('thinking');
     uiManager.updateStatusText('🧠 THINKING...');
@@ -515,13 +544,20 @@ window.simulateCannedResponse = function(text) {
 
     // Brief "thinking" pause before streaming starts, then typewriter character-by-character
     setTimeout(() => {
-        if (!globalState.isGeneratingUI || globalState.cannedGenId !== currentGenId) return;
+        // If a newer canned response superseded this one, or generating was externally cleared,
+        // exit — but only clear _cannedGenActive if we are still the current gen.
+        if (!globalState.isGeneratingUI || globalState.cannedGenId !== currentGenId) {
+            if (globalState.cannedGenId === currentGenId) _cannedGenActive = false;
+            return;
+        }
         uiManager.updateStatusText('💬 RESPONDING...');
 
         let chars = 0;
 
         function streamNextChar() {
             if (!globalState.isGeneratingUI || globalState.cannedGenId !== currentGenId) {
+                // Superseded by a newer canned gen — don't clear the flag if a newer gen is live.
+                if (globalState.cannedGenId === currentGenId) _cannedGenActive = false;
                 workerController.activeGenerations.delete(chatManager.currentChatId);
                 return;
             }
@@ -535,6 +571,8 @@ window.simulateCannedResponse = function(text) {
                     chatManager.persistCurrentChat(() => gameController.getGameState());
                     renderChatLog();
                 } finally {
+                    // We are the latest gen — safe to unconditionally clear the lock.
+                    _cannedGenActive = false;
                     uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
                     updateStatusLight('idle');
                     uiManager.updateStatusText('✅ READY');
