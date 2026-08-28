@@ -405,6 +405,34 @@ a:hover {
     color: var(--text-primary);
 }
 
+.footer-credit {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.donate-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.7rem;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: rgba(168, 85, 247, 0.12);
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    color: #a855f7 !important;
+    text-decoration: none;
+    transition: background 0.2s, border-color 0.2s;
+    white-space: nowrap;
+}
+
+.donate-btn:hover {
+    background: rgba(168, 85, 247, 0.25) !important;
+    border-color: rgba(168, 85, 247, 0.6) !important;
+    color: #c084fc !important;
+}
+
+
 /* ═════ TERMINAL HEADER ═════ */
 .terminal-container {
     flex: 1;
