@@ -67,7 +67,7 @@
       "featureList": [
         "100% private — all inference runs locally in the browser",
         "No account, login, or server required",
-        "WebGPU-accelerated inference (Llama 3.2, Qwen2.5, DeepSeek, SmolLM2, Phi-3.5, Gemma 2)",
+        "WebGPU-accelerated inference (Llama 3.2, Qwen2.5, DeepSeek, SmolLM2, Gemma 2)",
         "WebAssembly CPU fallback for any device",
         "In-browser Python execution via Pyodide",
         "Live web search, Wikipedia, and weather tools",
@@ -131,7 +131,7 @@
     <h1 class="sr-only">JAMES — Free Private Local AI Chatbot in Browser</h1>
     <!-- Install Banner -->
     <div id="installBanner" class="install-banner hidden">
-        <span>Install JAMES as an app for offline access!</span>
+        <span>📲 Install JAMES as an app for offline access!</span>
         <div class="install-actions">
             <button id="installBtn">Install</button>
             <button id="dismissInstallBtn" aria-label="Dismiss">✕</button>
@@ -143,14 +143,14 @@
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-section-title"
                 style="font-size: 0.75rem; font-weight: bold; color: var(--text-muted); letter-spacing: 0.05em; margin: 16px 16px 8px;">
-                THREADS</div>
+                💬 THREADS</div>
             <button id="newChatBtn" class="new-thread-btn">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">
                     <line x1="12" y1="5" x2="12" y2="19"></line>
                     <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
-                NEW THREAD
+                ✨ NEW THREAD
             </button>
             <div id="chatList" class="chat-list"></div>
             <div class="sidebar-footer">
@@ -159,7 +159,8 @@
                 </div>
                 <div class="footer-credit">
                     <span>By Andrey Lopukhov</span>
-                    <a href="https://paypal.me/andreylop" target="_blank" rel="noopener noreferrer" class="donate-btn" title="Support this project">
+                    <a href="https://paypal.me/andreylop" target="_blank" rel="noopener noreferrer" class="donate-btn"
+                        title="Support this project">
                         &#9829; Donate
                     </a>
                 </div>
@@ -225,7 +226,7 @@
                             aria-label="Type your message">
                         <button type="button" id="sendBtn" aria-label="Send message">➔</button>
                     </div>
-                    <div class="input-footer-text" aria-hidden="true">JAMES runs entirely client-side via WebGPU.</div>
+                    <div class="input-footer-text" aria-hidden="true">🔒 JAMES runs entirely client-side via WebGPU.</div>
                 </div>
             </div>
         </main>
@@ -237,7 +238,7 @@
     <div id="modelPanelOverlay" class="model-panel-overlay"></div>
     <div id="modelPanel" class="model-panel" role="dialog" aria-modal="true" aria-label="Model Settings">
         <div class="model-panel-header">
-            <h2>Model Settings</h2>
+            <h2>⚙️ Model Settings</h2>
             <button id="modelPanelClose" class="icon-btn" aria-label="Close">✕</button>
         </div>
 
@@ -250,14 +251,14 @@
             <div class="gpu-status-badge" id="gpuStatusBadge">—</div>
         </div>
 
-        <div class="model-panel-section-title">Available Models</div>
+        <div class="model-panel-section-title">🤖 Available Models</div>
         <div id="modelPresetList" class="model-preset-list">
             <div class="preset-placeholder">Loading presets…</div>
         </div>
 
         <div class="model-panel-footer">
             <div class="active-model-container">
-                <div class="active-model-title">Current Model</div>
+                <div class="active-model-title">🟢 Current Model</div>
                 <span id="activeModelLabel" class="active-model-label">No model loaded yet</span>
             </div>
             <button id="applyModelBtn" class="apply-model-btn" disabled>Apply & Reload</button>
@@ -268,13 +269,13 @@
     <div id="recoveryOverlay" class="model-panel-overlay"></div>
     <div id="recoveryModal" class="model-panel" role="dialog" aria-modal="true" aria-label="Interrupted Response">
         <div class="model-panel-header">
-            <h2>Interrupted Response</h2>
+            <h2>⚠️ Interrupted Response</h2>
             <button id="recoveryClose" class="icon-btn" aria-label="Close">✕</button>
         </div>
         <div class="recovery-body"
             style="padding: 1rem; color: var(--text-color); font-size: 0.95rem; line-height: 1.5;">
             It looks like the page was refreshed while JAMES was generating a response. Would you like to try
-            regenerating the last message?
+            regenerating the last message? 🔄
         </div>
         <div class="model-panel-footer" style="justify-content: flex-end; gap: 10px;">
             <button id="recoveryNoBtn" class="apply-model-btn"
@@ -293,14 +294,14 @@
         </div>
         <div class="notes-panel-description">
             JAMES silently saves facts about you as you chat — your name, preferences, and anything useful for
-            personalization. Notes are <strong>stored encrypted</strong> on your device only.
+            personalization. Notes are <strong>🔒 stored encrypted</strong> on your device only.
         </div>
         <div id="notesList" class="notes-list">
-            <p class="notes-empty">JAMES hasn't saved any notes about you yet.<br><small>Notes are saved automatically
+            <p class="notes-empty">🤔 JAMES hasn't saved any notes about you yet.<br><small>Notes are saved automatically
                     as you chat.</small></p>
         </div>
         <div class="model-panel-footer" style="justify-content: flex-end;">
-            <button id="notesClearBtn" class="apply-model-btn notes-clear-btn">Clear All Memory</button>
+            <button id="notesClearBtn" class="apply-model-btn notes-clear-btn">🗑️ Clear All Memory</button>
         </div>
     </div>
 
