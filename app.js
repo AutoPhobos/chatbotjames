@@ -390,6 +390,16 @@ function getMessagesWindow(messages) {
         windowed = windowed.filter((m, i) => !(i < lastUserIdx && m.role === 'system'));
     }
 
+    if (chatManager.userNotes && chatManager.userNotes.length > 0) {
+        const notesText = chatManager.userNotes.map(n => `- ${n.text}`).join('\n');
+        const notesMsg = {
+            role: 'system',
+            content: `[About this user]\n${notesText}`,
+            isBackground: true
+        };
+        windowed = [notesMsg, ...windowed];
+    }
+
     return [...windowed, ...background];
 }
 
