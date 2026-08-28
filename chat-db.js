@@ -100,9 +100,18 @@ export async function dbLoadAllChats() {
         const db = await openChatDB();
         const rows = await new Promise((resolve, reject) => {
             const tx  = db.transaction(IDB_STORE, 'readonly');
-            const req = tx.objectStore(IDB_STORE).getAll();
-            req.onsuccess = (e) => resolve(e.target.result || []);
-            req.onerror   = (e) => reject(e.target.error);
+            const req = tx.objectStore(IDB_STORE).openCursor(null, 'prev');
+            const result = [];
+            req.onsuccess = (e) => {
+                const cursor = e.target.result;
+                if (cursor) {
+                    result.push(cursor.value);
+                    cursor.continue();
+                } else {
+                    resolve(result);
+                }
+            };
+            req.onerror = (e) => reject(e.target.error);
         });
 
         const chats = await Promise.all(rows.map(async row => {
@@ -120,9 +129,7 @@ export async function dbLoadAllChats() {
             }
         }));
 
-        return chats
-            .filter(Boolean)
-            .sort((a, b) => b.id - a.id);
+        return chats.filter(Boolean);
     } catch (e) {
         console.warn('IDB load failed, falling back to empty state:', e);
         return [];
