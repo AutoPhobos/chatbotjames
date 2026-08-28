@@ -1,12 +1,12 @@
 export const MODEL_PRESETS = [
     // GPU - WebGPU (Capable Computers, 3B+ Params)
     { id: 'gpu-llama32-3b-q4f16', label: 'Llama 3.2 3B', backend: 'webgpu', model: 'onnx-community/Llama-3.2-3B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 2100, ram: '6 GB', params: 3.2 },
-    { id: 'gpu-qwen25-3b-q4f16', label: 'Qwen2.5 3B', backend: 'webgpu', model: 'onnx-community/Qwen2.5-3B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 1800, ram: '6 GB', params: 3.0 },
+    { id: 'gpu-qwen25-15b-q4f16', label: 'Qwen2.5 1.5B', backend: 'webgpu', model: 'onnx-community/Qwen2.5-1.5B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 1100, ram: '4 GB', params: 1.5 },
 
     // GPU - WebGPU (Mid-Range Laptops, 1B - 2B Params)
-    { id: 'gpu-gemma2-2b-q4f16', label: 'Gemma 2 2B', backend: 'webgpu', model: 'onnx-community/gemma-2-2b-it', dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 1400, ram: '4 GB', params: 2.0 },
+    { id: 'gpu-gemma3-1b-q4f16', label: 'Gemma 3 1B', backend: 'webgpu', model: 'onnx-community/gemma-3-1b-it-ONNX', dtype: 'q4f16', requires: 'gpu', autoSelect: false, sizeMB: 800, ram: '3 GB', params: 1.0 },
     { id: 'gpu-smollm-17b-q4f16', label: 'SmolLM2 1.7B', backend: 'webgpu', model: 'HuggingFaceTB/SmolLM2-1.7B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 950, ram: '3 GB', params: 1.7 },
-    { id: 'gpu-deepseek-15b-q4f16', label: 'DeepSeek-R1 1.5B', backend: 'webgpu', model: 'onnx-community/DeepSeek-R1-Distill-Qwen-1.5B', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 1000, ram: '4 GB', params: 1.5 },
+    { id: 'gpu-deepseek-15b-q4f16', label: 'DeepSeek-R1 1.5B', backend: 'webgpu', model: 'onnx-community/DeepSeek-R1-Distill-Qwen-1.5B-ONNX', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 1000, ram: '4 GB', params: 1.5 },
     { id: 'gpu-llama32-1b-q4f16', label: 'Llama 3.2 1B', backend: 'webgpu', model: 'onnx-community/Llama-3.2-1B-Instruct', dtype: 'q4f16', requires: 'gpu', autoSelect: true, sizeMB: 750, ram: '3 GB', params: 1.2 },
 
     // GPU - WebGPU (Low-Power / Mobile, < 1B Params)
