@@ -363,7 +363,9 @@ workerController.onAborted = (chatId, targetId, message) => {
             }
         }
     }
-    renderChatLog();
+    if (chatId === chatManager.currentChatId) {
+        renderChatLog();
+    }
 };
 
 // Attachment Manager Callbacks
@@ -593,27 +595,33 @@ window.simulateCannedResponse = function(text) {
     }, 180);
 };
 
+// ── Bug #2 guard: strictly serialize tool executions per chat to prevent concurrent
+// executions from pushing duplicate history messages if the worker double-fires 'complete'.
+const _toolExecutionQueue = new Map();
+
 async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
-    const isActiveChat = originChatId === chatManager.currentChatId;
-    let targetHistory = chatManager.chatHistory;
-    let bgChat = null;
+    const previous = _toolExecutionQueue.get(originChatId) || Promise.resolve();
+    const current = previous.catch(() => {}).then(async () => {
+        const isActiveChat = originChatId === chatManager.currentChatId;
+        let targetHistory = chatManager.chatHistory;
+        let bgChat = null;
 
-    if (!isActiveChat) {
-        bgChat = chatManager.allChats.find(c => c.id === originChatId);
-        if (!bgChat) return;
-        targetHistory = bgChat.messages;
-    }
-
-    if (_depth > CONFIG.ui.maxToolDepth) {
-        if (isActiveChat) {
-            appendErrorToChat("Maximum tool depth exceeded.");
-            uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
-        } else {
-            targetHistory.push({ role: 'system', content: '[Error: Maximum tool depth exceeded]' });
-            import('./chat-db.js').then(db => db.dbSaveChat(bgChat));
+        if (!isActiveChat) {
+            bgChat = chatManager.allChats.find(c => c.id === originChatId);
+            if (!bgChat) return;
+            targetHistory = bgChat.messages;
         }
-        return;
-    }
+
+        if (_depth > CONFIG.ui.maxToolDepth) {
+            if (isActiveChat) {
+                appendErrorToChat("Maximum tool depth exceeded.");
+                uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
+            } else {
+                targetHistory.push({ role: 'system', content: '[Error: Maximum tool depth exceeded]' });
+                import('./chat-db.js').then(db => db.dbSaveChat(bgChat));
+            }
+            return;
+        }
 
     const regex = /```\s*tool:run\n?([\s\S]*?)```/g;
     let match;
@@ -787,15 +795,19 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
         }
     }
 
-    if (isActiveChat) {
-        uiManager.updateStatusText('🧠 THINKING...');
-        const nextTargetId = getNextTargetId();
-        workerController.postQuery(getMessagesWindow(targetHistory), nextTargetId, originChatId);
-        updateLiveBubble('...', nextTargetId);
-    } else {
-        const nextTargetId = Date.now().toString(36);
-        workerController.postQuery(getMessagesWindow(targetHistory), nextTargetId, originChatId);
-    }
+        if (isActiveChat) {
+            uiManager.updateStatusText('🧠 THINKING...');
+            const nextTargetId = getNextTargetId();
+            workerController.postQuery(getMessagesWindow(targetHistory), nextTargetId, originChatId);
+            updateLiveBubble('...', nextTargetId);
+        } else {
+            const nextTargetId = Date.now().toString(36);
+            workerController.postQuery(getMessagesWindow(targetHistory), nextTargetId, originChatId);
+        }
+    });
+
+    _toolExecutionQueue.set(originChatId, current);
+    return current;
 }
 
 // ==========================================

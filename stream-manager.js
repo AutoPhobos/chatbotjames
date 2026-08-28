@@ -45,7 +45,7 @@ export function drainStreamQueue(targetId) {
 
 export function flushStreamQueue(targetId) {
     _finished.add(targetId);
-    if (_finished.size > 64) _finished.delete(_finished.values().next().value);
+    if (_finished.size > 1024) _finished.delete(_finished.values().next().value);
     const state = streamQueues.get(targetId);
     if (state) {
         if (state.timeoutId) clearTimeout(state.timeoutId);

@@ -16,6 +16,7 @@ const IDB_NOTES_STORE = 'user-notes';
 let _idb = null;
 let _idbPromise = null; // Prevents concurrent open() races — callers share one promise
 const _chatWriteQueues = new Map();
+const _noteWriteQueues = new Map();
 
 export async function openChatDB() {
     if (_idb) return _idb;
@@ -148,12 +149,13 @@ export async function migrateFromLocalStorage() {
         if (Array.isArray(chats) && chats.length > 0) {
             console.log(`📦 Migrating ${chats.length} chat(s) from localStorage → encrypted IndexedDB…`);
             await openChatDB();
+            // Await all saves; if any throws, the catch block intercepts and removeItem is NOT called.
             await Promise.all(chats.map(chat => dbSaveChat(chat)));
             safeLocalStorage.removeItem('chatbot-chats');
             console.log('✅ Migration complete (chats now encrypted)');
         }
     } catch (e) {
-        console.warn('localStorage migration failed:', e);
+        console.warn('localStorage migration failed. No data was deleted:', e);
     }
 }
 
@@ -166,24 +168,30 @@ export function dbSaveNote(note) {
     if (!note) return Promise.resolve();
     const { id } = note;
     const payload = { text: note.text, timestamp: note.timestamp };
-    return Promise.all([encryptObject(payload), openChatDB()])
-        .then(([data, db]) => {
-            return new Promise((resolve, reject) => {
+    
+    const previous = _noteWriteQueues.get(id) || Promise.resolve();
+    const current = previous
+        .catch(() => {})
+        .then(async () => {
+            const [data, db] = await Promise.all([encryptObject(payload), openChatDB()]);
+            await new Promise((resolve, reject) => {
                 try {
                     const tx = db.transaction(IDB_NOTES_STORE, 'readwrite');
                     tx.objectStore(IDB_NOTES_STORE).put({ id, data });
                     tx.oncomplete = resolve;
                     tx.onerror = () => reject(tx.error);
+                    tx.onabort = () => reject(tx.error || new Error('IDB note save aborted'));
                 } catch (e) {
-                    console.warn('IDB note save failed:', e);
                     reject(e);
                 }
             });
-        })
-        .catch(e => {
-            console.warn('IDB note save failed:', e);
-            throw e;
         });
+        
+    _noteWriteQueues.set(id, current);
+    current.catch(e => console.warn('IDB note save failed:', e)).finally(() => {
+        if (_noteWriteQueues.get(id) === current) _noteWriteQueues.delete(id);
+    });
+    return current;
 }
 
 /** Load all notes, sorted oldest-first. Decrypts each row transparently. */
