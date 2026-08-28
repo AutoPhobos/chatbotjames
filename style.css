@@ -220,19 +220,21 @@ a:hover {
     justify-content: center;
     gap: 8px;
     padding: 14px;
-    background: var(--text-primary);
-    color: var(--bg-main);
-    border: none;
-    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--primary-purple);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
     cursor: pointer;
     font-weight: 600;
     font-size: 0.95rem;
     margin-bottom: 24px;
-    transition: transform 0.2s, background 0.2s;
+    transition: transform 0.2s, background 0.2s, box-shadow 0.2s;
 }
 
 .new-thread-btn:hover {
-    background: #e2e8f0;
+    background: rgba(0, 243, 255, 0.1);
+    border-color: var(--primary-purple);
+    box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
     transform: translateY(-1px);
 }
 
@@ -264,8 +266,9 @@ a:hover {
 }
 
 .chat-item.active {
-    background: rgba(139, 92, 246, 0.15);
-    color: var(--primary-purple);
+    background: rgba(0, 255, 102, 0.1);
+    color: var(--primary-blue);
+    border-left: 2px solid var(--primary-blue);
     font-weight: 500;
 }
 
@@ -468,10 +471,12 @@ a:hover {
 
 .version-tag {
     font-size: 0.8rem;
-    background: var(--border);
+    background: transparent;
+    border: 1px solid var(--primary-purple);
     padding: 4px 8px;
-    border-radius: 20px;
-    color: var(--text-secondary);
+    border-radius: var(--radius-sm);
+    color: var(--primary-purple);
+    text-shadow: 0 0 5px rgba(0, 243, 255, 0.5);
 }
 
 .icon-btn {
