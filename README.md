@@ -10,7 +10,7 @@
 
 ## Overview
 
-JAMES (Just Another Marvelous Expert System) is a powerful, client-side AI assistant designed to run directly in your web browser. By leveraging **WebGPU** and **WebAssembly**, JAMES brings the power of Large Language Models (LLMs) locally to your machine without requiring expensive backend servers, API keys, or active internet connections for core inference.
+JAMES (Just A Machine Engineered for Speech) is a powerful, client-side AI assistant designed to run directly in your web browser. By leveraging **WebGPU** and **WebAssembly**, JAMES brings the power of Large Language Models (LLMs) locally to your machine without requiring expensive backend servers, API keys, or active internet connections for core inference.
 
 Your conversations never leave your device. 
 
