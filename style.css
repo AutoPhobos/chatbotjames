@@ -168,11 +168,8 @@
 
 body {
     font-family: 'JetBrains Mono', 'Fira Code', 'Roboto Mono', ui-monospace, SFMono-Regular, monospace;
-    background-color: var(--bg-main);
-    background-image: 
-        linear-gradient(rgba(0, 243, 255, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 243, 255, 0.03) 1px, transparent 1px);
-    background-size: 20px 20px;
+    background-color: transparent;
+    background-image: none;
     color: var(--text-primary);
     text-shadow: 0 0 2px rgba(0, 243, 255, 0.3);
     height: 100dvh;

@@ -100,13 +100,14 @@
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="stylesheet" href="style.css">
     <style>
-        body { overflow: auto; }
-        .page-shell { min-height: 100vh; background: var(--bg-main); }
+        body { overflow: auto; background-color: transparent; }
+        .page-shell { min-height: 100vh; background-color: transparent; }
         nav {
             position: sticky;
             top: 0;
             z-index: 100;
-            background: var(--bg-main);
+            background: rgba(6, 9, 19, 0.85);
+            backdrop-filter: blur(10px);
             border-bottom: 1px solid var(--border);
             display: flex;
             justify-content: space-between;
@@ -166,7 +167,7 @@
         <main class="page-content">
             <section class="hero">
                 <span class="eyebrow">Project / About</span>
-                <pre class="ascii-art" style="border:none; background:transparent; padding:0; margin-bottom: 1.5rem; color: var(--primary-purple); font-size: clamp(0.7rem, 2vw, 1.2rem); line-height: 1.2; text-shadow: 0 0 8px rgba(0, 243, 255, 0.5);">
+                <pre class="ascii-art" style="border:none; background:transparent; padding:0; margin-bottom: 1.5rem; color: var(--danger-red); font-size: clamp(0.7rem, 2vw, 1.2rem); line-height: 1.2; text-shadow: 0 0 10px rgba(255, 0, 85, 0.8);">
     ___   __ 
    /   | / /_  ____  __  __  __
   / /| |/ __ \/ __ \/ / / / / /
