@@ -53,7 +53,7 @@ if (!isTouchDevice) {
     document.getElementById('chat-input').focus();
 }
 // 1. Initialize Keyboard State from LocalStorage
-const isKeyboardOpen = localStorage.getItem("james_keyboard_open") === "true";
+const isKeyboardOpen = safeLocalStorage.getItem("james_keyboard_open") === "true";
 if (!isKeyboardOpen) {
     keyboardContainer.classList.add("hidden");
 } else {
@@ -64,9 +64,11 @@ if (!isKeyboardOpen) {
 keyboardBtn.addEventListener("click", () => {
     keyboardContainer.classList.toggle("hidden");
     const isOpen = !keyboardContainer.classList.contains("hidden");
-    localStorage.setItem("james_keyboard_open", isOpen);
+    safeLocalStorage.setItem("james_keyboard_open", isOpen);
 });
 
+// ═════ INITIALIZE KEYBOARD ═════
+// The 'layout' property defines the keys shown.
 const keyboard = new Keyboard({
     onChange: input => onChange(input),
     onKeyPress: button => onKeyPress(button),
@@ -108,7 +110,14 @@ function onChange(input) {
 function onKeyPress(button) {
     if (button === "{shift}") handleShift();
     if (button === "?123" || button === "{abc}") handleNumbers();
-    if (button === "{ent}") document.getElementById("btn-send").click();
+    if (button === "{ent}") {
+        // Bypass the UI button completely and call the core logic
+        if (globalState.isGeneratingUI) {
+            handleStopGeneration();
+        } else {
+            sendMessage();
+        }
+    }
 }
 
 function handleShift() {
@@ -584,6 +593,7 @@ function getMessagesWindow(messages) {
 
 function sendMessage(preExecutedMove = null) {
     const text = uiManager.cmdInput.value.trim();
+    keyboard.clearInput();
     if ((!text && attachmentManager.attachedFiles.length === 0 && !preExecutedMove) || globalState.isGeneratingUI) return;
 
     const processedText = UserInputProcessor.process(text);
