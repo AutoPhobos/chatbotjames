@@ -116,13 +116,13 @@ class UIManager {
     }
 
     getFullWelcomeMessage(showTools) {
-        const asciiArt = ` 
- ███████╗██╗
+        const asciiArt = ` ███████╗██╗
  ██╔══██╗██║
  ███████║██║
  ██╔══██║██║
  ██║  ██║██║
- ╚═╝  ╚═╝╚═╝';
+ ╚═╝  ╚═╝╚═╝
+ >> NEURAL CORE v1.0.0`;
 
         return {
             role: 'system',
