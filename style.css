@@ -1703,6 +1703,49 @@ a:hover {
     outline-offset: 2px;
 }
 
+.chat-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px;
+    background: #fff;
+    border-radius: 24px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+#chat-input {
+    flex-grow: 1;
+    /* Pushes the action-buttons group to the far right */
+    border: none;
+    outline: none;
+    padding: 8px;
+    font-size: 16px;
+}
+
+.action-buttons {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.icon-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.icon-btn:hover {
+    background: #f0f0f0;
+}
+
+.hidden {
+    display: none !important;
+}
+
 button:focus-visible,
 .icon-btn:focus-visible,
 .chat-item:focus-visible,
