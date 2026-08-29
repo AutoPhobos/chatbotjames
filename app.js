@@ -313,6 +313,8 @@ workerController.onModelInfo = (data) => {
 workerController.onWarmStart = (preset) => {
     uiManager.updateStatusMeta(`Resuming: ${preset.label}…`);
     uiManager.updateStatusText(`RESUMING ${preset.label.toUpperCase()}…`);
+    // Block keyboard input and disable focus
+    toggleInputLock(true);
 };
 
 workerController.onDownloadProgress = (loaded, total, file) => {
@@ -1088,6 +1090,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         recognition.onstart = () => {
+            // Block keyboard input and disable focus
+            toggleInputLock(true);
             isRecording = true;
             micBtn.style.color = '#ef4444';
             chatInput.placeholder = "Listening...";
@@ -1095,6 +1099,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         recognition.onresult = (event) => {
+            // Block keyboard input and disable focus
+            toggleInputLock(false);
             let transcript = '';
             for (let i = event.resultIndex; i < event.results.length; ++i) {
                 transcript += event.results[i][0].transcript;
@@ -1103,6 +1109,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         recognition.onend = () => {
+            // Block keyboard input and disable focus
+            toggleInputLock(false);
             isRecording = false;
             micBtn.style.color = '';
             chatInput.placeholder = "Type your message...";
