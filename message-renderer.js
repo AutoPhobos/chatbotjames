@@ -65,7 +65,7 @@ export function formatAssistantMessage(text) {
     // ── Step 1.5: Extract <think> blocks ─────────────────────────────────────
     const thinkBoxes = [];
     const THINK_PLACEHOLDER = 'THINKBOX_PLACEHOLDER_XYZ_';
-    
+
     // Match closed <think> blocks
     processedText = processedText.replace(/<think>([\s\S]*?)<\/think>/g, (_, content) => {
         const parsedContent = DOMPurify.sanitize(marked.parse(content.trim(), { async: false }));
@@ -256,18 +256,18 @@ export function createMessageElement(msg, historyIdx = -1, isLastAssistant = fal
     if (msg.type === 'tool_result') {
         messageWrap.className = 'message-wrap tool-result-msg';
         const displayContent = String(msg.content ?? '').replace('[SYSTEM: Tool results below. Interpret them and reply naturally to the user.]\n', '');
-        
+
         const details = document.createElement('details');
         details.style.cssText = 'background: rgba(0, 0, 0, 0.1); border-left: 3px solid #10b981; padding: 8px 12px; border-radius: 4px; margin: 8px 0; font-family: monospace; font-size: 0.85em; cursor: pointer; color: #94a3b8;';
-        
+
         const summary = document.createElement('summary');
         summary.style.cssText = 'color: #34d399; font-weight: bold; margin-bottom: 4px; list-style: none; display: flex; align-items: center; gap: 6px; user-select: none;';
         summary.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> <span>Tool Result (Click to expand)</span>';
-        
+
         const pre = document.createElement('pre');
         pre.style.cssText = 'margin: 8px 0 0 0; white-space: pre-wrap; word-break: break-all; color: #cbd5e1; max-height: 300px; overflow-y: auto;';
         pre.textContent = displayContent;
-        
+
         details.appendChild(summary);
         details.appendChild(pre);
         messageWrap.appendChild(details);
@@ -303,7 +303,7 @@ export function createMessageElement(msg, historyIdx = -1, isLastAssistant = fal
     copyBtn.innerHTML = '📋';
     copyBtn.title = 'Copy message';
     copyBtn.setAttribute('aria-label', 'Copy message to clipboard');
-    
+
     let textToCopy = msg.content;
     if (msg.role === 'user' && msg.displayContent) {
         textToCopy = msg.displayContent;
