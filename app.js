@@ -22,7 +22,76 @@ import {
 } from './message-renderer.js';
 import { setupModelPanel, updateModelInfo, refreshPresetCards } from './model-panel.js';
 import { UserInputProcessor } from './input-processor.js';
+const Keyboard = window.SimpleKeyboard.default;
+const inputElement = document.getElementById("chat-input");
+const keyboardContainer = document.getElementById("virtual-keyboard-container");
 
+// Initialize the Google-style keyboard
+const keyboard = new Keyboard({
+    onChange: input => onChange(input),
+    onKeyPress: button => onKeyPress(button),
+    theme: "hg-theme-default gboard-theme",
+    layout: {
+        default: [
+            "q w e r t y u i o p",
+            "a s d f g h j k l",
+            "{shift} z x c v b n m {bksp}",
+            "?123 {space} . {ent}"
+        ],
+        shift: [
+            "Q W E R T Y U I O P",
+            "A S D F G H J K L",
+            "{shift} Z X C V B N M {bksp}",
+            "?123 {space} . {ent}"
+        ],
+        numbers: [
+            "1 2 3 4 5 6 7 8 9 0",
+            "@ # $ % & * - + ( )",
+            "{abc} ! \" ' : ; / ? {bksp}",
+            "{abc} {space} . {ent}"
+        ]
+    },
+    display: {
+        "{bksp}": "⌫",
+        "{ent}": "↵",
+        "{shift}": "⇧",
+        "{space}": " ",
+        "?123": "?123",
+        "{abc}": "ABC"
+    }
+});
+
+function onChange(input) {
+    inputElement.value = input;
+}
+
+function onKeyPress(button) {
+    if (button === "{shift}") handleShift();
+    if (button === "?123" || button === "{abc}") handleNumbers();
+    if (button === "{ent}") document.getElementById("btn-send").click();
+}
+
+function handleShift() {
+    const currentLayout = keyboard.options.layoutName;
+    const shiftToggle = currentLayout === "default" ? "shift" : "default";
+    keyboard.setOptions({ layoutName: shiftToggle });
+}
+
+function handleNumbers() {
+    const currentLayout = keyboard.options.layoutName;
+    const numbersToggle = currentLayout !== "numbers" ? "numbers" : "default";
+    keyboard.setOptions({ layoutName: numbersToggle });
+}
+
+// Ensure physical keyboard inputs update the virtual keyboard's internal state
+inputElement.addEventListener("input", (event) => {
+    keyboard.setInput(event.target.value);
+});
+
+// Toggle visibility button
+document.getElementById("btn-keyboard").addEventListener("click", () => {
+    keyboardContainer.classList.toggle("hidden");
+});
 // ==========================================
 // MANAGER WIRING & CALLBACKS
 // ==========================================

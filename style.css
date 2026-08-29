@@ -147,12 +147,13 @@
     /* Typography */
     --text-primary: #e0fbfc;
     --text-secondary: #94a3b8;
-    --text-muted: #7c8a9e; /* improved contrast for WCAG */
+    --text-muted: #7c8a9e;
+    /* improved contrast for WCAG */
     --disabled-gray: #1e293b;
 
     /* Spacing */
     --chat-max-width: 48rem;
-    
+
     /* Radii */
     --radius-sm: 4px;
     --radius-md: 6px;
@@ -1214,7 +1215,7 @@ a:hover {
     position: absolute;
     top: 8px;
     right: 8px;
-    background: rgba(255,255,255,0.1);
+    background: rgba(255, 255, 255, 0.1);
     border: none;
     color: inherit;
     border-radius: 4px;
@@ -1227,13 +1228,13 @@ a:hover {
 
 .copy-msg-btn:hover {
     opacity: 1;
-    background: rgba(255,255,255,0.2);
+    background: rgba(255, 255, 255, 0.2);
 }
 
 .console-font {
     font-family: 'Courier New', Courier, monospace;
     white-space: pre-wrap;
-    background: rgba(0,0,0,0.3);
+    background: rgba(0, 0, 0, 0.3);
     color: #00ff00;
     padding: 10px;
     border-radius: 4px;
@@ -1263,8 +1264,15 @@ a:hover {
 }
 
 @keyframes appendBannerIn {
-    from { opacity: 0; transform: translateY(6px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .append-mode-banner span {
@@ -1304,7 +1312,8 @@ a:hover {
 .append-msg-btn {
     position: absolute;
     bottom: 8px;
-    right: 38px; /* sit beside the copy button */
+    right: 38px;
+    /* sit beside the copy button */
     background: rgba(59, 130, 246, 0.12);
     border: 1px solid rgba(59, 130, 246, 0.25);
     color: #93c5fd;
@@ -1335,17 +1344,27 @@ a:hover {
     transition: transform 0.2s, filter 0.2s;
     filter: grayscale(0.4) opacity(0.7);
 }
+
 #notesBtn.notes-active {
     filter: grayscale(0) opacity(1);
     animation: notes-pulse 2s ease-in-out infinite;
 }
+
 #notesBtn:hover {
     transform: scale(1.15);
     filter: grayscale(0) opacity(1);
 }
+
 @keyframes notes-pulse {
-    0%, 100% { filter: grayscale(0) opacity(1); }
-    50%       { filter: grayscale(0) opacity(0.75) drop-shadow(0 0 6px rgba(139,92,246,0.6)); }
+
+    0%,
+    100% {
+        filter: grayscale(0) opacity(1);
+    }
+
+    50% {
+        filter: grayscale(0) opacity(0.75) drop-shadow(0 0 6px rgba(139, 92, 246, 0.6));
+    }
 }
 
 /* ═════ NOTES PANEL ═════ */
@@ -1360,9 +1379,9 @@ a:hover {
 .notes-panel-description {
     padding: 0 1.25rem 1rem;
     font-size: 0.85rem;
-    color: var(--text-secondary, rgba(148,163,184,0.85));
+    color: var(--text-secondary, rgba(148, 163, 184, 0.85));
     line-height: 1.55;
-    border-bottom: 1px solid var(--border, rgba(255,255,255,0.08));
+    border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
 }
 
 .notes-list {
@@ -1375,12 +1394,13 @@ a:hover {
 }
 
 .notes-empty {
-    color: var(--text-secondary, rgba(148,163,184,0.7));
+    color: var(--text-secondary, rgba(148, 163, 184, 0.7));
     font-size: 0.88rem;
     line-height: 1.6;
     text-align: center;
     padding: 1.5rem 0;
 }
+
 .notes-empty small {
     font-size: 0.8rem;
     opacity: 0.7;
@@ -1396,9 +1416,17 @@ a:hover {
     padding: 0.55rem 0.75rem;
     animation: note-slide-in 0.25s ease;
 }
+
 @keyframes note-slide-in {
-    from { opacity: 0; transform: translateY(-6px); }
-    to   { opacity: 1; transform: none; }
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
 }
 
 .note-text {
@@ -1412,7 +1440,7 @@ a:hover {
 .note-delete-btn {
     background: none;
     border: none;
-    color: rgba(148,163,184,0.5);
+    color: rgba(148, 163, 184, 0.5);
     font-size: 1rem;
     cursor: pointer;
     padding: 0 2px;
@@ -1420,6 +1448,7 @@ a:hover {
     transition: color 0.15s;
     flex-shrink: 0;
 }
+
 .note-delete-btn:hover {
     color: #f87171;
 }
@@ -1429,6 +1458,7 @@ a:hover {
     color: #f87171 !important;
     border: 1px solid rgba(239, 68, 68, 0.3) !important;
 }
+
 .notes-clear-btn:hover {
     background: rgba(239, 68, 68, 0.25) !important;
 }
@@ -1443,7 +1473,7 @@ a:hover {
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(139, 92, 246, 0.35);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.45), 0 0 12px rgba(139,92,246,0.15);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 12px rgba(139, 92, 246, 0.15);
     color: #c4b5fd;
     font-size: 0.87rem;
     padding: 0.55rem 1.1rem;
@@ -1457,6 +1487,32 @@ a:hover {
     pointer-events: none;
     transition: opacity 0.3s ease, transform 0.3s ease;
 }
+
+.gboard-theme {
+    background-color: #e4e6f1 !important;
+    padding: 8px !important;
+}
+
+.gboard-theme .hg-button {
+    background: #ffffff !important;
+    border-radius: 6px !important;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.15) !important;
+    border-bottom: 1px solid #d2d4df !important;
+    font-family: 'Roboto', sans-serif !important;
+    height: 48px !important;
+}
+
+.gboard-theme .hg-button:active {
+    background: #d4d6e0 !important;
+    transform: scale(0.98);
+}
+
+.gboard-theme .hg-button-shift,
+.gboard-theme .hg-button-bksp,
+.gboard-theme .hg-button-ent {
+    background: #b5b9ce !important;
+}
+
 .note-toast.visible {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
@@ -1593,6 +1649,7 @@ a:hover {
     border: 1px solid #a855f7 !important;
     color: #a855f7 !important;
 }
+
 .new-thread-btn:hover {
     background: rgba(168, 85, 247, 0.1) !important;
 }
@@ -1602,6 +1659,7 @@ a:hover {
     border-left-color: #a855f7 !important;
     color: #a855f7 !important;
 }
+
 .chat-session-item.active .session-title::before {
     content: "> ";
     color: #a855f7;
@@ -1610,12 +1668,14 @@ a:hover {
 
 .input-container:focus-within {
     border-color: #a855f7 !important;
-    box-shadow: 0 0 0 2px rgba(168,85,247,0.2) !important;
+    box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.2) !important;
 }
+
 #sendBtn {
     background: #a855f7 !important;
     color: #fff !important;
 }
+
 #sendBtn:hover:not(:disabled) {
     background: #9333ea !important;
 }
@@ -1670,6 +1730,7 @@ a:focus-visible {
 .chat-item[role="button"] {
     cursor: pointer;
 }
+
 .chat-item[role="button"]:focus-visible {
     background: rgba(0, 243, 255, 0.08);
 }
@@ -1678,6 +1739,7 @@ a:focus-visible {
 .preset-card[role="button"] {
     cursor: pointer;
 }
+
 .preset-card[role="button"]:focus-visible {
     border-color: var(--primary-purple);
     background: rgba(0, 243, 255, 0.06);
@@ -1685,6 +1747,7 @@ a:focus-visible {
 
 /* Respect user preference for reduced motion */
 @media (prefers-reduced-motion: reduce) {
+
     *,
     *::before,
     *::after {
@@ -1709,6 +1772,7 @@ a:focus-visible {
     align-items: center;
     outline: none;
 }
+
 .chat-item-main:focus-visible {
     outline: 2px solid var(--primary-purple);
     outline-offset: 2px;
@@ -1725,9 +1789,11 @@ a:focus-visible {
     :root {
         --chat-max-width: 56rem;
     }
+
     .sidebar {
         width: 300px;
     }
+
     .message-content {
         font-size: 1.05rem;
         line-height: 1.65;
@@ -1738,17 +1804,21 @@ a:focus-visible {
     :root {
         --chat-max-width: 64rem;
     }
+
     .sidebar {
         width: 320px;
     }
+
     .terminal-header {
         padding-left: 28px;
         padding-right: 28px;
     }
+
     .message-content {
         font-size: 1.1rem;
         line-height: 1.7;
     }
+
     #cmdInput {
         font-size: 1.1rem;
     }
@@ -1758,23 +1828,29 @@ a:focus-visible {
     :root {
         --chat-max-width: 72rem;
     }
+
     .sidebar {
         width: 360px;
     }
+
     body {
         font-size: 18px;
     }
+
     .message-content {
         font-size: 1.15rem;
         line-height: 1.75;
     }
+
     .chat-item {
         padding: 14px 16px;
         font-size: 1rem;
     }
+
     #cmdInput {
         font-size: 1.15rem;
     }
+
     #sendBtn {
         width: 48px;
         height: 48px;
@@ -1959,17 +2035,21 @@ body.tv-mode .game-board-message {
     :root {
         --chat-max-width: min(70rem, 88vw);
     }
+
     body:not(.tv-mode) .message-content {
         font-size: 1.15rem;
         line-height: 1.7;
     }
+
     body:not(.tv-mode) #cmdInput {
         font-size: 1.15rem;
     }
+
     body:not(.tv-mode) .icon-btn {
         width: 48px;
         height: 48px;
     }
+
     body:not(.tv-mode) #sendBtn {
         width: 52px;
         height: 52px;
@@ -1983,9 +2063,20 @@ body.tv-mode .game-board-message {
 }
 
 @keyframes pulse-recording {
-    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-    70% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+    }
+
+    70% {
+        transform: scale(1.1);
+        box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+    }
+
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
 }
 
 .virtual-keyboard {
