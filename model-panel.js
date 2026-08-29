@@ -27,14 +27,27 @@ export function setupModelPanel(options = {}) {
     });
 }
 
+let _modelPanelReturnFocus = null;
+
 export function openModelPanel() {
+    _modelPanelReturnFocus = document.activeElement;
     modelPanel?.classList.add('open');
     modelPanelOverlay?.classList.add('visible');
+    // Move focus into the dialog for keyboard users
+    requestAnimationFrame(() => {
+        const first = modelPanel?.querySelector('button, [href], [tabindex]:not([tabindex="-1"])');
+        (first || modelPanelClose)?.focus();
+    });
 }
 
 export function closeModelPanel() {
     modelPanel?.classList.remove('open');
     modelPanelOverlay?.classList.remove('visible');
+    // Restore focus to the control that opened the panel
+    if (_modelPanelReturnFocus && typeof _modelPanelReturnFocus.focus === 'function') {
+        _modelPanelReturnFocus.focus();
+    }
+    _modelPanelReturnFocus = null;
 }
 
 export function updateModelInfo(data) {
@@ -129,6 +142,10 @@ export function renderModelPanel() {
                 isRunning ? 'preset-active-running' : '',
             ].filter(Boolean).join(' ');
             el.dataset.presetId = preset.id;
+            el.setAttribute('role', 'button');
+            el.tabIndex = 0;
+            el.setAttribute('aria-label', `${preset.label}${isRunning ? ' (currently active)' : ''}`);
+            el.setAttribute('aria-pressed', isSelected || isRunning ? 'true' : 'false');
 
             el.innerHTML = `
             <div class="preset-info">
@@ -139,6 +156,12 @@ export function renderModelPanel() {
             <div class="preset-check"></div>`;
 
             el.addEventListener('click', () => selectPreset(preset.id));
+            el.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    selectPreset(preset.id);
+                }
+            });
             list.appendChild(el);
         });
     });

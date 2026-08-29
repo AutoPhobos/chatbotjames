@@ -147,7 +147,7 @@
     /* Typography */
     --text-primary: #e0fbfc;
     --text-secondary: #94a3b8;
-    --text-muted: #475569;
+    --text-muted: #7c8a9e; /* improved contrast for WCAG */
     --disabled-gray: #1e293b;
 
     /* Spacing */
@@ -1620,4 +1620,86 @@ a:hover {
     width: fit-content;
     max-width: 100%;
     box-sizing: border-box;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ACCESSIBILITY — keyboard focus, reduced motion, contrast
+   ═══════════════════════════════════════════════════════════ */
+
+/* Clear, high-visibility focus ring that fits the terminal aesthetic */
+:focus-visible {
+    outline: 2px solid var(--primary-purple);
+    outline-offset: 2px;
+}
+
+button:focus-visible,
+.icon-btn:focus-visible,
+.chat-item:focus-visible,
+.preset-card:focus-visible,
+.new-thread-btn:focus-visible,
+.apply-model-btn:focus-visible,
+.delete-chat-btn:focus-visible,
+.edit-msg-btn:focus-visible,
+.copy-msg-btn:focus-visible,
+a:focus-visible {
+    outline: 2px solid var(--primary-purple);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(0, 243, 255, 0.25);
+}
+
+/* Ensure mouse users don't get the ring (focus-visible handles this),
+   but keep a subtle ring if a browser falls back to :focus */
+.chat-item:focus,
+.preset-card:focus {
+    outline: 2px solid var(--primary-purple);
+    outline-offset: 2px;
+}
+
+/* Chat list items should feel interactive when focused via keyboard */
+.chat-item[role="button"] {
+    cursor: pointer;
+}
+.chat-item[role="button"]:focus-visible {
+    background: rgba(0, 243, 255, 0.08);
+}
+
+/* Preset cards keyboard affordance */
+.preset-card[role="button"] {
+    cursor: pointer;
+}
+.preset-card[role="button"]:focus-visible {
+    border-color: var(--primary-purple);
+    background: rgba(0, 243, 255, 0.06);
+}
+
+/* Respect user preference for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Slightly stronger placeholder contrast */
+#cmdInput::placeholder {
+    color: #8b9cb3;
+    opacity: 1;
+}
+
+/* Chat item keyboard row (role=button child) keeps flex layout intact */
+.chat-item-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    outline: none;
+}
+.chat-item-main:focus-visible {
+    outline: 2px solid var(--primary-purple);
+    outline-offset: 2px;
+    border-radius: 4px;
 }

@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0d1117">
 
     <!-- Primary SEO Meta Tags -->
@@ -166,7 +166,7 @@
                 </svg>
                 ✨ NEW THREAD
             </button>
-            <div id="chatList" class="chat-list"></div>
+            <div id="chatList" class="chat-list" role="list" aria-label="Chat history"></div>
             <div class="sidebar-footer">
                 <div class="footer-links">
                     <a href="about.html">About</a> · <a href="docs.html">Docs</a> · <a href="#" id="faqBtn">FAQ</a>
@@ -194,8 +194,8 @@
                             <line x1="3" y1="18" x2="21" y2="18"></line>
                         </svg>
                     </button>
-                    <div class="status-indicator">
-                        <div id="led" class="status-led led-idle"></div>
+                    <div class="status-indicator" role="status" aria-live="polite">
+                        <div id="led" class="status-led led-idle" aria-hidden="true"></div>
                         <span id="statusText">INITIALIZING...</span>
                     </div>
                 </div>
@@ -217,7 +217,9 @@
                 </div>
             </header>
 
-            <div id="progressContainer" class="progress-container">
+            <div id="progressContainer" class="progress-container"
+                 role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"
+                 aria-label="Model download progress" aria-hidden="true">
                 <div id="progFill" class="progress-fill"></div>
             </div>
 

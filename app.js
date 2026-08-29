@@ -75,40 +75,58 @@ chatManager.onChatListUpdated = () => {
         const chatItem = document.createElement('div');
         chatItem.className = 'chat-item';
         chatItem.dataset.chatId = chat.id;
+        chatItem.setAttribute('role', 'listitem');
+
+        // Make the whole row keyboard-activatable
+        const rowBtn = document.createElement('div');
+        rowBtn.className = 'chat-item-main';
+        rowBtn.setAttribute('role', 'button');
+        rowBtn.tabIndex = 0;
+        rowBtn.setAttribute('aria-label', `Open chat: ${chat.name}`);
 
         const chatText = document.createElement('span');
         chatText.textContent = chat.name;
         chatText.style.pointerEvents = 'none';
+        rowBtn.appendChild(chatText);
 
-        chatItem.onclick = () => {
+        const openChat = () => {
             chatManager.loadChatHistory(
-                chat.id, 
-                () => gameController.getGameState(), 
+                chat.id,
+                () => gameController.getGameState(),
                 (state) => gameController.restoreGameState(state),
                 safeLocalStorage
             );
             if (window.innerWidth <= 768) uiManager.closeSidebar();
         };
+        rowBtn.onclick = openChat;
+        rowBtn.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                openChat();
+            }
+        });
 
         const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
         deleteBtn.textContent = 'x';
         deleteBtn.className = 'delete-chat-btn';
+        deleteBtn.setAttribute('aria-label', `Delete chat: ${chat.name}`);
         deleteBtn.onclick = (e) => {
             e.stopPropagation();
             chatManager.deleteChat(
-                chat.id, 
+                chat.id,
                 safeLocalStorage,
-                () => gameController.getGameState(), 
+                () => gameController.getGameState(),
                 (state) => gameController.restoreGameState(state),
                 () => uiManager.getWelcomeMessage(isMobileDevice(), isTVDevice(), true)
             );
         };
 
-        chatItem.appendChild(chatText);
+        chatItem.appendChild(rowBtn);
         chatItem.appendChild(deleteBtn);
         chatListEl.appendChild(chatItem);
     });
-    
+
     updateChatListActive(chatManager.currentChatId);
 };
 
@@ -1074,7 +1092,30 @@ document.getElementById('notesClearBtn')?.addEventListener('click', async () => 
 
 function _setupNotesPanel() {
     const btn      = document.getElementById('notesBtn');
-    const panel    = document.getElementById('notesPanel');
+    
+// ── Accessibility: Escape closes any open modal panel ───────────────────────
+document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const panels = [
+        { panel: 'notesPanel', overlay: 'notesPanelOverlay' },
+        { panel: 'faqPanel', overlay: 'faqPanelOverlay' },
+        { panel: 'modelPanel', overlay: 'modelPanelOverlay' },
+        { panel: 'recoveryModal', overlay: 'recoveryOverlay' },
+    ];
+    for (const { panel, overlay } of panels) {
+        const el = document.getElementById(panel);
+        if (el?.classList.contains('open')) {
+            el.classList.remove('open');
+            document.getElementById(overlay)?.classList.remove('visible');
+            e.preventDefault();
+            // Return focus to a sensible place
+            document.getElementById('cmdInput')?.focus();
+            break;
+        }
+    }
+});
+
+const panel    = document.getElementById('notesPanel');
     const overlay  = document.getElementById('notesPanelOverlay');
     const closeBtn = document.getElementById('notesPanelClose');
     if (!btn || !panel) return;

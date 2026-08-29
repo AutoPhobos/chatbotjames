@@ -112,9 +112,11 @@ export function appendUserMessage(text, historyIdx = -1) {
     messageContent.textContent = text;
 
     const editBtn = document.createElement('button');
+    editBtn.type = 'button';
     editBtn.className = 'edit-msg-btn';
     editBtn.innerHTML = '✏️';
     editBtn.title = 'Edit this message';
+    editBtn.setAttribute('aria-label', 'Edit this message');
     editBtn.onclick = () => window.editUserMessage(historyIdx);
 
     const container = document.createElement('div');
@@ -195,9 +197,11 @@ export function updateLiveBubble(text, targetId, force = false) {
 
         // Add copy button
         const copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
         copyBtn.className = 'copy-msg-btn';
         copyBtn.innerHTML = '📋';
         copyBtn.title = 'Copy message';
+        copyBtn.setAttribute('aria-label', 'Copy message to clipboard');
         copyBtn.onclick = () => navigator.clipboard.writeText(text);
         container.appendChild(copyBtn);
 
@@ -294,9 +298,11 @@ export function createMessageElement(msg, historyIdx = -1, isLastAssistant = fal
     messageContent.className = 'message-content';
 
     const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
     copyBtn.className = 'copy-msg-btn';
     copyBtn.innerHTML = '📋';
     copyBtn.title = 'Copy message';
+    copyBtn.setAttribute('aria-label', 'Copy message to clipboard');
     
     let textToCopy = msg.content;
     if (msg.role === 'user' && msg.displayContent) {
@@ -327,9 +333,11 @@ export function createMessageElement(msg, historyIdx = -1, isLastAssistant = fal
             messageContent.textContent = display;
         }
         const editBtn = document.createElement('button');
+        editBtn.type = 'button';
         editBtn.className = 'edit-msg-btn';
         editBtn.innerHTML = '\u270f\ufe0f';
         editBtn.title = 'Edit this message';
+        editBtn.setAttribute('aria-label', 'Edit this message');
         editBtn.onclick = () => window.editUserMessage(historyIdx);
         const container = document.createElement('div');
         container.className = 'user-msg-container';

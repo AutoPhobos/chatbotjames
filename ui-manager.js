@@ -47,6 +47,18 @@ class UIManager {
 
     updateProgress(percent) {
         if (this.progressFillEl) this.progressFillEl.style.width = `${percent}%`;
+        const container = document.getElementById('progressContainer');
+        if (container) {
+            const val = Math.max(0, Math.min(100, Math.round(percent)));
+            container.setAttribute('aria-valuenow', String(val));
+            // Show to AT only while downloading (0 < val < 100)
+            if (val > 0 && val < 100) {
+                container.removeAttribute('aria-hidden');
+                container.setAttribute('aria-valuetext', `${val} percent downloaded`);
+            } else {
+                container.setAttribute('aria-hidden', 'true');
+            }
+        }
     }
 
     updateActiveModelLabel(label) {
