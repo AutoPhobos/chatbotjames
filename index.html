@@ -234,16 +234,20 @@
                     <div id="attachmentPreview" class="attachment-preview" aria-live="polite"></div>
 
                     <div class="input-wrapper">
-                        <input type="file" id="fileInput" style="display: none;" multiple aria-hidden="true"
-                            tabindex="-1">
-                        <button type="button" id="attachButton" class="icon-btn" title="Attach files or archives"
-                            aria-label="Attach file">+</button>
-                        <input type="text" id="cmdInput" placeholder="💬 Ask JAMES anything..." autocomplete="off"
-                            aria-label="Type your message">
+                        <input type="file" id="fileInput" style="display: none;" multiple aria-hidden="true" tabindex="-1">
+                        <button type="button" id="attachButton" class="icon-btn" title="Attach files or archives" aria-label="Attach file">+</button>
+                        <button type="button" id="micBtn" class="icon-btn" title="Dictate with microphone" aria-label="Microphone">🎤</button>
+                        <button type="button" id="keyboardBtn" class="icon-btn" title="Virtual Keyboard" aria-label="Virtual Keyboard">⌨️</button>
+                        <input type="text" id="cmdInput" placeholder="💬 Ask JAMES anything..." autocomplete="off" aria-label="Type your message">
                         <button type="button" id="sendBtn" aria-label="Send message">➔</button>
                     </div>
                     <div class="input-footer-text" aria-hidden="true">🔒 JAMES runs entirely client-side via WebGPU.</div>
                 </div>
+            </div>
+            
+            <!-- Virtual Keyboard -->
+            <div id="virtualKeyboard" class="virtual-keyboard hidden">
+                <!-- Keyboard keys will be rendered here -->
             </div>
         </main>
 
