@@ -5,17 +5,15 @@
  * model is still loading. Accepts multilingual trigger words but always replies
  * in English.
  *
- * Robustness improvements over the original:
+ * Robustness & performance improvements:
  *  - Triggers are pre-normalised once at construction time (no per-call overhead).
- *  - Three-pass matching: exact → prefix-with-word-boundary → fuzzy edit-distance.
+ *  - Three-pass matching: exact → trie prefix-with-word-boundary → fuzzy edit-distance.
+ *  - Prefix pass uses a character trie (nested Maps) → O(L) instead of O(T).
  *  - Word-boundary guard prevents short triggers ("hi") from matching mid-sentence words.
- *  - Non-repeating response picker — avoids giving the same reply twice in a row.
- *  - Per-pattern response history so every pattern independently avoids repeats.
+ *  - Non-repeating response picker with fixed-size circular history per pattern.
  *  - Fuzzy matching (Levenshtein ≤ 1) catches single-char typos ("helo", "thnks").
  *  - Punctuation-stripped normalisation handles "hello!" → "hello" etc.
  *  - Input length guard (≤ 40 chars) keeps fuzzy pass fast.
- *  - Prefix pass uses a proper word-boundary check instead of a magic "+8" fudge.
- *  - 'salut' removed from farewell list (was duplicated from French greetings).
  *  - Cyrillic / CJK / non-Latin inputs handled correctly (no NFD corruption).
  *
  * Vastly expanded: dozens of new categories, richer multilingual coverage,
@@ -1518,12 +1516,19 @@ export class SmallTalkHandler {
         ];
 
         // ── Pre-compute normalised triggers ───────────────────────────────────
-        // Each compiled pattern stores normalised triggers plus response-history state.
-        this._patterns = rawPatterns.map(p => ({
-            triggers: p.triggers.map(t => this._normalize(t)),
-            responses: p.responses,
-            _history: [],          // rolling window of recently-used response indices
-        }));
+        // Each compiled pattern stores normalised triggers plus circular response history.
+        this._patterns = rawPatterns.map(p => {
+            const n = p.responses.length;
+            const histSize = Math.max(1, Math.floor(n / 2));
+            return {
+                triggers: p.triggers.map(t => this._normalize(t)),
+                responses: p.responses,
+                // Fixed-size circular buffer of recently-used response indices.
+                _hist: new Array(histSize),
+                _histLen: 0,   // how many slots are filled
+                _histPos: 0,   // next write position
+            };
+        });
 
         // O(1) exact-match Map: normalised-trigger → pattern index.
         // First occurrence wins (earlier patterns have higher priority for duplicates).
@@ -1536,18 +1541,31 @@ export class SmallTalkHandler {
             }
         }
 
-        // All triggers sorted longest-first for correct prefix-match precedence
-        // ("good morning" must win over "good").
-        this._sortedTriggers = [];
+        // Character trie for O(L) longest-prefix matching.
+        // Node shape: { children: Map<char, node>, patternIndex: number|null }
+        this._trie = { children: new Map(), patternIndex: null };
+        // Also collect short triggers for the fuzzy pass.
+        this._fuzzyTriggers = [];
         for (let i = 0; i < this._patterns.length; i++) {
             for (const t of this._patterns[i].triggers) {
-                this._sortedTriggers.push({ trigger: t, patternIndex: i });
+                // Insert into trie
+                let node = this._trie;
+                for (const ch of t) {
+                    if (!node.children.has(ch)) {
+                        node.children.set(ch, { children: new Map(), patternIndex: null });
+                    }
+                    node = node.children.get(ch);
+                }
+                // Prefer earlier pattern if the same trigger appears twice
+                if (node.patternIndex === null) {
+                    node.patternIndex = i;
+                }
+                // Fuzzy candidates (short only)
+                if (t.length <= 20) {
+                    this._fuzzyTriggers.push({ trigger: t, patternIndex: i });
+                }
             }
         }
-        this._sortedTriggers.sort((a, b) => b.trigger.length - a.trigger.length);
-
-        // Fuzzy-pass candidates: only triggers ≤ 20 chars (performance guard).
-        this._fuzzyTriggers = this._sortedTriggers.filter(e => e.trigger.length <= 20);
     }
 
     // ── Normalisation ──────────────────────────────────────────────────────────
@@ -1596,42 +1614,46 @@ export class SmallTalkHandler {
         return prev[lb];
     }
 
-    // ── Word-boundary helper ───────────────────────────────────────────────────
+    // ── Word-boundary helper (used by trie walk) ───────────────────────────────
     /**
-     * Returns true if `input` starts with `trigger` and is followed by
-     * end-of-string or a word boundary character.
-     * Prevents "hi" from matching "highlight", "history", etc.
+     * Returns true if the character at `pos` is a word boundary
+     * (end of string, space, or common punctuation).
      */
-    _startsWithBoundary(input, trigger) {
-        if (!input.startsWith(trigger)) return false;
-        if (input.length === trigger.length) return true;
-        const next = input[trigger.length];
-        return next === ' ' || next === ',' || next === '.';
+    _isBoundary(input, pos) {
+        if (pos >= input.length) return true;
+        const ch = input[pos];
+        return ch === ' ' || ch === ',' || ch === '.' || ch === '!' || ch === '?';
     }
 
-    // ── Non-repeating response picker ─────────────────────────────────────────
+    // ── Non-repeating response picker (circular buffer) ───────────────────────
     /**
-     * Picks a response from `pattern.responses`, cycling through all options
-     * before repeating. Maintains a rolling history per-pattern.
+     * Picks a response from `pattern.responses`, avoiding the most recently
+     * used ones. History is a fixed-size circular buffer — O(1) insert/evict,
+     * O(H) membership check where H is tiny (≤ half the response count).
      */
     _pick(pattern) {
-        const { responses } = pattern;
+        const { responses, _hist, _histLen, _histPos } = pattern;
         if (responses.length === 1) return responses[0];
 
-        const maxHistory = Math.max(1, Math.floor(responses.length / 2));
-        const history = pattern._history;
-
-        // Build pool of un-recently-used indices
-        const pool = responses
-            .map((_, i) => i)
-            .filter(i => !history.includes(i));
+        // Build pool of indices not present in the circular history
+        const pool = [];
+        for (let i = 0; i < responses.length; i++) {
+            let recent = false;
+            for (let h = 0; h < _histLen; h++) {
+                if (_hist[h] === i) { recent = true; break; }
+            }
+            if (!recent) pool.push(i);
+        }
 
         const idx = (pool.length > 0)
             ? pool[Math.floor(Math.random() * pool.length)]
             : Math.floor(Math.random() * responses.length);
 
-        history.push(idx);
-        if (history.length > maxHistory) history.shift();
+        // Write into circular buffer
+        _hist[_histPos] = idx;
+        pattern._histPos = (_histPos + 1) % _hist.length;
+        if (_histLen < _hist.length) pattern._histLen = _histLen + 1;
+
         return responses[idx];
     }
 
@@ -1641,8 +1663,8 @@ export class SmallTalkHandler {
      *
      * Three matching passes (in order of strictness):
      *  1. Exact — O(1) Map lookup, also strips optional "james" prefix/suffix.
-     *  2. Prefix-with-boundary — input starts with a trigger at a word boundary,
-     *     with at most 10 trailing chars (short filler: "please", "ok?", "james").
+     *  2. Trie longest-prefix with word-boundary — O(L) walk, keeps deepest match,
+     *     allows at most 10 trailing chars of short filler ("please", "ok?", "james").
      *  3. Fuzzy — Levenshtein ≤ 1 for inputs ≤ 40 chars (single-char typo tolerance).
      */
     match(input) {
@@ -1668,14 +1690,29 @@ export class SmallTalkHandler {
             return this._pick(this._patterns[exactIdx]);
         }
 
-        // ── Pass 2: Prefix-with-word-boundary ───────────────────────────────
-        // Sorted longest-first so "good morning" wins over bare "good".
-        for (const { trigger, patternIndex } of this._sortedTriggers) {
-            if (!this._startsWithBoundary(normalized, trigger)) continue;
-            const tail = normalized.slice(trigger.length).trim();
-            // Allow short trailing filler ("please", "ok?", "james", etc.)
-            if (tail.length <= 10) {
-                return this._pick(this._patterns[patternIndex]);
+        // ── Pass 2: Trie longest-prefix with word-boundary ──────────────────
+        // Walk the input once; keep the deepest end-of-word node.
+        // Complexity: O(L) where L = length of normalised input.
+        {
+            let node = this._trie;
+            let bestIdx = null;
+            let bestLen = 0;
+            for (let i = 0; i < normalized.length; i++) {
+                const ch = normalized[i];
+                if (!node.children.has(ch)) break;
+                node = node.children.get(ch);
+                // Record end-of-word only when followed by a boundary
+                if (node.patternIndex !== null && this._isBoundary(normalized, i + 1)) {
+                    bestIdx = node.patternIndex;
+                    bestLen = i + 1;
+                }
+            }
+            if (bestIdx !== null) {
+                const tail = normalized.slice(bestLen).trim();
+                // Allow short trailing filler ("please", "ok?", "james", etc.)
+                if (tail.length <= 10) {
+                    return this._pick(this._patterns[bestIdx]);
+                }
             }
         }
 
