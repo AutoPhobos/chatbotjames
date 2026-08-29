@@ -19,7 +19,7 @@ export function setupKeyboard(inputElement, keyboardBtn, containerElement) {
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = 'vk-key';
-                
+
                 let displayKey = key;
                 if (key === 'space') {
                     btn.classList.add('space', 'special');
@@ -29,16 +29,16 @@ export function setupKeyboard(inputElement, keyboardBtn, containerElement) {
                 } else {
                     displayKey = isShift ? key.toUpperCase() : key;
                 }
-                
+
                 btn.textContent = displayKey;
-                
+
                 btn.addEventListener('click', (e) => {
                     e.preventDefault();
                     handleKey(key);
                 });
                 // Prevent focus stealing from input element
                 btn.addEventListener('mousedown', e => e.preventDefault());
-                
+
                 rowEl.appendChild(btn);
             });
             containerElement.appendChild(rowEl);
@@ -69,6 +69,10 @@ export function setupKeyboard(inputElement, keyboardBtn, containerElement) {
             const charToInsert = key === 'space' ? ' ' : (isShift ? key.toUpperCase() : key);
             inputElement.value = val.substring(0, start) + charToInsert + val.substring(end);
             inputElement.setSelectionRange(start + 1, start + 1);
+
+            // Add this to trigger native listeners attached to the input field
+            inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+
             if (isShift) {
                 isShift = false;
                 render();
