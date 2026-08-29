@@ -1,6 +1,6 @@
 # JAMES (Just A Machine, Engineered for Speech)
 
-![JAMES AI Preview](preview.jpg)
+![JAMES AI Preview](preview.png)
 
 JAMES is a fully local, browser-native AI assistant designed with privacy as the foundational principle. By leveraging WebAssembly and WebGPU, JAMES runs entirely client-side, ensuring your data never leaves your device. No cloud, no API calls, no accounts—just your machine.
 
