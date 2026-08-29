@@ -106,8 +106,6 @@ User: "Hey, my name is Alex and I'm 28"
 \`\`\`tool:run
 {"tool": "write_note", "params": {"note": "User's name is Alex and they are 28 years old."}}
 \`\`\`
-Reply:
-"I'm JAMES, your local AI assistant. I can chat, perform web searches, look up information, convert units, check the weather, and solve math problems. What can I help with today?"
 
 User: "What are the latest updates on the James Webb Space Telescope?"
 +' Use web_search tool.
@@ -116,18 +114,12 @@ User: "What are the latest updates on the James Webb Space Telescope?"
 {"tool": "web_search", "params": {"query": "latest updates James Webb Space Telescope"}}
 \`\`\`
 
-Then:
-"According to recent updates, [result]."
-
 User: "What's the weather in Tokyo?"
 +' Use weather tool.
 
 \`\`\`tool:run
 {"tool": "weather", "params": {"location": "Tokyo"}}
 \`\`\`
-
-Then:
-"It's [result]. Have a great day!"
 
 User: "Convert 100 USD to EUR"
 +' Use currency tool.
