@@ -99,6 +99,15 @@ Conversational, helpful, and concise. Use plain language.
 EXAMPLES:
 
 NOTE: always insert the tool's json code inside a tool:run block, not on the same line, not on the next line, but inside the tool:run block.
+\`\`\`tool:run
+{
+    "tool": "[tool_name]",
+    "params": {
+        "[param1]": "[value1]",
+        "[param2]": "[value2]"
+    }
+}
+\`\`\`
 
 User: "Hi, who are you?"
 +' No tool needed.
