@@ -150,7 +150,7 @@ gameController.onGameStateChange = () => {
     chatManager.persistCurrentChat(() => gameController.getGameState());
 };
 
-window.closeActiveGame = function() {
+window.closeActiveGame = function () {
     gameController.closeActiveGame((sysMsg) => {
         chatManager.chatHistory.push({ role: 'system', content: sysMsg });
     });
@@ -232,7 +232,7 @@ workerController.onWorkerDone = (data) => {
             uiManager.updateActiveModelLabel(runningPreset.label);
         }
     }
-    
+
     if (window._chatsLoadedForRecovery) {
         initRecovery();
     }
@@ -264,7 +264,7 @@ workerController.onComplete = (chatId, targetId, message) => {
         } else {
             updateLiveBubble(message, targetId, true);
             chatManager.chatHistory.push({ role: 'assistant', content: message });
-            
+
             if (gameController.activeGame) {
                 import('./game-logic.js').then(({ extractAIMove }) => {
                     const aiMove = extractAIMove(message, gameController.activeGame);
@@ -288,13 +288,13 @@ workerController.onComplete = (chatId, targetId, message) => {
         const bgChat = chatManager.allChats.find(c => c.id === chatId);
         if (bgChat) {
             bgChat.messages.push({ role: 'assistant', content: message });
-            
+
             if (bgChat.gameState) {
                 import('./game-logic.js').then(({ extractAIMove, ChessGame, CheckersGame }) => {
                     const tempGame = bgChat.gameState.type === 'checkers' ? new CheckersGame() : new ChessGame();
                     if (bgChat.gameState.fen) tempGame.loadFen(bgChat.gameState.fen);
                     tempGame.aiColor = bgChat.gameState.aiColor || 'b';
-                    
+
                     const aiMove = extractAIMove(message, tempGame);
                     if (aiMove) {
                         const moveInfo = tempGame.move(aiMove);
@@ -333,7 +333,7 @@ workerController.onAborted = (chatId, targetId, message) => {
     if (chatId === chatManager.currentChatId && message !== undefined && message !== null) {
         updateLiveBubble(message, targetId, true); // force=true: bypass throttle so the final aborted content always renders
         chatManager.chatHistory.push({ role: 'assistant', content: message });
-        
+
         if (window.gameController && window.gameController.activeGame) {
             import('./game-logic.js').then(({ extractAIMove }) => {
                 const aiMove = extractAIMove(message, window.gameController.activeGame);
@@ -351,19 +351,19 @@ workerController.onAborted = (chatId, targetId, message) => {
                 }
             });
         }
-        
+
         chatManager.persistCurrentChat(() => gameController.getGameState());
     } else if (chatId !== chatManager.currentChatId && message) {
         const bgChat = chatManager.allChats.find(c => c.id === chatId);
         if (bgChat) {
             bgChat.messages.push({ role: 'assistant', content: message });
-            
+
             if (bgChat.gameState) {
                 import('./game-logic.js').then(({ extractAIMove, ChessGame, CheckersGame }) => {
                     const tempGame = bgChat.gameState.type === 'checkers' ? new CheckersGame() : new ChessGame();
                     if (bgChat.gameState.fen) tempGame.loadFen(bgChat.gameState.fen);
                     tempGame.aiColor = bgChat.gameState.aiColor || 'b';
-                    
+
                     const aiMove = extractAIMove(message, tempGame);
                     if (aiMove) {
                         const moveInfo = tempGame.move(aiMove);
@@ -415,15 +415,15 @@ attachmentManager.onPreviewsUpdated = () => {
     attachmentManager.attachedFiles.forEach((file, index) => {
         const chip = document.createElement('div');
         chip.className = 'attachment-chip';
-        
+
         const span = document.createElement('span');
         span.textContent = `📄 ${file.name}`;
-        
+
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.innerHTML = '&times;';
         btn.onclick = () => attachmentManager.removeAttachment(index);
-        
+
         chip.appendChild(span);
         chip.appendChild(btn);
         previewContainer.appendChild(chip);
@@ -489,12 +489,12 @@ function sendMessage(preExecutedMove = null) {
         } else {
             userMovePlayed = gameController.parseUserMove(text);
         }
-        
+
         if (userMovePlayed) {
             gameController.handleGameMove(
-                userMovePlayed, 
-                null, 
-                (v) => uiManager.setIdleState(v, (x) => globalState.isGeneratingUI = x), 
+                userMovePlayed,
+                null,
+                (v) => uiManager.setIdleState(v, (x) => globalState.isGeneratingUI = x),
                 null,
                 !!preExecutedMove // indicates UI already handled notation update
             );
@@ -503,10 +503,10 @@ function sendMessage(preExecutedMove = null) {
         const turnColor = gameController.activeGame.getTurn() === 'w' ? 'White' : 'Black';
         const aiColor = gameController.activeGame.aiColor === 'w' ? 'White' : 'Black';
         const gameTypeLabel = gameController.activeGame.type === 'chess' ? 'FEN' : 'Checkers Board';
-        const formatReminder = gameController.activeGame.type === 'chess' 
-            ? 'IMPORTANT: You must format your move using Standard Algebraic Notation (SAN) for chess (e.g. "e5", "Nf3", "O-O", "Bxc6"). Do NOT use "from to" coordinate format like "c6 to c5".' 
+        const formatReminder = gameController.activeGame.type === 'chess'
+            ? 'IMPORTANT: You must format your move using Standard Algebraic Notation (SAN) for chess (e.g. "e5", "Nf3", "O-O", "Bxc6"). Do NOT use "from to" coordinate format like "c6 to c5".'
             : 'IMPORTANT: You must format your move using Standard Checkers Notation (1-32) (e.g. "11-15", or "11x18x25" for multi-jumps). Do NOT use coordinates.';
-        
+
         let moveHistoryStr = '';
         if (gameController.activeGame.getHistory) {
             const history = gameController.activeGame.getHistory();
@@ -514,7 +514,7 @@ function sendMessage(preExecutedMove = null) {
                 moveHistoryStr = ` Move history: ${history.join(' ')}.`;
             }
         }
-        
+
         if (userMovePlayed) {
             fullPrompt += `\n\n[Game State] Current ${gameTypeLabel}: ${gameController.activeGame.getFen()}.${moveHistoryStr} You are playing ${aiColor}. The user just played ${userMovePlayed.notation}. It is NOW YOUR TURN. You MUST use the make_move tool immediately to play your move. ${formatReminder} Do NOT ask the user for their move—they just played it!`;
         } else {
@@ -566,7 +566,7 @@ function handleStopGeneration() {
     }
 }
 
-window.simulateCannedResponse = function(text) {
+window.simulateCannedResponse = function (text) {
     globalState.cannedGenId++;
     const currentGenId = globalState.cannedGenId;
 
@@ -639,7 +639,7 @@ const _toolExecutionQueue = new Map();
 
 async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
     const previous = _toolExecutionQueue.get(originChatId) || Promise.resolve();
-    const current = previous.catch(() => {}).then(async () => {
+    const current = previous.catch(() => { }).then(async () => {
         const isActiveChat = originChatId === chatManager.currentChatId;
         let targetHistory = chatManager.chatHistory;
         let bgChat = null;
@@ -661,190 +661,190 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
             return;
         }
 
-    const regex = /```\s*tool:run\n?([\s\S]*?)```/g;
-    let match;
-    const calls = [];
-    while ((match = regex.exec(message)) !== null) {
-        calls.push(match[1].trim());
-    }
+        const regex = /```\s*tool:run\n?([\s\S]*?)```/g;
+        let match;
+        const calls = [];
+        while ((match = regex.exec(message)) !== null) {
+            calls.push(match[1].trim());
+        }
 
-    if (calls.length === 0) {
+        if (calls.length === 0) {
+            if (isActiveChat) {
+                uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
+            }
+            return;
+        }
+
+        // Push the assistant's message with tool calls to history
+        targetHistory.push({ role: 'assistant', content: message });
         if (isActiveChat) {
-            uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
+            chatManager.persistCurrentChat(() => gameController.getGameState());
+        } else {
+            await import('./chat-db.js').then(db => db.dbSaveChat(bgChat));
         }
-        return;
-    }
 
-    // Push the assistant's message with tool calls to history
-    targetHistory.push({ role: 'assistant', content: message });
-    if (isActiveChat) {
-        chatManager.persistCurrentChat(() => gameController.getGameState());
-    } else {
-        await import('./chat-db.js').then(db => db.dbSaveChat(bgChat));
-    }
+        for (const callBlock of calls) {
+            // ── Multi-format tool call parser ─────────────────────────────────────
+            // Supports JSON, XML, and plain "key: value" formats (auto-detected).
+            let toolName, params;
 
-    for (const callBlock of calls) {
-        // ── Multi-format tool call parser ─────────────────────────────────────
-        // Supports JSON, XML, and plain "key: value" formats (auto-detected).
-        let toolName, params;
+            const trimmed = callBlock.trim();
 
-        const trimmed = callBlock.trim();
-
-        // ── JSON format: {"tool":"name","params":{...}} or {"name":"...","params":{...}} ──
-        if (trimmed.startsWith('{')) {
-            try {
-                const parsed = JSON.parse(trimmed);
-                toolName = parsed.tool ?? parsed.name ?? parsed.tool_name ?? '';
-                params = parsed.params ?? parsed.parameters ?? parsed.args ?? {};
-            } catch {
-                toolName = '';
-                params = {};
+            // ── JSON format: {"tool":"name","params":{...}} or {"name":"...","params":{...}} ──
+            if (trimmed.startsWith('{')) {
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    toolName = parsed.tool ?? parsed.name ?? parsed.tool_name ?? '';
+                    params = parsed.params ?? parsed.parameters ?? parsed.args ?? {};
+                } catch {
+                    toolName = '';
+                    params = {};
+                }
             }
-        }
-        // ── XML format: <tool>name</tool><params><key>val</key>...</params> ──
-        else if (trimmed.startsWith('<')) {
-            try {
-                const parser = new DOMParser();
-                // Wrap in a root element so DOMParser handles it cleanly
-                const doc = parser.parseFromString(`<root>${trimmed}</root>`, 'text/xml');
-                const toolEl = doc.querySelector('tool') ?? doc.querySelector('name') ?? doc.querySelector('tool_name');
-                toolName = toolEl?.textContent?.trim() ?? '';
+            // ── XML format: <tool>name</tool><params><key>val</key>...</params> ──
+            else if (trimmed.startsWith('<')) {
+                try {
+                    const parser = new DOMParser();
+                    // Wrap in a root element so DOMParser handles it cleanly
+                    const doc = parser.parseFromString(`<root>${trimmed}</root>`, 'text/xml');
+                    const toolEl = doc.querySelector('tool') ?? doc.querySelector('name') ?? doc.querySelector('tool_name');
+                    toolName = toolEl?.textContent?.trim() ?? '';
+                    params = {};
+                    const paramsEl = doc.querySelector('params') ?? doc.querySelector('parameters') ?? doc.querySelector('args');
+                    if (paramsEl) {
+                        for (const child of paramsEl.children) {
+                            params[child.tagName] = child.textContent.trim();
+                        }
+                    }
+                } catch {
+                    toolName = '';
+                    params = {};
+                }
+            }
+            // ── Plain "key: value" format (original / fallback) ──────────────────
+            else {
+                const lines = trimmed.split('\n').map(l => l.trim()).filter(l => l);
+                toolName = lines[0];
                 params = {};
-                const paramsEl = doc.querySelector('params') ?? doc.querySelector('parameters') ?? doc.querySelector('args');
-                if (paramsEl) {
-                    for (const child of paramsEl.children) {
-                        params[child.tagName] = child.textContent.trim();
+                for (let i = 1; i < lines.length; i++) {
+                    const parts = lines[i].split(':');
+                    if (parts.length >= 2) {
+                        const k = parts[0].trim();
+                        const v = parts.slice(1).join(':').trim();
+                        params[k] = v;
                     }
                 }
-            } catch {
-                toolName = '';
-                params = {};
             }
-        }
-        // ── Plain "key: value" format (original / fallback) ──────────────────
-        else {
-            const lines = trimmed.split('\n').map(l => l.trim()).filter(l => l);
-            toolName = lines[0];
-            params = {};
-            for (let i = 1; i < lines.length; i++) {
-                const parts = lines[i].split(':');
-                if (parts.length >= 2) {
-                    const k = parts[0].trim();
-                    const v = parts.slice(1).join(':').trim();
-                    params[k] = v;
-                }
-            }
-        }
 
-        if (isActiveChat) uiManager.updateStatusText(`⚙️ RUNNING ${toolName.toUpperCase()}...`);
-        let toolResult = null;
+            if (isActiveChat) uiManager.updateStatusText(`⚙️ RUNNING ${toolName.toUpperCase()}...`);
+            let toolResult = null;
 
-        try {
-            if (toolName === 'start_game') {
-                if (isActiveChat) {
-                    gameController.handleStartGame(
-                        params, 
-                        (msg) => targetHistory.push({ role: 'system', content: msg }), 
-                        () => {}
-                    );
-                    toolResult = `Game started: ${params.game || 'chess'}. Wait for user's move.`;
-                } else {
-                    toolResult = `Error: Cannot start game in background chat.`;
-                }
-            } else if (toolName === 'make_move') {
-                if (isActiveChat) {
-                    const moveResult = gameController.handleMakeMove(
-                        params, 
-                        (msg) => {
-                            if (!msg.includes('Failed to make move')) {
-                                targetHistory.push({ role: 'system', content: msg });
-                            }
-                        }, 
-                        (v) => uiManager.setIdleState(v, (x) => globalState.isGeneratingUI = x),
-                        () => {} 
-                    );
-                    if (moveResult && moveResult.success === false) {
-                        toolResult = moveResult.error;
+            try {
+                if (toolName === 'start_game') {
+                    if (isActiveChat) {
+                        gameController.handleStartGame(
+                            params,
+                            (msg) => targetHistory.push({ role: 'system', content: msg }),
+                            () => { }
+                        );
+                        toolResult = `Game started: ${params.game || 'chess'}. Wait for user's move.`;
                     } else {
-                        toolResult = `Move ${params.move} played. Wait for user's next move.`;
+                        toolResult = `Error: Cannot start game in background chat.`;
                     }
-                } else {
-                    if (bgChat.gameState) {
-                        const { ChessGame, CheckersGame } = await import('./game-logic.js');
-                        let tempGame = bgChat.gameState.type === 'checkers' ? new CheckersGame() : new ChessGame();
-                        if (bgChat.gameState.fen) tempGame.loadFen(bgChat.gameState.fen);
-                        if (bgChat.gameState.history && tempGame.setHistory) tempGame.setHistory(bgChat.gameState.history);
-                        tempGame.aiColor = bgChat.gameState.aiColor || 'b';
-
-                        const moveInfo = tempGame.move(params.move);
-                        if (moveInfo) {
-                            let notation = moveInfo.notation || moveInfo.san;
-                            if (!tempGame.moveHistory) tempGame.moveHistory = [];
-                            if (notation) tempGame.moveHistory.push(notation);
-                            
-                            bgChat.gameState = {
-                                type: tempGame.type,
-                                fen: tempGame.getFen(),
-                                history: tempGame.getHistory ? tempGame.getHistory() : null,
-                                aiColor: tempGame.aiColor
-                            };
-                            toolResult = `Move ${params.move} played. Wait for user's next move.`;
+                } else if (toolName === 'make_move') {
+                    if (isActiveChat) {
+                        const moveResult = gameController.handleMakeMove(
+                            params,
+                            (msg) => {
+                                if (!msg.includes('Failed to make move')) {
+                                    targetHistory.push({ role: 'system', content: msg });
+                                }
+                            },
+                            (v) => uiManager.setIdleState(v, (x) => globalState.isGeneratingUI = x),
+                            () => { }
+                        );
+                        if (moveResult && moveResult.success === false) {
+                            toolResult = moveResult.error;
                         } else {
-                            toolResult = `[System]: Failed to make move ${params.move}. Invalid move.`;
+                            toolResult = `Move ${params.move} played. Wait for user's next move.`;
                         }
                     } else {
-                        toolResult = `[System]: Failed to make move. No active game.`;
-                    }
-                }
-            } else if (toolName === 'write_note') {
-                const db = await import('./chat-db.js');
-                const note = params.note;
-                if (!note) throw new Error("No note provided");
-                await db.dbSaveNote({ id: crypto.randomUUID(), text: note, timestamp: Date.now() });
-                const updatedNotes = await db.dbLoadNotes();
-                if (chatManager.onNotesLoaded) chatManager.onNotesLoaded(updatedNotes);
-                toolResult = "Note saved silently.";
-            } else if (toolName === 'eval_python' || toolName === 'python') {
-                const pyResp = await workerController.callWorkerRPC(workerController.pythonWorker, { type: 'run', code: params.code }, 30000);
-                // python-worker returns { status, execId, stdout, result, figures }
-                toolResult = pyResp.stdout || pyResp.result || '(no output)';
-                if (pyResp.figures && pyResp.figures.length > 0) {
-                    toolResult += '\n[Matplotlib figures generated: ' + pyResp.figures.length + ']';
-                }
-            } else if (toolName === 'location') {
-                const toolsBridge = await import('./tools-bridge.js');
-                const loc = await toolsBridge.getLocation();
-                toolResult = { latitude: loc.latitude, longitude: loc.longitude, accuracy: `${Math.round(loc.accuracy)}m` };
-            } else if (toolName === 'clipboard') {
-                const toolsBridge = await import('./tools-bridge.js');
-                const content = await toolsBridge.readClipboard();
-                toolResult = { content, length: content.length };
-            } else if (toolName === 'timer') {
-                const toolsBridge = await import('./tools-bridge.js');
-                const s = Math.max(1, parseInt(params.seconds ?? 0));
-                toolsBridge.showTimer(s, params.label, { DOM: { log: document.getElementById('chatLog') } });
-                toolResult = { seconds: s, label: params.label ?? 'Timer', note: 'Timer started.' };
-            } else {
-                // Route all other tools to toolsWorker
-                const rpcResp = await workerController.callWorkerRPC(workerController.toolsWorker, { tool: toolName, params }, 30000);
-                toolResult = rpcResp.result ?? rpcResp;
-            }
-        } catch (e) {
-            toolResult = `Error executing tool: ${e.message}`;
-            if (isActiveChat) appendErrorToChat(toolResult);
-        }
+                        if (bgChat.gameState) {
+                            const { ChessGame, CheckersGame } = await import('./game-logic.js');
+                            let tempGame = bgChat.gameState.type === 'checkers' ? new CheckersGame() : new ChessGame();
+                            if (bgChat.gameState.fen) tempGame.loadFen(bgChat.gameState.fen);
+                            if (bgChat.gameState.history && tempGame.setHistory) tempGame.setHistory(bgChat.gameState.history);
+                            tempGame.aiColor = bgChat.gameState.aiColor || 'b';
 
-        if (toolResult) {
-            const formattedResult = typeof toolResult === 'object' ? JSON.stringify(toolResult, null, 2) : toolResult;
-            targetHistory.push({ role: 'system', content: `[Tool Result: ${toolName}]\n${formattedResult}` });
-            if (isActiveChat) {
-                chatManager.persistCurrentChat(() => gameController.getGameState());
-                renderChatLog();
-            } else {
-                await import('./chat-db.js').then(db => db.dbSaveChat(bgChat));
+                            const moveInfo = tempGame.move(params.move);
+                            if (moveInfo) {
+                                let notation = moveInfo.notation || moveInfo.san;
+                                if (!tempGame.moveHistory) tempGame.moveHistory = [];
+                                if (notation) tempGame.moveHistory.push(notation);
+
+                                bgChat.gameState = {
+                                    type: tempGame.type,
+                                    fen: tempGame.getFen(),
+                                    history: tempGame.getHistory ? tempGame.getHistory() : null,
+                                    aiColor: tempGame.aiColor
+                                };
+                                toolResult = `Move ${params.move} played. Wait for user's next move.`;
+                            } else {
+                                toolResult = `[System]: Failed to make move ${params.move}. Invalid move.`;
+                            }
+                        } else {
+                            toolResult = `[System]: Failed to make move. No active game.`;
+                        }
+                    }
+                } else if (toolName === 'write_note') {
+                    const db = await import('./chat-db.js');
+                    const note = params.note;
+                    if (!note) throw new Error("No note provided");
+                    await db.dbSaveNote({ id: crypto.randomUUID(), text: note, timestamp: Date.now() });
+                    const updatedNotes = await db.dbLoadNotes();
+                    if (chatManager.onNotesLoaded) chatManager.onNotesLoaded(updatedNotes);
+                    toolResult = "Note saved silently.";
+                } else if (toolName === 'eval_python' || toolName === 'python') {
+                    const pyResp = await workerController.callWorkerRPC(workerController.pythonWorker, { type: 'run', code: params.code }, 30000);
+                    // python-worker returns { status, execId, stdout, result, figures }
+                    toolResult = pyResp.stdout || pyResp.result || '(no output)';
+                    if (pyResp.figures && pyResp.figures.length > 0) {
+                        toolResult += '\n[Matplotlib figures generated: ' + pyResp.figures.length + ']';
+                    }
+                } else if (toolName === 'location') {
+                    const toolsBridge = await import('./tools-bridge.js');
+                    const loc = await toolsBridge.getLocation();
+                    toolResult = { latitude: loc.latitude, longitude: loc.longitude, accuracy: `${Math.round(loc.accuracy)}m` };
+                } else if (toolName === 'clipboard') {
+                    const toolsBridge = await import('./tools-bridge.js');
+                    const content = await toolsBridge.readClipboard();
+                    toolResult = { content, length: content.length };
+                } else if (toolName === 'timer') {
+                    const toolsBridge = await import('./tools-bridge.js');
+                    const s = Math.max(1, parseInt(params.seconds ?? 0));
+                    toolsBridge.showTimer(s, params.label, { DOM: { log: document.getElementById('chatLog') } });
+                    toolResult = { seconds: s, label: params.label ?? 'Timer', note: 'Timer started.' };
+                } else {
+                    // Route all other tools to toolsWorker
+                    const rpcResp = await workerController.callWorkerRPC(workerController.toolsWorker, { tool: toolName, params }, 30000);
+                    toolResult = rpcResp.result ?? rpcResp;
+                }
+            } catch (e) {
+                toolResult = `Error executing tool: ${e.message}`;
+                if (isActiveChat) appendErrorToChat(toolResult);
+            }
+
+            if (toolResult) {
+                const formattedResult = typeof toolResult === 'object' ? JSON.stringify(toolResult, null, 2) : toolResult;
+                targetHistory.push({ role: 'system', content: `[Tool Result: ${toolName}]\n${formattedResult}` });
+                if (isActiveChat) {
+                    chatManager.persistCurrentChat(() => gameController.getGameState());
+                    renderChatLog();
+                } else {
+                    await import('./chat-db.js').then(db => db.dbSaveChat(bgChat));
+                }
             }
         }
-    }
 
         if (isActiveChat) {
             uiManager.updateStatusText('🧠 THINKING...');
@@ -933,7 +933,7 @@ function isTVDevice() {
         const coarse = window.matchMedia('(pointer: coarse)').matches;
         const noHover = window.matchMedia('(hover: none)').matches;
         if (large && coarse && noHover) return true;
-    } catch (_) {}
+    } catch (_) { }
     return false;
 }
 
@@ -956,40 +956,105 @@ function setupEventListeners() {
     document.getElementById('stop-button')?.addEventListener('click', handleStopGeneration);
 }
 
-// Bootstrap
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     attachmentManager.setupFileAttachment('attachButton', 'fileInput', 'chatWindow', appendErrorToChat);
+    // 1. Target your specific HTML elements (update these to match your HTML)
+    const chatInput = document.getElementById('chat-input') || document.querySelector('textarea');
+    const micBtn = document.getElementById('btn-mic');
+    const kbdBtn = document.getElementById('btn-keyboard');
+
+    // 2. Virtual Keyboard Focus
+    if (kbdBtn && chatInput) {
+        kbdBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            chatInput.focus();
+            // Optional: Toggle a custom onscreen keyboard container if you built one
+            // document.getElementById('virtual-keyboard-container').classList.toggle('visible');
+        });
+    }
+
+    // 3. Speech-to-Text via Web Speech API
+    if (micBtn && chatInput) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (!SpeechRecognition) {
+            console.warn("Speech recognition is not supported in this browser.");
+            micBtn.style.opacity = "0.5";
+            return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        let isRecording = false;
+
+        micBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                try { recognition.start(); } catch (err) { console.error(err); }
+            }
+        });
+
+        recognition.onstart = () => {
+            isRecording = true;
+            micBtn.style.color = '#ef4444'; // Visual feedback (turns red)
+            chatInput.placeholder = "Listening...";
+            chatInput.value = "";
+        };
+
+        recognition.onresult = (event) => {
+            let transcript = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                transcript += event.results[i][0].transcript;
+            }
+            chatInput.value = transcript;
+        };
+
+        recognition.onend = () => {
+            isRecording = false;
+            micBtn.style.color = '';
+            chatInput.placeholder = "Type your message...";
+
+            // Optional: Auto-send to worker when user stops speaking
+            // worker.postMessage({ type: 'query', messages: [{ role: 'user', content: chatInput.value }] });
+        };
+    }
 });
+
 
 (async () => {
     await chatManager.loadSavedChats((await import('./chat-db.js')).migrateFromLocalStorage, (await import('./crypto-utils.js')).initEncryption);
     const lastChatId = Number(safeLocalStorage.getItem('james-last-chat-id'));
     const lastChat = chatManager.allChats.find(c => c.id === lastChatId);
-    
+
     if (lastChat) {
         chatManager.loadChatHistory(
-            lastChatId, 
-            () => gameController.getGameState(), 
+            lastChatId,
+            () => gameController.getGameState(),
             (state) => gameController.restoreGameState(state),
             safeLocalStorage
         );
     } else if (chatManager.allChats.length > 0) {
         chatManager.loadChatHistory(
             chatManager.allChats[0].id,
-            () => gameController.getGameState(), 
+            () => gameController.getGameState(),
             (state) => gameController.restoreGameState(state),
             safeLocalStorage
         );
     } else {
         chatManager.startNewChat(
-            () => uiManager.getWelcomeMessage(isMobileDevice(), isTVDevice(), true), 
+            () => uiManager.getWelcomeMessage(isMobileDevice(), isTVDevice(), true),
             safeLocalStorage,
             () => gameController.getGameState(),
             (state) => gameController.restoreGameState(state)
         );
     }
-    
+
     window._chatsLoadedForRecovery = true;
     if (workerController._recoveryInitDone) initRecovery();
 })();
@@ -1005,7 +1070,7 @@ uiManager.updateStatusText(_savedLastPresetId ? '⏩ RESUMING LAST MODEL…' : '
 const newChatBtn = document.getElementById('newChatBtn');
 if (newChatBtn) {
     newChatBtn.addEventListener('click', () => chatManager.startNewChat(
-        () => uiManager.getWelcomeMessage(isMobileDevice(), isTVDevice(), true), 
+        () => uiManager.getWelcomeMessage(isMobileDevice(), isTVDevice(), true),
         safeLocalStorage,
         () => gameController.getGameState(),
         (state) => gameController.restoreGameState(state)
@@ -1070,14 +1135,14 @@ function _showCopyToast() {
 function _updateNotesUI(notes) {
     const notesList = document.getElementById('notesList');
     const btn = document.getElementById('notesBtn');
-    
+
     if (btn) {
         btn.title = notes && notes.length > 0
             ? `JAMES remembers ${notes.length} thing${notes.length !== 1 ? 's' : ''} about you`
             : 'No memory notes yet';
         btn.classList.toggle('notes-active', notes && notes.length > 0);
     }
-    
+
     if (!notesList) return;
 
     if (!notes || notes.length === 0) {
@@ -1104,36 +1169,36 @@ document.getElementById('notesClearBtn')?.addEventListener('click', async () => 
 });
 
 function _setupNotesPanel() {
-    const btn      = document.getElementById('notesBtn');
-    
-// ── Accessibility: Escape closes any open modal panel ───────────────────────
-document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape') return;
-    const panels = [
-        { panel: 'notesPanel', overlay: 'notesPanelOverlay' },
-        { panel: 'faqPanel', overlay: 'faqPanelOverlay' },
-        { panel: 'modelPanel', overlay: 'modelPanelOverlay' },
-        { panel: 'recoveryModal', overlay: 'recoveryOverlay' },
-    ];
-    for (const { panel, overlay } of panels) {
-        const el = document.getElementById(panel);
-        if (el?.classList.contains('open')) {
-            el.classList.remove('open');
-            document.getElementById(overlay)?.classList.remove('visible');
-            e.preventDefault();
-            // Return focus to a sensible place
-            document.getElementById('cmdInput')?.focus();
-            break;
-        }
-    }
-});
+    const btn = document.getElementById('notesBtn');
 
-const panel    = document.getElementById('notesPanel');
-    const overlay  = document.getElementById('notesPanelOverlay');
+    // ── Accessibility: Escape closes any open modal panel ───────────────────────
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        const panels = [
+            { panel: 'notesPanel', overlay: 'notesPanelOverlay' },
+            { panel: 'faqPanel', overlay: 'faqPanelOverlay' },
+            { panel: 'modelPanel', overlay: 'modelPanelOverlay' },
+            { panel: 'recoveryModal', overlay: 'recoveryOverlay' },
+        ];
+        for (const { panel, overlay } of panels) {
+            const el = document.getElementById(panel);
+            if (el?.classList.contains('open')) {
+                el.classList.remove('open');
+                document.getElementById(overlay)?.classList.remove('visible');
+                e.preventDefault();
+                // Return focus to a sensible place
+                document.getElementById('cmdInput')?.focus();
+                break;
+            }
+        }
+    });
+
+    const panel = document.getElementById('notesPanel');
+    const overlay = document.getElementById('notesPanelOverlay');
     const closeBtn = document.getElementById('notesPanelClose');
     if (!btn || !panel) return;
 
-    const openPanel  = () => { panel.classList.add('open'); overlay?.classList.add('visible'); };
+    const openPanel = () => { panel.classList.add('open'); overlay?.classList.add('visible'); };
     const closePanel = () => { panel.classList.remove('open'); overlay?.classList.remove('visible'); };
 
     btn.addEventListener('click', openPanel);
@@ -1143,13 +1208,13 @@ const panel    = document.getElementById('notesPanel');
 _setupNotesPanel();
 
 function _setupFaqPanel() {
-    const btn      = document.getElementById('faqBtn');
-    const panel    = document.getElementById('faqPanel');
-    const overlay  = document.getElementById('faqPanelOverlay');
+    const btn = document.getElementById('faqBtn');
+    const panel = document.getElementById('faqPanel');
+    const overlay = document.getElementById('faqPanelOverlay');
     const closeBtn = document.getElementById('faqPanelClose');
     if (!btn || !panel) return;
 
-    const openPanel  = (e) => { e.preventDefault(); panel.classList.add('open'); overlay?.classList.add('visible'); };
+    const openPanel = (e) => { e.preventDefault(); panel.classList.add('open'); overlay?.classList.add('visible'); };
     const closePanel = () => { panel.classList.remove('open'); overlay?.classList.remove('visible'); };
 
     btn.addEventListener('click', openPanel);
