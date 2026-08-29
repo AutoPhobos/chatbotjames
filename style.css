@@ -1693,6 +1693,47 @@ a:hover {
     box-sizing: border-box;
 }
 
+/* Ensure the hidden utility class actually hides the element */
+.hidden {
+    display: none !important;
+}
+
+/* Input Panel Styling */
+.chat-input-wrapper {
+    background-color: #0d1117;
+    /* Matches your HTML meta theme-color */
+    border-top: 1px solid #30363d;
+}
+
+#chat-input {
+    background-color: #161b22;
+    color: #00ff00;
+    /* Terminal green text */
+    border: 1px solid #30363d;
+    border-radius: 4px;
+}
+
+/* simple-keyboard Dark Theme Overrides */
+.simple-keyboard {
+    background-color: #0d1117 !important;
+    border-top: 1px solid #30363d;
+    padding: 10px !important;
+}
+
+.simple-keyboard .hg-button {
+    background-color: #161b22 !important;
+    color: #c9d1d9 !important;
+    border: 1px solid #30363d !important;
+    border-bottom: 2px solid #000 !important;
+    /* Retro chunky key feel */
+    box-shadow: none !important;
+}
+
+.simple-keyboard .hg-button:active {
+    background-color: #30363d !important;
+    color: #00ff00 !important;
+}
+
 /* ═══════════════════════════════════════════════════════════
    ACCESSIBILITY — keyboard focus, reduced motion, contrast
    ═══════════════════════════════════════════════════════════ */

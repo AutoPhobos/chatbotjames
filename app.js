@@ -24,12 +24,17 @@ import { setupModelPanel, updateModelInfo, refreshPresetCards } from './model-pa
 import { UserInputProcessor } from './input-processor.js';
 const Keyboard = window.SimpleKeyboard.default;
 const inputElement = document.getElementById("chat-input");
-const keyboardContainer = document.getElementById("virtual-keyboard-container");
+const keyboardBtn = document.getElementById("btn-keyboard");
+const keyboardContainer = document.querySelector(".simple-keyboard");
+
+keyboardBtn.addEventListener("click", () => {
+    keyboardContainer.classList.toggle("hidden");
+});
 
 const keyboard = new Keyboard({
     onChange: input => onChange(input),
     onKeyPress: button => onKeyPress(button),
-    theme: "hg-theme-default gboard-theme",
+    theme: "hg-theme-default",
     layout: {
         default: [
             "q w e r t y u i o p",
