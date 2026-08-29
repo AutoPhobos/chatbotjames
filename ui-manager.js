@@ -1,6 +1,6 @@
 class UIManager {
     constructor() {
-        this.cmdInput = document.getElementById('cmdInput')
+        this.cmdInput = document.getElementById('chat-input')
             || document.getElementById('userInput')
             || document.getElementById('user-input');
 

@@ -1798,13 +1798,56 @@ a:hover {
 /* Container looks like the actual input box */
 .chat-input-wrapper {
     display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 10px;
+    background: var(--bg-color, #1e1e2e);
+    border-top: 1px solid var(--border-color, #313244);
+}
+
+.chat-input-wrapper textarea {
+    flex-grow: 1;
+    resize: none;
+    /* Prevents manual resizing breaking the UI */
+    max-height: 150px;
+    padding: 12px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-color, #313244);
+    color: white;
+    font-family: inherit;
+    line-height: 1.4;
+    overflow-y: auto;
+}
+
+.send-btn {
+    background: #89b4fa;
+    color: #11111b;
+    border-radius: 50%;
+    width: 42px;
+    height: 42px;
+    display: flex;
     align-items: center;
-    background-color: #000000 !important;
-    border: 1px solid #1f2937 !important;
-    border-radius: 4px !important;
-    padding: 4px 8px !important;
-    width: 100%;
-    box-shadow: inset 0 0 5px rgba(0, 255, 0, 0.1);
+    justify-content: center;
+    transition: transform 0.1s ease, background 0.2s ease;
+}
+
+.send-btn:hover {
+    background: #b4befe;
+    cursor: pointer;
+}
+
+.send-btn:active {
+    transform: scale(0.95);
+}
+
+.icon-btn {
+    border: none;
+    background: transparent;
+    color: white;
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 8px;
 }
 
 /* Actual input is transparent and fills space */

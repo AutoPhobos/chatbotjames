@@ -33,6 +33,25 @@ function toggleInputLock(isBusy) {
     const chatInput = document.getElementById("chat-input");
     const keyboardContainer = document.querySelector(".simple-keyboard");
 
+    // 1. Initialize Keyboard State Safely
+    const isKeyboardOpen = safeLocalStorage.getItem("james_keyboard_open") === "true";
+    if (keyboardContainer) {
+        if (!isKeyboardOpen) {
+            keyboardContainer.classList.add("hidden");
+        } else {
+            keyboardContainer.classList.remove("hidden");
+        }
+    }
+
+    // 2. Toggle and Save Keyboard State with Null Checks
+    if (keyboardBtn && keyboardContainer) {
+        keyboardBtn.addEventListener("click", () => {
+            keyboardContainer.classList.toggle("hidden");
+            const isOpen = !keyboardContainer.classList.contains("hidden");
+            safeLocalStorage.setItem("james_keyboard_open", isOpen.toString());
+        });
+    }
+
     // Disable native input to prevent physical keyboard typing
     chatInput.disabled = isBusy;
 

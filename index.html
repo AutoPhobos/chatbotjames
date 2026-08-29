@@ -230,12 +230,23 @@
 
             <!-- Input Box Area -->
             <div class="chat-input-wrapper">
-                <input type="text" id="chat-input" placeholder="user@local:~$ Message JAMES..." autocomplete="off" />
-                <div class="action-buttons">
-                    <button id="btn-record" class="icon-btn" title="Record Audio">🎙️</button>
-                    <button id="btn-keyboard" class="icon-btn" title="Toggle Virtual Keyboard">⌨️</button>
-                    <button id="btn-send" class="icon-btn primary" title="Send Message">📤</button>
-                </div>
+                <!-- Hidden file input for the attachment manager -->
+                <input type="file" id="fileInput" multiple style="display: none;" />
+
+                <button id="attachButton" class="icon-btn" title="Attach Files">📎</button>
+                <button id="btn-mic" class="icon-btn" title="Voice Input">🎤</button>
+                <button id="btn-keyboard" class="icon-btn" title="Toggle Virtual Keyboard">⌨️</button>
+
+                <textarea id="chat-input" rows="1"
+                    placeholder="Type a message (Shift+Enter for new line)..."></textarea>
+
+                <button id="btn-send" class="icon-btn send-btn" title="Send Message">
+                    <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                </button>
             </div>
 
             <!-- Virtual Keyboard Container -->
