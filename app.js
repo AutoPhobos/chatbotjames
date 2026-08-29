@@ -5,7 +5,7 @@ import { attachmentManager } from './attachment-manager.js';
 import { uiManager } from './ui-manager.js';
 import { workerController } from './worker-controller.js';
 
-import { smallTalk } from './smalltalk.js?v=2';
+import { smallTalk } from './smalltalk.js?v=3';
 
 import { CONFIG } from './config.js';
 import { safeLocalStorage, dbSaveNote, dbDeleteNote, dbClearNotes } from './chat-db.js';
