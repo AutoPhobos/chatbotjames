@@ -87,7 +87,14 @@ class UIManager {
 
     initTVMode() {
         document.body.classList.add('tv-mode');
+        document.documentElement.classList.add('tv-mode');
         document.getElementById('sidebar')?.classList.add('collapsed');
+        // Prefer larger default chat width variables if CSS has not already set them
+        document.documentElement.style.setProperty('--chat-max-width', 'min(72rem, 90vw)');
+        // Ensure input is easy to find with a remote
+        requestAnimationFrame(() => {
+            this.cmdInput?.focus();
+        });
     }
 
     initSidebarState(savedSidebarState) {

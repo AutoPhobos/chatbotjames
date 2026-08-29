@@ -920,8 +920,20 @@ window.uiManager = uiManager;
 function isMobileDevice() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
+/** True for Smart TVs, set-top boxes, and large living-room displays. */
 function isTVDevice() {
-    return window.matchMedia("(prefers-reduced-motion: reduce)").matches && navigator.userAgent.toLowerCase().includes('tv');
+    const ua = navigator.userAgent;
+    if (/SmartTV|SMART-TV|Tizen|WebOS|Web0S|HbbTV|BRAVIA|NetCast|Roku|AFT[A-Z]|CrKey|AppleTV|Android TV|googletv/i.test(ua)) {
+        return true;
+    }
+    // Large screen + coarse pointer (remote / gamepad) ≈ 10-foot UI
+    try {
+        const large = window.matchMedia('(min-width: 1920px)').matches;
+        const coarse = window.matchMedia('(pointer: coarse)').matches;
+        const noHover = window.matchMedia('(hover: none)').matches;
+        if (large && coarse && noHover) return true;
+    } catch (_) {}
+    return false;
 }
 
 function setupEventListeners() {

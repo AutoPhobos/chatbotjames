@@ -1703,3 +1703,264 @@ a:focus-visible {
     outline-offset: 2px;
     border-radius: 4px;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   LARGE SCREENS + TV (10-FOOT UI)
+   Scales layout, type, and hit targets for big displays & TVs
+   ═══════════════════════════════════════════════════════════ */
+
+/* —— Desktop / ultrawide: give chat more breathing room —— */
+@media (min-width: 1400px) {
+    :root {
+        --chat-max-width: 56rem;
+    }
+    .sidebar {
+        width: 300px;
+    }
+    .message-content {
+        font-size: 1.05rem;
+        line-height: 1.65;
+    }
+}
+
+@media (min-width: 1800px) {
+    :root {
+        --chat-max-width: 64rem;
+    }
+    .sidebar {
+        width: 320px;
+    }
+    .terminal-header {
+        padding-left: 28px;
+        padding-right: 28px;
+    }
+    .message-content {
+        font-size: 1.1rem;
+        line-height: 1.7;
+    }
+    #cmdInput {
+        font-size: 1.1rem;
+    }
+}
+
+@media (min-width: 2560px) {
+    :root {
+        --chat-max-width: 72rem;
+    }
+    .sidebar {
+        width: 360px;
+    }
+    body {
+        font-size: 18px;
+    }
+    .message-content {
+        font-size: 1.15rem;
+        line-height: 1.75;
+    }
+    .chat-item {
+        padding: 14px 16px;
+        font-size: 1rem;
+    }
+    #cmdInput {
+        font-size: 1.15rem;
+    }
+    #sendBtn {
+        width: 48px;
+        height: 48px;
+    }
+}
+
+/* —— TV / 10-foot mode (body.tv-mode or html.tv-mode) ——
+   Designed for viewing from ~10 feet with a remote or gamepad.
+   Larger type, generous padding, big focus targets, high contrast. */
+.tv-mode,
+html.tv-mode {
+    --chat-max-width: min(72rem, 88vw);
+    --radius-sm: 8px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+}
+
+.tv-mode body,
+body.tv-mode {
+    font-size: 20px;
+    line-height: 1.5;
+}
+
+body.tv-mode .sidebar {
+    width: 340px;
+}
+
+body.tv-mode .sidebar.collapsed {
+    width: 0;
+    overflow: hidden;
+    border: none;
+}
+
+body.tv-mode .terminal-header {
+    padding: 18px 28px;
+    min-height: 64px;
+}
+
+body.tv-mode .status-indicator,
+body.tv-mode #statusText {
+    font-size: 1.05rem;
+}
+
+body.tv-mode .status-led {
+    width: 14px;
+    height: 14px;
+}
+
+body.tv-mode .icon-btn {
+    width: 52px;
+    height: 52px;
+    min-width: 52px;
+    min-height: 52px;
+}
+
+body.tv-mode .new-thread-btn {
+    padding: 16px 20px;
+    font-size: 1.1rem;
+    min-height: 56px;
+}
+
+body.tv-mode .chat-item {
+    padding: 18px 20px;
+    font-size: 1.15rem;
+    min-height: 56px;
+}
+
+body.tv-mode .delete-chat-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 1.25rem;
+}
+
+body.tv-mode .chat-log {
+    padding: 24px 32px;
+}
+
+body.tv-mode .message-wrap {
+    margin-bottom: 20px;
+}
+
+body.tv-mode .message-content {
+    font-size: 1.25rem;
+    line-height: 1.75;
+    padding: 16px 20px;
+    max-width: 90%;
+}
+
+body.tv-mode .user-msg .message-content {
+    max-width: 80%;
+}
+
+body.tv-mode .input-area {
+    padding: 20px 28px 28px;
+}
+
+body.tv-mode .input-wrapper {
+    padding: 14px 14px 14px 24px;
+    border-width: 2px;
+    border-radius: 12px;
+}
+
+body.tv-mode #cmdInput {
+    font-size: 1.25rem;
+    padding: 12px 8px;
+    min-height: 28px;
+}
+
+body.tv-mode #sendBtn,
+body.tv-mode #attachButton {
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
+    min-height: 56px;
+    font-size: 1.35rem;
+}
+
+body.tv-mode .input-footer-text {
+    font-size: 0.95rem;
+    margin-top: 10px;
+}
+
+/* Bigger focus rings for remote navigation */
+body.tv-mode :focus-visible,
+body.tv-mode button:focus-visible,
+body.tv-mode .icon-btn:focus-visible,
+body.tv-mode .chat-item:focus-visible,
+body.tv-mode .chat-item-main:focus-visible,
+body.tv-mode .preset-card:focus-visible,
+body.tv-mode .new-thread-btn:focus-visible {
+    outline: 3px solid var(--primary-purple);
+    outline-offset: 4px;
+    box-shadow: 0 0 0 6px rgba(0, 243, 255, 0.35);
+}
+
+/* Model / notes panels larger on TV */
+body.tv-mode .model-panel {
+    max-width: min(720px, 92vw);
+    max-height: 85vh;
+    font-size: 1.1rem;
+}
+
+body.tv-mode .model-panel-header h2 {
+    font-size: 1.5rem;
+}
+
+body.tv-mode .preset-card {
+    padding: 18px 20px;
+    min-height: 64px;
+    font-size: 1.1rem;
+}
+
+body.tv-mode .apply-model-btn {
+    padding: 16px 28px;
+    font-size: 1.15rem;
+    min-height: 56px;
+}
+
+body.tv-mode .welcome-box,
+body.tv-mode .hacker-theme {
+    font-size: 1.15rem;
+}
+
+body.tv-mode .ascii-art {
+    font-size: 0.85rem;
+    line-height: 1.2;
+}
+
+/* Game board slightly larger on TV */
+body.tv-mode .live-game-view,
+body.tv-mode .game-board-message {
+    transform: scale(1.15);
+    transform-origin: center top;
+    margin-bottom: 24px;
+}
+
+/* Prefer reduced motion already handled globally; TV mode keeps it */
+
+/* Optional: when viewport is TV-sized even without UA detection,
+   apply a lighter version of 10-foot scaling */
+@media (min-width: 1920px) and (min-height: 1080px) and (pointer: coarse) {
+    :root {
+        --chat-max-width: min(70rem, 88vw);
+    }
+    body:not(.tv-mode) .message-content {
+        font-size: 1.15rem;
+        line-height: 1.7;
+    }
+    body:not(.tv-mode) #cmdInput {
+        font-size: 1.15rem;
+    }
+    body:not(.tv-mode) .icon-btn {
+        width: 48px;
+        height: 48px;
+    }
+    body:not(.tv-mode) #sendBtn {
+        width: 52px;
+        height: 52px;
+    }
+}

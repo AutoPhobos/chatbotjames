@@ -8,7 +8,19 @@ export function isMobileDevice() {
 
 export function isTVDevice() {
     const ua = navigator.userAgent;
-    return /SmartTV|SMART-TV|Tizen|WebOS|Web0S|HbbTV|BRAVIA|NetCast|Roku|AFT[A-Z]|CrKey|AppleTV|Android TV|googletv/i.test(ua);
+    if (/SmartTV|SMART-TV|Tizen|WebOS|Web0S|HbbTV|BRAVIA|NetCast|Roku|AFT[A-Z]|CrKey|AppleTV|Android TV|googletv/i.test(ua)) {
+        return true;
+    }
+    // Large living-room display heuristic (works in workers that have matchMedia)
+    try {
+        if (typeof matchMedia === 'function') {
+            const large = matchMedia('(min-width: 1920px)').matches;
+            const coarse = matchMedia('(pointer: coarse)').matches;
+            const noHover = matchMedia('(hover: none)').matches;
+            if (large && coarse && noHover) return true;
+        }
+    } catch (_) {}
+    return false;
 }
 
 export function detectBrowserEngine() {
