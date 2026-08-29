@@ -202,7 +202,7 @@ a:hover {
     display: flex;
     flex-direction: column;
     padding: 16px;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     flex-shrink: 0;
     z-index: 50;
 }
@@ -1175,6 +1175,10 @@ a:hover {
         position: absolute;
         height: 100%;
         box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .sidebar.collapsed {
+        box-shadow: none;
     }
 
     #sidebarOverlay {

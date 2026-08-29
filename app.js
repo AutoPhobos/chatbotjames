@@ -3,7 +3,7 @@ import { chatManager } from './chat-manager.js';
 import { gameController } from './game-controller.js?v=5';
 import { attachmentManager } from './attachment-manager.js';
 import { uiManager } from './ui-manager.js';
-import { workerController } from './worker-controller.js';
+import { workerController, hasToolCalls } from './worker-controller.js';
 
 import { smallTalk } from './smalltalk.js?v=3';
 
@@ -170,9 +170,10 @@ const _bgChatMoveRetries = new Map(); // chatId → retry count
 
 workerController.onWorkerStatus = (status, message, e) => {
     if (status === 'done' || status === 'complete' || status === 'error' || status === 'aborted') {
+        const isToolCall = (status === 'complete' || status === 'aborted') && message && hasToolCalls(message);
         // Don't let a worker status reset the UI while a canned animation owns isGeneratingUI.
         // (The canned handler will call setIdleState itself when it finishes.)
-        if (!_cannedGenActive) {
+        if (!_cannedGenActive && !isToolCall) {
             uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
             updateStatusLight('idle');
             uiManager.updateStatusText('✅ READY');
