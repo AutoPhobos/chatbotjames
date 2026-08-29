@@ -969,8 +969,7 @@ document.addEventListener('DOMContentLoaded', () => {
         kbdBtn.addEventListener('click', (e) => {
             e.preventDefault();
             chatInput.focus();
-            // Optional: Toggle a custom onscreen keyboard container if you built one
-            // document.getElementById('virtual-keyboard-container').classList.toggle('visible');
+            document.getElementById('virtual-keyboard-container').classList.toggle('visible');
         });
     }
 
