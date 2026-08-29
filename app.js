@@ -277,7 +277,9 @@ const _bgChatMoveRetries = new Map();
 
 workerController.onWorkerStatus = (status, message, e) => {
     if (status === 'done' || status === 'complete' || status === 'error' || status === 'aborted') {
-        const isToolCall = (status === 'complete' || status === 'aborted') && message && (hasToolCalls(message) || parseToolCall(message));
+        // Only treat as a tool call continuation if it successfully completed
+        const isToolCall = status === 'complete' && message && (hasToolCalls(message) || parseToolCall(message));
+
         if (!_cannedGenActive && !isToolCall) {
             uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
             updateStatusLight('idle');
@@ -743,6 +745,19 @@ window.simulateCannedResponse = function (text) {
 const _toolExecutionQueue = new Map();
 
 async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
+
+    if (_depth > CONFIG.ui.maxToolDepth) {
+        if (isActiveChat) {
+            appendErrorToChat("Maximum tool depth exceeded.");
+            uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
+            toggleInputLock(false); // ADDED
+        } else {
+            targetHistory.push({ role: 'system', content: '[Error: Maximum tool depth exceeded]' });
+            import('./chat-db.js').then(db => db.dbSaveChat(bgChat));
+        }
+        return;
+    }
+
     const previous = _toolExecutionQueue.get(originChatId) || Promise.resolve();
     const current = previous.catch(() => { }).then(async () => {
         const isActiveChat = originChatId === chatManager.currentChatId;
@@ -783,6 +798,7 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
         if (calls.length === 0) {
             if (isActiveChat) {
                 uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
+                toggleInputLock(false); // ADDED
             }
             return;
         }
