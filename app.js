@@ -22,13 +22,25 @@ import {
 } from './message-renderer.js';
 import { setupModelPanel, updateModelInfo, refreshPresetCards } from './model-panel.js';
 import { UserInputProcessor } from './input-processor.js';
+
 const Keyboard = window.SimpleKeyboard.default;
 const inputElement = document.getElementById("chat-input");
 const keyboardBtn = document.getElementById("btn-keyboard");
 const keyboardContainer = document.querySelector(".simple-keyboard");
 
+// 1. Initialize Keyboard State from LocalStorage
+const isKeyboardOpen = localStorage.getItem("james_keyboard_open") === "true";
+if (!isKeyboardOpen) {
+    keyboardContainer.classList.add("hidden");
+} else {
+    keyboardContainer.classList.remove("hidden");
+}
+
+// 2. Toggle and Save Keyboard State
 keyboardBtn.addEventListener("click", () => {
     keyboardContainer.classList.toggle("hidden");
+    const isOpen = !keyboardContainer.classList.contains("hidden");
+    localStorage.setItem("james_keyboard_open", isOpen);
 });
 
 const keyboard = new Keyboard({
@@ -92,10 +104,6 @@ inputElement.addEventListener("input", (event) => {
     keyboard.setInput(event.target.value);
 });
 
-// Toggle visibility button
-document.getElementById("btn-keyboard").addEventListener("click", () => {
-    keyboardContainer.classList.toggle("hidden");
-});
 // ==========================================
 // MANAGER WIRING & CALLBACKS
 // ==========================================
@@ -115,18 +123,13 @@ function renderChatLog() {
         }
     });
 
-    // Restore thinking / streaming bubble for this thread if generation is still in progress.
-    // renderChatLog wipes the DOM (innerHTML = ''), so without this the bubble is lost on
-    // thread switch and never comes back until a new worker event arrives.
     const targetId = workerController.activeGenerations.get(chatManager.currentChatId);
     if (targetId != null) {
         import('./stream-manager.js').then(sm => {
-            // Pause every other stream so background animations cannot inject ghost bubbles
             sm.pauseStreamsExcept(targetId);
             sm.resumeStreamForTarget(targetId);
         });
     } else {
-        // No active gen on this chat — pause all streams' DOM updates
         import('./stream-manager.js').then(sm => sm.pauseStreamsExcept(null));
     }
 }
@@ -138,8 +141,25 @@ window.renderChatLog = renderChatLog;
 window.globalState = globalState;
 window.sendMessage = sendMessage;
 
+window.parseToolCall = function(modelOutput) {
+    if (!modelOutput) return null;
+    let cleanText = modelOutput.trim();
 
-// Chat Manager Callbacks
+    if (cleanText.startsWith("```")) {
+        cleanText = cleanText.replace(/^```(json)?\n?/, "").replace(/```$/, "").trim();
+    }
+
+    try {
+        const parsed = JSON.parse(cleanText);
+        if (parsed && (parsed.tool || parsed.name || parsed.tool_name)) {
+            return parsed;
+        }
+    } catch (e) {
+        return null;
+    }
+    return null;
+}
+
 chatManager.onChatListUpdated = () => {
     const chatListEl = document.getElementById('chatList');
     if (!chatListEl) return;
@@ -150,7 +170,6 @@ chatManager.onChatListUpdated = () => {
         chatItem.dataset.chatId = chat.id;
         chatItem.setAttribute('role', 'listitem');
 
-        // Make the whole row keyboard-activatable
         const rowBtn = document.createElement('div');
         rowBtn.className = 'chat-item-main';
         rowBtn.setAttribute('role', 'button');
@@ -218,7 +237,6 @@ chatManager.onNotesLoaded = (notes) => {
     _updateNotesUI(notes);
 };
 
-// Game Controller Callbacks
 gameController.onGameStateChange = () => {
     chatManager.persistCurrentChat(() => gameController.getGameState());
 };
@@ -230,22 +248,12 @@ window.closeActiveGame = function () {
     chatManager.persistCurrentChat(() => gameController.getGameState());
 };
 
-// Worker Controller Callbacks
-
-// ── Bug #1 guard: true while a canned typewriter animation owns isGeneratingUI.
-// Prevents a late worker 'done'/'complete' from calling setIdleState(true) and
-// stopping the animation mid-stream.
 let _cannedGenActive = false;
-
-// ── Bug #3 guard: tracks consecutive invalid-move retries per background chat.
-// Without this a bad AI move causes an unbounded postQuery loop on the worker.
-const _bgChatMoveRetries = new Map(); // chatId → retry count
+const _bgChatMoveRetries = new Map();
 
 workerController.onWorkerStatus = (status, message, e) => {
     if (status === 'done' || status === 'complete' || status === 'error' || status === 'aborted') {
-        const isToolCall = (status === 'complete' || status === 'aborted') && message && hasToolCalls(message);
-        // Don't let a worker status reset the UI while a canned animation owns isGeneratingUI.
-        // (The canned handler will call setIdleState itself when it finishes.)
+        const isToolCall = (status === 'complete' || status === 'aborted') && message && (hasToolCalls(message) || parseToolCall(message));
         if (!_cannedGenActive && !isToolCall) {
             uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
             updateStatusLight('idle');
@@ -312,15 +320,11 @@ workerController.onWorkerDone = (data) => {
 };
 
 workerController.onStreaming = (chatId, targetId, message) => {
-    // Always keep stream state so returning to a background thread can restore the bubble.
-    // Only drive the typewriter / DOM when this is the visible chat.
     const isActive = chatId === chatManager.currentChatId;
     import('./stream-manager.js').then(sm => sm.queueStreamText(targetId, message, { updateDom: isActive }));
 };
 
 workerController.onThinking = (chatId, targetId) => {
-    // Remember that this generation is in the thinking phase for this thread.
-    // Only paint the bubble if the user is currently viewing that thread.
     if (chatId === chatManager.currentChatId) {
         updateLiveBubble("...", targetId);
     }
@@ -328,6 +332,13 @@ workerController.onThinking = (chatId, targetId) => {
 
 workerController.onComplete = (chatId, targetId, message) => {
     import('./stream-manager.js').then(sm => sm.flushStreamQueue(targetId));
+
+    // 3B Model Raw JSON Tool Interception
+    if (parseToolCall(message)) {
+        handleToolCalls(message, targetId, chatId);
+        return;
+    }
+
     if (chatId === chatManager.currentChatId) {
         if (!message || message.trim() === '') {
             const bubble = document.getElementById(`bubble-${targetId}`);
@@ -404,7 +415,7 @@ workerController.onToolCalls = (message, targetId, chatId) => {
 workerController.onAborted = (chatId, targetId, message) => {
     import('./stream-manager.js').then(sm => sm.flushStreamQueue(targetId));
     if (chatId === chatManager.currentChatId && message !== undefined && message !== null) {
-        updateLiveBubble(message, targetId, true); // force=true: bypass throttle so the final aborted content always renders
+        updateLiveBubble(message, targetId, true);
         chatManager.chatHistory.push({ role: 'assistant', content: message });
 
         if (window.gameController && window.gameController.activeGame) {
@@ -441,7 +452,6 @@ workerController.onAborted = (chatId, targetId, message) => {
                     if (aiMove) {
                         const moveInfo = tempGame.move(aiMove);
                         if (moveInfo) {
-                            // Successful move — reset the retry counter for this chat.
                             _bgChatMoveRetries.delete(chatId);
                             let notation = moveInfo.notation || moveInfo.san;
                             if (bgChat.gameState.history && tempGame.setHistory) tempGame.setHistory(bgChat.gameState.history);
@@ -454,7 +464,6 @@ workerController.onAborted = (chatId, targetId, message) => {
                                 aiColor: tempGame.aiColor
                             };
                         } else {
-                            // Invalid move — cap retries at 3 to prevent an unbounded query storm.
                             const _retries = (_bgChatMoveRetries.get(chatId) || 0) + 1;
                             if (_retries > 3) {
                                 _bgChatMoveRetries.delete(chatId);
@@ -479,7 +488,6 @@ workerController.onAborted = (chatId, targetId, message) => {
     }
 };
 
-// Attachment Manager Callbacks
 attachmentManager.onPreviewsUpdated = () => {
     const previewContainer = document.getElementById('attachmentPreview');
     if (!previewContainer) return;
@@ -520,8 +528,6 @@ function getMessagesWindow(messages) {
         windowed = windowed.slice(1);
     }
 
-    // Remove old tool results (system messages) to save context tokens.
-    // We only keep tool results if they occur AFTER the most recent user message.
     const lastUserIdx = windowed.map(m => m.role).lastIndexOf('user');
     if (lastUserIdx !== -1) {
         windowed = windowed.filter((m, i) => !(i < lastUserIdx && m.role === 'system'));
@@ -569,7 +575,7 @@ function sendMessage(preExecutedMove = null) {
                 null,
                 (v) => uiManager.setIdleState(v, (x) => globalState.isGeneratingUI = x),
                 null,
-                !!preExecutedMove // indicates UI already handled notation update
+                !!preExecutedMove
             );
         }
 
@@ -614,7 +620,7 @@ function sendMessage(preExecutedMove = null) {
     if (filesToSend.length === 0) {
         const canned = smallTalk.match(processedText);
         if (canned) {
-            simulateCannedResponse(canned); // Need to patch simulateCannedResponse to use global state
+            simulateCannedResponse(canned);
             return;
         }
     }
@@ -626,7 +632,7 @@ function sendMessage(preExecutedMove = null) {
     const messagesForModel = getMessagesWindow(chatManager.chatHistory);
     const targetId = getNextTargetId();
     updateLiveBubble('...', targetId);
-    // Scroll to bottom after adding user message + thinking bubble
+
     const _chatLog = document.getElementById('chatLog');
     if (_chatLog) _chatLog.scrollTop = _chatLog.scrollHeight;
     workerController.postQuery(messagesForModel, targetId, chatManager.currentChatId);
@@ -642,9 +648,6 @@ function handleStopGeneration() {
 window.simulateCannedResponse = function (text) {
     globalState.cannedGenId++;
     const currentGenId = globalState.cannedGenId;
-
-    // Lock: prevents worker 'done'/'complete' messages from calling setIdleState(true)
-    // and interrupting this animation. Cleared in every exit path below.
     _cannedGenActive = true;
 
     uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
@@ -655,10 +658,7 @@ window.simulateCannedResponse = function (text) {
     workerController.activeGenerations.set(chatManager.currentChatId, targetId);
     updateLiveBubble('', targetId);
 
-    // Brief "thinking" pause before streaming starts, then typewriter character-by-character
     setTimeout(() => {
-        // If a newer canned response superseded this one, or generating was externally cleared,
-        // exit — but only clear _cannedGenActive if we are still the current gen.
         if (!globalState.isGeneratingUI || globalState.cannedGenId !== currentGenId) {
             if (globalState.cannedGenId === currentGenId) _cannedGenActive = false;
             return;
@@ -669,7 +669,6 @@ window.simulateCannedResponse = function (text) {
 
         function streamNextChar() {
             if (!globalState.isGeneratingUI || globalState.cannedGenId !== currentGenId) {
-                // Superseded by a newer canned gen — don't clear the flag if a newer gen is live.
                 if (globalState.cannedGenId === currentGenId) _cannedGenActive = false;
                 workerController.activeGenerations.delete(chatManager.currentChatId);
                 return;
@@ -677,14 +676,12 @@ window.simulateCannedResponse = function (text) {
 
             chars++;
             if (chars >= text.length) {
-                // Final character — commit and finish
                 try {
                     updateLiveBubble(text, targetId, true);
                     chatManager.chatHistory.push({ role: 'assistant', content: text });
                     chatManager.persistCurrentChat(() => gameController.getGameState());
                     renderChatLog();
                 } finally {
-                    // We are the latest gen — safe to unconditionally clear the lock.
                     _cannedGenActive = false;
                     uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
                     updateStatusLight('idle');
@@ -695,8 +692,6 @@ window.simulateCannedResponse = function (text) {
             }
 
             updateLiveBubble(text.substring(0, chars), targetId);
-
-            // Natural typing speed: pause slightly longer after punctuation
             const ch = text[chars - 1];
             const delay = /[.!?,;:\n]/.test(ch) ? 60 + Math.random() * 40 : 18 + Math.random() * 14;
             setTimeout(streamNextChar, delay);
@@ -706,8 +701,6 @@ window.simulateCannedResponse = function (text) {
     }, 180);
 };
 
-// ── Bug #2 guard: strictly serialize tool executions per chat to prevent concurrent
-// executions from pushing duplicate history messages if the worker double-fires 'complete'.
 const _toolExecutionQueue = new Map();
 
 async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
@@ -741,6 +734,13 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
             calls.push(match[1].trim());
         }
 
+        // 3B Pure JSON Fallback Integration
+        if (calls.length === 0 && parseToolCall(message)) {
+            let clean = message.trim();
+            if (clean.startsWith("```")) clean = clean.replace(/^```(json)?\n?/, "").replace(/```$/, "").trim();
+            calls.push(clean);
+        }
+
         if (calls.length === 0) {
             if (isActiveChat) {
                 uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
@@ -748,7 +748,6 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
             return;
         }
 
-        // Push the assistant's message with tool calls to history
         targetHistory.push({ role: 'assistant', content: message });
         if (isActiveChat) {
             chatManager.persistCurrentChat(() => gameController.getGameState());
@@ -757,13 +756,9 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
         }
 
         for (const callBlock of calls) {
-            // ── Multi-format tool call parser ─────────────────────────────────────
-            // Supports JSON, XML, and plain "key: value" formats (auto-detected).
             let toolName, params;
-
             const trimmed = callBlock.trim();
 
-            // ── JSON format: {"tool":"name","params":{...}} or {"name":"...","params":{...}} ──
             if (trimmed.startsWith('{')) {
                 try {
                     const parsed = JSON.parse(trimmed);
@@ -773,12 +768,9 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
                     toolName = '';
                     params = {};
                 }
-            }
-            // ── XML format: <tool>name</tool><params><key>val</key>...</params> ──
-            else if (trimmed.startsWith('<')) {
+            } else if (trimmed.startsWith('<')) {
                 try {
                     const parser = new DOMParser();
-                    // Wrap in a root element so DOMParser handles it cleanly
                     const doc = parser.parseFromString(`<root>${trimmed}</root>`, 'text/xml');
                     const toolEl = doc.querySelector('tool') ?? doc.querySelector('name') ?? doc.querySelector('tool_name');
                     toolName = toolEl?.textContent?.trim() ?? '';
@@ -793,9 +785,7 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
                     toolName = '';
                     params = {};
                 }
-            }
-            // ── Plain "key: value" format (original / fallback) ──────────────────
-            else {
+            } else {
                 const lines = trimmed.split('\n').map(l => l.trim()).filter(l => l);
                 toolName = lines[0];
                 params = {};
@@ -879,7 +869,6 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
                     toolResult = "Note saved silently.";
                 } else if (toolName === 'eval_python' || toolName === 'python') {
                     const pyResp = await workerController.callWorkerRPC(workerController.pythonWorker, { type: 'run', code: params.code }, 30000);
-                    // python-worker returns { status, execId, stdout, result, figures }
                     toolResult = pyResp.stdout || pyResp.result || '(no output)';
                     if (pyResp.figures && pyResp.figures.length > 0) {
                         toolResult += '\n[Matplotlib figures generated: ' + pyResp.figures.length + ']';
@@ -898,7 +887,6 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
                     toolsBridge.showTimer(s, params.label, { DOM: { log: document.getElementById('chatLog') } });
                     toolResult = { seconds: s, label: params.label ?? 'Timer', note: 'Timer started.' };
                 } else {
-                    // Route all other tools to toolsWorker
                     const rpcResp = await workerController.callWorkerRPC(workerController.toolsWorker, { tool: toolName, params }, 30000);
                     toolResult = rpcResp.result ?? rpcResp;
                 }
@@ -994,13 +982,11 @@ window.uiManager = uiManager;
 function isMobileDevice() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
-/** True for Smart TVs, set-top boxes, and large living-room displays. */
 function isTVDevice() {
     const ua = navigator.userAgent;
     if (/SmartTV|SMART-TV|Tizen|WebOS|Web0S|HbbTV|BRAVIA|NetCast|Roku|AFT[A-Z]|CrKey|AppleTV|Android TV|googletv/i.test(ua)) {
         return true;
     }
-    // Large screen + coarse pointer (remote / gamepad) ≈ 10-foot UI
     try {
         const large = window.matchMedia('(min-width: 1920px)').matches;
         const coarse = window.matchMedia('(pointer: coarse)').matches;
@@ -1032,21 +1018,9 @@ function setupEventListeners() {
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     attachmentManager.setupFileAttachment('attachButton', 'fileInput', 'chatWindow', appendErrorToChat);
-    // 1. Target your specific HTML elements (update these to match your HTML)
     const chatInput = document.getElementById('chat-input') || document.querySelector('textarea');
     const micBtn = document.getElementById('btn-mic');
-    const kbdBtn = document.getElementById('btn-keyboard');
 
-    // 2. Virtual Keyboard Focus
-    if (kbdBtn && chatInput) {
-        kbdBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            chatInput.focus();
-            document.getElementById('virtual-keyboard-container').classList.toggle('visible');
-        });
-    }
-
-    // 3. Speech-to-Text via Web Speech API
     if (micBtn && chatInput) {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -1074,7 +1048,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         recognition.onstart = () => {
             isRecording = true;
-            micBtn.style.color = '#ef4444'; // Visual feedback (turns red)
+            micBtn.style.color = '#ef4444';
             chatInput.placeholder = "Listening...";
             chatInput.value = "";
         };
@@ -1091,9 +1065,6 @@ document.addEventListener('DOMContentLoaded', () => {
             isRecording = false;
             micBtn.style.color = '';
             chatInput.placeholder = "Type your message...";
-
-            // Optional: Auto-send to worker when user stops speaking
-            // worker.postMessage({ type: 'query', messages: [{ role: 'user', content: chatInput.value }] });
         };
     }
 });
@@ -1179,7 +1150,6 @@ setupMessageRenderer({
 
 setupModelPanel({
     onApplyModel: (selectedId) => {
-        // Abort any in-progress generation so the worker is free to re-init
         if (workerController.activeGenerations.size > 0) {
             const currentTargetId = workerController.activeGenerations.get(chatManager.currentChatId);
             if (currentTargetId) {
@@ -1243,7 +1213,6 @@ document.getElementById('notesClearBtn')?.addEventListener('click', async () => 
 function _setupNotesPanel() {
     const btn = document.getElementById('notesBtn');
 
-    // ── Accessibility: Escape closes any open modal panel ───────────────────────
     document.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape') return;
         const panels = [
@@ -1258,7 +1227,6 @@ function _setupNotesPanel() {
                 el.classList.remove('open');
                 document.getElementById(overlay)?.classList.remove('visible');
                 e.preventDefault();
-                // Return focus to a sensible place
                 document.getElementById('cmdInput')?.focus();
                 break;
             }
@@ -1332,4 +1300,3 @@ dismissBtn?.addEventListener('click', () => {
     installBanner?.classList.add('hidden');
     safeLocalStorage.setItem('james-pwa-dismissed', 'true');
 });
-

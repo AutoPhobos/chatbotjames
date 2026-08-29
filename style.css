@@ -1,4 +1,63 @@
-/* ═════ VIRTUAL SCROLL SENTINEL ═════ */
+:root {
+    /* Backgrounds & Surfaces */
+    --bg-color: #f8fafc;
+    --bg-surface: #ffffff;
+    --surface-color: #ffffff;
+    --surface-hover: #f1f5f9;
+
+    /* Typography */
+    --text-color: #0f172a;
+    --text-muted: #64748b;
+    --text-inverse: #ffffff;
+
+    /* Primary Brand */
+    --primary-color: #3b82f6;
+    --primary-hover: #2563eb;
+    --primary-active: #1d4ed8;
+
+    /* Structural */
+    --border-color: #e2e8f0;
+    --border-focus: #bfdbfe;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+
+    /* Semantic / Status */
+    --error-color: #ef4444;
+    --error-bg: #fef2f2;
+    --success-color: #22c55e;
+    --success-bg: #f0fdf4;
+    --warning-color: #f59e0b;
+    --warning-bg: #fffbeb;
+    --info-color: #0ea5e9;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-color: #0f172a;
+        --bg-surface: #1e293b;
+        --surface-color: #1e293b;
+        --surface-hover: #334155;
+
+        --text-color: #f8fafc;
+        --text-muted: #94a3b8;
+        --text-inverse: #0f172a;
+
+        --primary-color: #60a5fa;
+        --primary-hover: #3b82f6;
+        --primary-active: #2563eb;
+
+        --border-color: #334155;
+        --border-focus: #3b82f6;
+        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.5);
+
+        --error-color: #f87171;
+        --error-bg: #450a0a;
+        --success-color: #4ade80;
+        --success-bg: #052e16;
+        --warning-color: #fbbf24;
+        --warning-bg: #451a03;
+        --info-color: #38bdf8;
+    }
+}
 .chat-sentinel {
     text-align: center;
     padding: 8px 16px;
@@ -1727,45 +1786,52 @@ a:hover {
     background: #f0f0f0;
 }
 
-/* 1. Strip the white pill wrapper and make it flush */
+/* Container looks like the actual input box */
 .chat-input-wrapper {
-    background: #0d1117 !important;
-    border: none !important;
-    border-top: 1px solid #1f2937 !important;
-    border-radius: 0 !important;
-    padding: 12px 0 !important;
     display: flex;
     align-items: center;
-    gap: 8px;
+    background-color: #000000 !important;
+    border: 1px solid #1f2937 !important;
+    border-radius: 4px !important;
+    padding: 4px 8px !important;
+    width: 100%;
+    box-shadow: inset 0 0 5px rgba(0, 255, 0, 0.1);
 }
 
-/* 2. Style the input field to match the terminal log */
+/* Actual input is transparent and fills space */
 #chat-input {
-    background-color: #000000 !important;
+    flex-grow: 1;
+    background: transparent !important;
     color: #00ff00 !important;
-    border: 1px solid #1f2937 !important;
-    border-radius: 0 !important;
+    border: none !important;
+    outline: none !important;
     font-family: monospace;
-    padding: 12px !important;
-    box-shadow: inset 0 0 5px rgba(0, 255, 0, 0.1);
+    font-size: 16px;
+    padding: 8px !important;
+    box-shadow: none !important;
 }
 
 #chat-input::placeholder {
     color: rgba(0, 255, 0, 0.4) !important;
 }
 
-/* 3. Darken the white icon buttons */
+.action-buttons {
+    display: flex;
+    gap: 2px;
+}
+
+/* Buttons blend seamlessly into the right side */
 .chat-input-wrapper .icon-btn {
-    background: #000000 !important;
-    border: 1px solid #1f2937 !important;
-    border-radius: 0 !important;
-    padding: 8px 12px !important;
+    background: transparent !important;
+    border: none !important;
     color: #8b949e !important;
-    transition: all 0.2s;
+    padding: 8px !important;
+    cursor: pointer;
+    font-size: 16px;
+    transition: color 0.2s;
 }
 
 .chat-input-wrapper .icon-btn:hover {
-    background: #1f2937 !important;
     color: #00ff00 !important;
 }
 
