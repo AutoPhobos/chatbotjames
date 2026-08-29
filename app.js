@@ -26,7 +26,7 @@ const Keyboard = window.SimpleKeyboard.default;
 const inputElement = document.getElementById("chat-input");
 const keyboardContainer = document.getElementById("virtual-keyboard-container");
 
-const keyboard = new Keyboard(document.getElementById("virtual-keyboard-container"), {
+const keyboard = new Keyboard({
     onChange: input => onChange(input),
     onKeyPress: button => onKeyPress(button),
     theme: "hg-theme-default gboard-theme",
