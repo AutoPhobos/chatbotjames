@@ -17,6 +17,24 @@ let isAborted = false;
 let _initLock = false;        // prevents concurrent init messages from racing
 let _pendingInitPreset = null; // stores the latest switch request while one is in-flight
 
+// ── JSON Tool Call Parser ──────────────────────────────────────────────────
+function extractToolCall(text) {
+    if (!text) return null;
+    const regex = /\{\s*['"]tool['"]\s*:\s*['"]([a-zA-Z0-9_]+)['"]\s*,\s*['"]params['"]\s*:\s*(\{[\s\S]*?\})\s*\}/;
+    const match = text.match(regex);
+
+    if (match) {
+        const sanitizedJson = match[0].replace(/'/g, '"');
+        try {
+            return JSON.parse(sanitizedJson);
+        } catch (err) {
+            console.error("Failed to parse tool JSON:", err);
+            return null;
+        }
+    }
+    return null;
+}
+
 function normalizeError(err) {
     let msg = err?.message || String(err);
     msg = msg.replace(/https?:\/\/[^\s]+/g, '(url)');
@@ -64,7 +82,7 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
         self.postMessage({ status: 'warm-start', preset: preset });
         // Dispose the old pipeline before loading a new one to free GPU/WASM memory.
         if (chatbot) {
-            try { chatbot.dispose(); } catch (_) {}
+            try { chatbot.dispose(); } catch (_) { }
             chatbot = null;
         }
         chatbot = await initializeModel(preset.backend, preset.dtype, preset.model);
@@ -78,7 +96,7 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
         if (last) {
             self.postMessage({ status: 'warm-start', preset: last });
             if (chatbot) {
-                try { chatbot.dispose(); } catch (_) {}
+                try { chatbot.dispose(); } catch (_) { }
                 chatbot = null;
             }
             try {
@@ -98,7 +116,7 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
         try {
             self.postMessage({ status: 'warm-start', preset: preset });
             if (chatbot) {
-                try { chatbot.dispose(); } catch (_) {}
+                try { chatbot.dispose(); } catch (_) { }
                 chatbot = null;
             }
             chatbot = await initializeModel(preset.backend, preset.dtype, preset.model);
@@ -118,7 +136,7 @@ async function tryInitializeModels(gpuInfo, isMobile, isTV, forcePresetId = null
         try {
             self.postMessage({ status: 'warm-start', preset: preset });
             if (chatbot) {
-                try { chatbot.dispose(); } catch (_) {}
+                try { chatbot.dispose(); } catch (_) { }
                 chatbot = null;
             }
             chatbot = await initializeModel(preset.backend, preset.dtype, preset.model);
@@ -270,12 +288,26 @@ self.onmessage = async (e) => {
                 finalResponse = accumulatedResponse.trim();
             }
 
-            self.postMessage({
-                status: 'complete',
-                message: finalResponse.trim(),
-                targetId,
-                chatId
-            });
+            // Inspect for tool calls in the output
+            const toolCall = extractToolCall(finalResponse);
+
+            if (toolCall) {
+                self.postMessage({
+                    status: 'tool-call',
+                    tool: toolCall.tool,
+                    params: toolCall.params,
+                    raw: finalResponse,
+                    targetId,
+                    chatId
+                });
+            } else {
+                self.postMessage({
+                    status: 'complete',
+                    message: finalResponse.trim(),
+                    targetId,
+                    chatId
+                });
+            }
         } catch (err) {
             if (err.message === 'AbortGeneration') {
                 self.postMessage({
