@@ -4,6 +4,27 @@
 
 import { executeSearch } from './tools-search.js';
 
+// ── Tool Parsing (Bypass Markdown & sanitize quotes) ───────────────────────
+export function extractToolCall(text) {
+    // Matches {"tool": "...", "params": {...}} using either single or double quotes
+    const regex = /\{\s*['"]tool['"]\s*:\s*['"]([a-zA-Z0-9_]+)['"]\s*,\s*['"]params['"]\s*:\s*(\{[\s\S]*?\})\s*\}/;
+    const match = text.match(regex);
+
+    if (match) {
+        // Sanitize: convert single quotes to double quotes to handle WebGPU model quirks
+        const sanitizedJson = match[0].replace(/'/g, '"');
+
+        try {
+            return JSON.parse(sanitizedJson);
+        } catch (err) {
+            console.error("Failed to parse tool JSON:", err);
+            return null;
+        }
+    }
+    return null;
+}
+
+// ── Tool Execution ─────────────────────────────────────────────────────────
 export async function handleToolCall(toolName, args) {
     switch (toolName) {
         case 'web_search':
