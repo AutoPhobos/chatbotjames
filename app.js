@@ -41,10 +41,26 @@ function renderChatLog() {
             renderChatLog();
         }
     });
+
+    // Restore thinking / streaming bubble for this thread if generation is still in progress.
+    // renderChatLog wipes the DOM (innerHTML = ''), so without this the bubble is lost on
+    // thread switch and never comes back until a new worker event arrives.
+    const targetId = workerController.activeGenerations.get(chatManager.currentChatId);
+    if (targetId != null) {
+        import('./stream-manager.js').then(sm => {
+            // Pause every other stream so background animations cannot inject ghost bubbles
+            sm.pauseStreamsExcept(targetId);
+            sm.resumeStreamForTarget(targetId);
+        });
+    } else {
+        // No active gen on this chat — pause all streams' DOM updates
+        import('./stream-manager.js').then(sm => sm.pauseStreamsExcept(null));
+    }
 }
 
 window.gameController = gameController;
 window.chatManager = chatManager;
+window.workerController = workerController;
 window.renderChatLog = renderChatLog;
 window.globalState = globalState;
 window.sendMessage = sendMessage;
@@ -204,12 +220,15 @@ workerController.onWorkerDone = (data) => {
 };
 
 workerController.onStreaming = (chatId, targetId, message) => {
-    if (chatId === chatManager.currentChatId) {
-        import('./stream-manager.js').then(sm => sm.queueStreamText(targetId, message));
-    }
+    // Always keep stream state so returning to a background thread can restore the bubble.
+    // Only drive the typewriter / DOM when this is the visible chat.
+    const isActive = chatId === chatManager.currentChatId;
+    import('./stream-manager.js').then(sm => sm.queueStreamText(targetId, message, { updateDom: isActive }));
 };
 
 workerController.onThinking = (chatId, targetId) => {
+    // Remember that this generation is in the thinking phase for this thread.
+    // Only paint the bubble if the user is currently viewing that thread.
     if (chatId === chatManager.currentChatId) {
         updateLiveBubble("...", targetId);
     }

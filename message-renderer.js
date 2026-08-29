@@ -147,6 +147,11 @@ export function updateLiveBubble(text, targetId, force = false) {
         // DOM (e.g. the user switched chats and renderChatLog already rebuilt for the new chat),
         // bail out — creating a new element here would insert a ghost bubble into the wrong chat.
         if (force) return;
+        // Safety: only create a live bubble for the generation belonging to the visible thread.
+        // Prevents a background stream timer from injecting a ghost bubble after a thread switch.
+        const activeMap = window.workerController?.activeGenerations;
+        const currentId = window.chatManager?.currentChatId;
+        if (activeMap && currentId != null && activeMap.get(currentId) !== targetId) return;
         const messageWrap = document.createElement('div');
         messageWrap.className = 'message-wrap assistant-msg';
         bubble = document.createElement('div');
