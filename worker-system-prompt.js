@@ -98,6 +98,8 @@ Conversational, helpful, and concise. Use plain language.
 
 EXAMPLES:
 
+NOTE: always insert the tool's json code inside a tool:run block, not on the same line, not on the next line, but inside the tool:run block.
+
 User: "Hi, who are you?"
 +' No tool needed.
 
