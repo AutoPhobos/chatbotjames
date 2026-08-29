@@ -1066,12 +1066,18 @@ function isTVDevice() {
 }
 
 function setupEventListeners() {
-    if (uiManager.sendBtn && uiManager.cmdInput) {
+    // 1. Attach to Send Button ONLY if it exists in the HTML
+    if (uiManager.sendBtn) {
         uiManager.sendBtn.addEventListener('click', () => {
             if (globalState.isGeneratingUI) handleStopGeneration();
             else sendMessage();
         });
-        uiManager.cmdInput.addEventListener('keydown', (e) => {
+    }
+
+    // 2. Attach Enter key directly to the input, ignoring the button's status
+    const chatInput = uiManager.cmdInput || document.getElementById('chat-input');
+    if (chatInput) {
+        chatInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 if (globalState.isGeneratingUI) handleStopGeneration();
@@ -1080,6 +1086,7 @@ function setupEventListeners() {
         });
     }
 
+    // 3. Keep existing Stop button listeners
     document.getElementById('stopButton')?.addEventListener('click', handleStopGeneration);
     document.getElementById('stop-button')?.addEventListener('click', handleStopGeneration);
 }
