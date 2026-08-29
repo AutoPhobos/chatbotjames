@@ -6,14 +6,11 @@ import { executeSearch } from './tools-search.js';
 
 // ── Tool Parsing (Bypass Markdown & sanitize quotes) ───────────────────────
 export function extractToolCall(text) {
-    // Matches {"tool": "...", "params": {...}} using either single or double quotes
     const regex = /\{\s*['"]tool['"]\s*:\s*['"]([a-zA-Z0-9_]+)['"]\s*,\s*['"]params['"]\s*:\s*(\{[\s\S]*?\})\s*\}/;
     const match = text.match(regex);
 
     if (match) {
-        // Sanitize: convert single quotes to double quotes to handle WebGPU model quirks
         const sanitizedJson = match[0].replace(/'/g, '"');
-
         try {
             return JSON.parse(sanitizedJson);
         } catch (err) {
@@ -38,10 +35,77 @@ export async function handleToolCall(toolName, args) {
 }
 
 export function setupToolsBridge(neuralLink) {
-
-    // ── File drop / upload handler ─────────────────────────────────────────
     const log = neuralLink.DOM.log;
+    const cmdInput = neuralLink.DOM.cmd;
 
+    // ── 1. Virtual Keyboard Focus ──────────────────────────────────────────
+    // Replace 'btn-keyboard' with the actual ID of your keyboard button in HTML
+    const kbdBtn = document.getElementById('btn-keyboard') || document.querySelector('[title*="keyboard" i]');
+    if (kbdBtn && cmdInput) {
+        kbdBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            cmdInput.focus();
+        });
+    }
+
+    // ── 2. Speech-to-Text (Microphone) ─────────────────────────────────────
+    // Replace 'btn-mic' with the actual ID of your mic button in HTML
+    const micBtn = document.getElementById('btn-mic') || document.querySelector('[title*="mic" i]');
+    if (micBtn && cmdInput) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (!SpeechRecognition) {
+            console.warn("Speech recognition is not supported in this browser.");
+            micBtn.style.opacity = "0.5";
+            micBtn.title = "Microphone not supported";
+        } else {
+            const recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            let isRecording = false;
+
+            micBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (isRecording) {
+                    recognition.stop();
+                } else {
+                    try { recognition.start(); } catch (err) { console.error(err); }
+                }
+            });
+
+            recognition.onstart = () => {
+                isRecording = true;
+                micBtn.style.color = '#ef4444'; // Turns red while listening
+                cmdInput.placeholder = "Listening...";
+                cmdInput.value = "";
+            };
+
+            recognition.onresult = (event) => {
+                let transcript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    transcript += event.results[i][0].transcript;
+                }
+                cmdInput.value = transcript;
+            };
+
+            recognition.onend = () => {
+                isRecording = false;
+                micBtn.style.color = '';
+                cmdInput.placeholder = "Type your message...";
+            };
+
+            recognition.onerror = (event) => {
+                isRecording = false;
+                micBtn.style.color = '';
+                cmdInput.placeholder = "Type your message...";
+                console.error("Speech recognition error:", event.error);
+            };
+        }
+    }
+
+    // ── 3. File drop / upload handler ──────────────────────────────────────
     log.addEventListener('dragover', (e) => {
         e.preventDefault();
         log.style.outline = '2px dashed #00ff41';
@@ -56,13 +120,11 @@ export function setupToolsBridge(neuralLink) {
         log.style.outline = '';
         const files = Array.from(e.dataTransfer.files);
         if (!files.length) return;
-        // Process all dropped files, not just the first
         for (const file of files) {
             await handleFileUpload(file, neuralLink);
         }
     });
 
-    // File input button (optional — add <input type="file" id="file-input" hidden> to HTML)
     const fileInput = document.getElementById('file-input');
     if (fileInput) {
         fileInput.addEventListener('change', async () => {
@@ -74,15 +136,12 @@ export function setupToolsBridge(neuralLink) {
             fileInput.value = '';
         });
     }
-
-    // Timer display logic moved to direct call via showTimer() export
 }
 
 // ── File upload ────────────────────────────────────────────────────────────
 async function handleFileUpload(file, neuralLink) {
     const maxSize = 1024 * 1024; // 1MB limit
     if (file.size > maxSize) {
-        // Log directly to the chat area instead of circular import
         console.warn(`File too large (max 1MB): ${file.name}`);
         const chatLog = neuralLink.DOM.log;
         if (chatLog) {
@@ -103,7 +162,6 @@ async function handleFileUpload(file, neuralLink) {
 
     console.log(`📎 File uploaded: ${file.name} (${(file.size / 1024).toFixed(1)}KB)`);
 
-    // Inject as a user message
     neuralLink.DOM.cmd.value = prompt;
     neuralLink.submit();
 }
@@ -200,7 +258,6 @@ export function showTimer(seconds, label, neuralLink) {
         div.append('⏱️ ', stopped, ` — stopped at ${fmt(remaining)}`);
     };
 
-    // Request notification permission for timer completion
     if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
         Notification.requestPermission();
     }
