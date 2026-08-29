@@ -1,83 +1,37 @@
-<h1 align="center">JAMES AI</h1>
+# JAMES (Just A Machine, Engineered for Speech)
 
-<p align="center">
-  <strong>A 100% Free, Private, Local AI Chatbot running entirely in your browser.</strong>
-</p>
+![JAMES AI Preview](preview.jpg)
 
-<p align="center">
-  <img src="preview.png" alt="JAMES AI Preview" width="800" />
-</p>
+JAMES is a fully local, browser-native AI assistant designed with privacy as the foundational principle. By leveraging WebAssembly and WebGPU, JAMES runs entirely client-side, ensuring your data never leaves your device. No cloud, no API calls, no accounts—just your machine.
 
-## Overview
+## Core Features
 
-JAMES (Just A Machine Engineered for Speech) is a powerful, client-side AI assistant designed to run directly in your web browser. By leveraging **WebGPU** and **WebAssembly**, JAMES brings the power of Large Language Models (LLMs) locally to your machine without requiring expensive backend servers, API keys, or active internet connections for core inference.
+* **100% Private & Local AI:** All processing happens directly within your browser. There is no server communication for model inference.
+* **Frictionless Access:** Start chatting instantly. No sign-ups, logins, or accounts are required.
+* **Browser-Powered Performance:** Utilizes WASM and WebGPU for fast, hardware-accelerated client-side model execution.
+* **Integrated Python Runtime:** Powered by Pyodide, allowing JAMES to execute Python code securely within the browser environment.
+* **Offline-Capable:** Once the model is cached locally, no active internet connection is needed to chat.
 
-Your conversations never leave your device. 
+## Genesis AI & Living Memory
 
-## Features
+The most significant feature of JAMES is the **Persistent Personal Memory** system. While traditional local LLMs wipe their context the moment you close the tab, JAMES is designed to remember you across sessions without compromising your privacy.
 
-- 🔒 **100% Private & Local:** All AI inference happens securely on your device's GPU.
-- ⚡ **WebGPU Accelerated:** Optimized for high-performance generation in modern browsers.
-- 🐍 **In-Browser Python Execution:** Run Python code securely in the browser via Pyodide for data processing, math, and algorithms.
-- 🌐 **Web Search Capabilities:** Live web search across Google, DuckDuckGo, and Bing for up-to-date information.
-- ♟️ **Interactive Games:** Play full games of Chess and Checkers directly against the AI in the chat interface.
-- 🛠️ **Rich Tool Ecosystem:** Over 15 built-in utilities including weather, currency conversion, calculator, timezone lookups, UUID and password generation, ASCII art, Base64 encoding, hashing (MD5/SHA), color conversions, IP lookups, and more.
-- 💾 **Persistent History:** Chats are saved seamlessly and instantly to your browser's IndexedDB.
-- 🎨 **Robust Markdown Rendering:** Beautiful syntax highlighting, tables, and rich text powered by `marked.js` and secured by `DOMPurify`.
-- 📱 **PWA Ready:** Install JAMES as an app for full offline access.
+* **Client-Side Encryption:** All memories, notes, and session histories are encrypted and stored exclusively on your device using IndexedDB.
+* **Contextual Continuity:** JAMES seamlessly retrieves relevant past interactions to maintain a continuous, living relationship, making conversations increasingly tailored over time.
+* **Zero Server Footprint:** Because the memory storage is strictly local, you get all the benefits of a personalized, long-term AI thought partner without ever creating a profile on a corporate server.
 
-## How It Works
+## Tech Stack
 
-JAMES uses [Transformers.js](https://github.com/xenova/transformers.js) mapped to a dedicated Web Worker (`worker.js`) to load and run quantized models directly into your browser's memory. It intelligently routes your requests, managing state, background tasks, and UI rendering asynchronously to keep your browser snappy.
+* **Frontend:** Vanilla JavaScript, HTML5, CSS3 (No heavy frameworks)
+* **Compute:** WebGPU for accelerated local model execution
+* **Runtime Environments:** ONNX Runtime Web & Pyodide (WASM)
+* **Storage:** IndexedDB for encrypted, persistent chat history and memory
 
-## Installation & Setup
+## Getting Started
 
-Since JAMES is a client-side application, running it locally is incredibly simple:
+Try it live at: [chatbotjames.onrender.com](https://chatbotjames.onrender.com)
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/yourusername/chatbotjames.git
-   cd chatbotjames
-   ```
-
-2. **Serve the directory:**
-   You can use any local web server. For example, using Python:
-   ```bash
-   python -m http.server 8000
-   ```
-   Or using Node.js:
-   ```bash
-   npx serve .
-   ```
-
-3. **Open your browser:**
-   Navigate to `http://localhost:8000`. 
-   
-   *Note: For the best performance, ensure you are using a modern browser with WebGPU enabled (like Chrome 113+ or Edge).*
-
-## Architecture
-
-- `app.js`: Main UI controller and chat state management.
-- `tools/`: A modular ecosystem for tool routing, maps, and parameter rules (`router.js`, `rules.js`, `maps.js`).
-- `worker.js` (and `worker-*.js`): Modular Web Worker handling model initialization, hardware detection, prompt construction, LLM inference, and orchestration.
-- `message-renderer.js`: Safely formats and renders LLM outputs into rich HTML using DOMPurify and Marked.js.
-- `chat-db.js`: Handles async storage of chat history into IndexedDB.
-- `game-logic.js` & `game-ui.js`: Custom engines and UI renderers for interactive in-chat games.
-
-## Privacy
-
-Because JAMES runs locally, it inherently respects your privacy. Chat histories, tool outputs, and generated text are stored strictly on your local disk using standard browser storage APIs. 
-
-## Contributing
-
-Contributions are very welcome! If you have an idea, found a bug, or want to add a new tool or feature:
-1. Check the [Issues](https://github.com/tripping-alien/chatbotjames/issues) tab to see if it's already being discussed.
-2. To report a bug or request a feature, please [open a new Issue](https://github.com/tripping-alien/chatbotjames/issues/new).
-3. To submit code, fork the repository, create a branch, make your changes, and [submit a Pull Request](https://github.com/tripping-alien/chatbotjames/pulls).
-
-## License
-
-MIT License
+*(Note: Because the model runs entirely locally, initial load times may vary based on your hardware and network speed as the browser caches the required WebAssembly files and model weights).*
 
 ---
-*Created by Andrey Lopukhov*
+**Author:** Andrey Lopukhov
