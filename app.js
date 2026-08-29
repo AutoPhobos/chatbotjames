@@ -27,7 +27,31 @@ const Keyboard = window.SimpleKeyboard.default;
 const inputElement = document.getElementById("chat-input");
 const keyboardBtn = document.getElementById("btn-keyboard");
 const keyboardContainer = document.querySelector(".simple-keyboard");
+const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
+function toggleInputLock(isBusy) {
+    const chatInput = document.getElementById("chat-input");
+    const keyboardContainer = document.querySelector(".simple-keyboard");
+
+    // Disable native input to prevent physical keyboard typing
+    chatInput.disabled = isBusy;
+
+    // Toggle the CSS lock on the virtual keyboard
+    if (isBusy) {
+        keyboardContainer.classList.add("keyboard-locked");
+    } else {
+        keyboardContainer.classList.remove("keyboard-locked");
+
+        // Return focus to the input on desktop environments
+        if (typeof isTouchDevice !== 'undefined' && !isTouchDevice) {
+            chatInput.focus();
+        }
+    }
+}
+
+if (!isTouchDevice) {
+    document.getElementById('chat-input').focus();
+}
 // 1. Initialize Keyboard State from LocalStorage
 const isKeyboardOpen = localStorage.getItem("james_keyboard_open") === "true";
 if (!isKeyboardOpen) {
@@ -141,7 +165,7 @@ window.renderChatLog = renderChatLog;
 window.globalState = globalState;
 window.sendMessage = sendMessage;
 
-window.parseToolCall = function(modelOutput) {
+window.parseToolCall = function (modelOutput) {
     if (!modelOutput) return null;
     let cleanText = modelOutput.trim();
 
@@ -258,6 +282,8 @@ workerController.onWorkerStatus = (status, message, e) => {
             uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
             updateStatusLight('idle');
             uiManager.updateStatusText('✅ READY');
+            // Unlock keyboard input
+            toggleInputLock(false);
         }
         if (status === 'aborted' && e.data.chatId) workerController.activeGenerations.delete(e.data.chatId);
         if (status === 'complete' && e.data.chatId) workerController.activeGenerations.delete(e.data.chatId);
@@ -267,7 +293,12 @@ workerController.onWorkerStatus = (status, message, e) => {
             uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
             updateStatusLight('thinking');
         }
-        if (status === 'thinking') uiManager.updateStatusText('🧠 THINKING...');
+        if (status === 'thinking') {
+            uiManager.updateStatusText('THINKING...');
+            // Block keyboard input and disable focus
+            toggleInputLock(true);
+        }
+
         if (status === 'streaming') uiManager.updateStatusText('💬 RESPONDING...');
     }
 };
@@ -300,7 +331,8 @@ workerController.onWorkerDone = (data) => {
         uiManager.updateStatusMeta(`JAMES is online (${backend}${deviceTag})`);
         uiManager.updateProgress(100);
         uiManager.updateStatusText('✅ READY');
-
+        // Unlock keyboard input
+        toggleInputLock(false);
         const runningPreset = globalState.presets.find(
             p => p.backend === data.backend && p.dtype === data.dtype && p.model === data.model
         );
@@ -627,7 +659,9 @@ function sendMessage(preExecutedMove = null) {
 
     uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
     updateStatusLight('thinking');
-    uiManager.updateStatusText('🧠 THINKING...');
+    uiManager.updateStatusText('THINKING...');
+    // Block keyboard input and disable focus
+    toggleInputLock(true);
 
     const messagesForModel = getMessagesWindow(chatManager.chatHistory);
     const targetId = getNextTargetId();
@@ -652,8 +686,9 @@ window.simulateCannedResponse = function (text) {
 
     uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
     updateStatusLight('thinking');
-    uiManager.updateStatusText('🧠 THINKING...');
-
+    uiManager.updateStatusText('THINKING...');
+    // Block keyboard input and disable focus
+    toggleInputLock(true);
     const targetId = getNextTargetId();
     workerController.activeGenerations.set(chatManager.currentChatId, targetId);
     updateLiveBubble('', targetId);
@@ -686,6 +721,8 @@ window.simulateCannedResponse = function (text) {
                     uiManager.setIdleState(true, (v) => globalState.isGeneratingUI = v);
                     updateStatusLight('idle');
                     uiManager.updateStatusText('✅ READY');
+                    // Unlock keyboard input
+                    toggleInputLock(false);
                     workerController.activeGenerations.delete(chatManager.currentChatId);
                 }
                 return;
@@ -908,7 +945,9 @@ async function handleToolCalls(message, targetId, originChatId, _depth = 0) {
         }
 
         if (isActiveChat) {
-            uiManager.updateStatusText('🧠 THINKING...');
+            uiManager.updateStatusText('THINKING...');
+            // Block keyboard input and disable focus
+            toggleInputLock(true);
             const nextTargetId = getNextTargetId();
             workerController.postQuery(getMessagesWindow(targetHistory), nextTargetId, originChatId);
             updateLiveBubble('...', nextTargetId);
@@ -966,6 +1005,8 @@ function initRecovery() {
         uiManager.setIdleState(false, (v) => globalState.isGeneratingUI = v);
         updateStatusLight('thinking');
         uiManager.updateStatusText('⏩ RESUMING...');
+        // Block keyboard input and disable focus
+        toggleInputLock(true);
 
         const targetId = getNextTargetId();
         updateLiveBubble('...', targetId, true);
@@ -1150,6 +1191,9 @@ setupMessageRenderer({
 
 setupModelPanel({
     onApplyModel: (selectedId) => {
+        // Block keyboard input and disable focus
+        toggleInputLock(true);
+
         if (workerController.activeGenerations.size > 0) {
             const currentTargetId = workerController.activeGenerations.get(chatManager.currentChatId);
             if (currentTargetId) {

@@ -58,6 +58,7 @@
         --info-color: #38bdf8;
     }
 }
+
 .chat-sentinel {
     text-align: center;
     padding: 8px 16px;
@@ -1780,6 +1781,14 @@ a:hover {
     padding: 8px;
     border-radius: 50%;
     transition: background 0.2s;
+}
+
+.keyboard-locked {
+    opacity: 0.5;
+    pointer-events: none;
+    user-select: none;
+    filter: grayscale(100%);
+    /* Optional: gives a clear visual cue */
 }
 
 .icon-btn:hover {
