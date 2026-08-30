@@ -172,6 +172,7 @@ body {
     background-image: none;
     color: var(--text-primary);
     text-shadow: 0 0 2px rgba(0, 243, 255, 0.3);
+    height: 100vh; /* fallback for browsers/WebViews without dvh support */
     height: 100dvh;
     overflow: hidden;
     -webkit-font-smoothing: antialiased;
